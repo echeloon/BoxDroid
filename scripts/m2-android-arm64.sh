@@ -29,6 +29,7 @@ TARGET_LIST="${BOXDROID_M2_TARGET_LIST:-i386-softmmu}"
 EXTRA_CFLAGS="${BOXDROID_M2_EXTRA_CFLAGS--DXBOX=1}"
 ENABLE_SDL="${BOXDROID_M2_ENABLE_SDL:-1}"
 M3_RUNTIME="${BOXDROID_M3_RUNTIME:-0}"
+M4_PRESENTER="${BOXDROID_M4_PRESENTER:-0}"
 NEED_I386=0
 if [[ ",${TARGET_LIST}," == *,i386-softmmu,* ]]; then
     NEED_I386=1
@@ -142,6 +143,13 @@ if [[ "$M3_RUNTIME" == 1 ]]; then
     cp "$runtime_source" "$SOURCE/system/boxdroid-runtime.c"
     cp "$runtime_header" "$SOURCE/system/boxdroid-runtime.h"
     cp "$runtime_map" "$SOURCE/system/boxdroid.map"
+    if [[ "$M4_PRESENTER" == 1 ]]; then
+        presenter_source="$ROOT/native/android/m4/boxdroid-vulkan-presenter.cpp"
+        [[ -s "$presenter_source" ]] || die "missing BoxDroid M4 presenter source: $presenter_source"
+        cp "$presenter_source" "$SOURCE/system/boxdroid-vulkan-presenter.cpp"
+    fi
+elif [[ "$M4_PRESENTER" == 1 ]]; then
+    die "M4 presenter requires BOXDROID_M3_RUNTIME=1"
 fi
 
 mkdir -p "$BUILD"
@@ -224,12 +232,19 @@ if [[ ! -e "$BUILD/meson-private/coredata.dat" ]]; then
     if [[ "$M3_RUNTIME" == 1 ]]; then
         configure_args+=( -Dboxdroid_m3_runtime=true )
     fi
+    if [[ "$M4_PRESENTER" == 1 ]]; then
+        configure_args+=( -Dboxdroid_m4_presenter=true )
+    fi
     "$SOURCE/configure" \
         "${configure_args[@]}"
 else
     echo "Reusing configured Meson build at $BUILD"
     if [[ "$M3_RUNTIME" == 1 ]]; then
-        "$HOST_VENV/bin/meson" configure "$BUILD" -Dboxdroid_m3_runtime=true
+        meson_args=( -Dboxdroid_m3_runtime=true )
+        if [[ "$M4_PRESENTER" == 1 ]]; then
+            meson_args+=( -Dboxdroid_m4_presenter=true )
+        fi
+        "$HOST_VENV/bin/meson" configure "$BUILD" "${meson_args[@]}"
     fi
 fi
 

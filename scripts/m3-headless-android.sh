@@ -54,6 +54,7 @@ BOXDROID_M2_EXTRA_CFLAGS= \
 BOXDROID_M2_ENABLE_SDL=0 \
 BOXDROID_M2_STATIC_PIC=1 \
 BOXDROID_M3_RUNTIME=1 \
+BOXDROID_M4_PRESENTER="${BOXDROID_M4_PRESENTER:-0}" \
 JOBS="${JOBS:-4}" \
     "$ROOT/scripts/m2-android-arm64.sh"
 
@@ -63,6 +64,11 @@ ninja -C "$BUILD" -j"${JOBS:-4}" libboxdroid.so
     -Wl,-Ttext=0x40080000 -Wl,-e,_start -Wl,--build-id=none \
     "$ROOT/native/android/m3/tcg-guest.S" -o "$HARNESS_INPUT/assets/guest.elf"
 cp "$BUILD/libboxdroid.so" "$HARNESS_INPUT/jniLibs/$ABI/libboxdroid.so"
+if [[ "${BOXDROID_M4_PRESENTER:-0}" == 1 ]]; then
+    libcxx_shared="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so"
+    [[ -s "$libcxx_shared" ]] || die "missing NDK ARM64 libc++_shared.so: $libcxx_shared"
+    cp "$libcxx_shared" "$HARNESS_INPUT/jniLibs/$ABI/libc++_shared.so"
+fi
 
 "$NDK_BIN/llvm-readelf" -h -d "$BUILD/libboxdroid.so" > "$RESULTS/libboxdroid-readelf.txt"
 "$NDK_BIN/llvm-nm" -D --defined-only "$BUILD/libboxdroid.so" > "$RESULTS/libboxdroid-exports.txt"
@@ -92,7 +98,7 @@ for ((run = 1; run <= LAUNCH_COUNT; run++)); do
     "${ADB[@]}" shell am force-stop "$PACKAGE"
     "${ADB[@]}" shell run-as "$PACKAGE" rm -f files/m3-result.txt files/guest-uart.log files/qemu-tcg.log files/qemu-tcg.log.stderr
     "${ADB[@]}" logcat -c
-    "${ADB[@]}" shell am start -W -n "$ACTIVITY" > "$run_dir/am-start.txt"
+    "${ADB[@]}" shell am start -W -n "$ACTIVITY" --es boxdroid.mode m3 > "$run_dir/am-start.txt"
     pid="$("${ADB[@]}" shell pidof "$PACKAGE" | tr -d '\r')"
     echo "run=$run pid=$pid previous_pid=$previous_pid" | tee "$run_dir/process.txt"
     [[ -n "$pid" ]] || die "app process did not start on run $run"
