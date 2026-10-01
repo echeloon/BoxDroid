@@ -1,0 +1,673 @@
+diff --git a/backends/meson.build b/backends/meson.build
+index 60021f45d1..9ca6b21cc8 100644
+--- a/backends/meson.build
++++ b/backends/meson.build
+@@ -31 +31,3 @@ system_ss.add(when: 'CONFIG_VIRTIO_CRYPTO', if_true: files('cryptodev-vhost.c'))
+-system_ss.add(when: 'CONFIG_IOMMUFD', if_true: files('iommufd.c'))
++if host_os != 'android'
++  system_ss.add(when: 'CONFIG_IOMMUFD', if_true: files('iommufd.c'))
++endif
+diff --git a/block/file-posix.c b/block/file-posix.c
+index 6265d2e248..eca7488a67 100644
+--- a/block/file-posix.c
++++ b/block/file-posix.c
+@@ -1249 +1249 @@ static int hdev_get_max_hw_transfer(int fd, struct stat *st)
+-#ifdef CONFIG_LINUX
++#if defined(CONFIG_LINUX) || defined(__ANDROID__)
+@@ -1300 +1300 @@ static int get_sysfs_zoned_model(struct stat *st, BlockZoneModel *zoned)
+-#ifdef CONFIG_LINUX
++#if defined(CONFIG_LINUX) || defined(__ANDROID__)
+@@ -1351 +1351 @@ static int hdev_get_max_segments(int fd, struct stat *st)
+-#ifdef CONFIG_LINUX
++#if defined(CONFIG_LINUX) || defined(__ANDROID__)
+@@ -1372 +1372 @@ static int hdev_get_pdiscard_alignment(struct stat *st, uint32_t *dalign)
+-#ifdef CONFIG_LINUX
++#if defined(CONFIG_LINUX) || defined(__ANDROID__)
+diff --git a/configure b/configure
+index 410bf21b1c..ca954a1957 100755
+--- a/configure
++++ b/configure
+@@ -346 +346,3 @@ EOF
+-if check_define __linux__ ; then
++if check_define __ANDROID__ ; then
++  host_os=android
++elif check_define __linux__ ; then
+@@ -1871,0 +1874,3 @@ if test "$skip_meson" = no; then
++  if test "$host_os" = android && test -n "$BOXDROID_CMAKE_TOOLCHAIN_FILE"; then
++      echo "cmake_toolchain_file = $(meson_quote "$BOXDROID_CMAKE_TOOLCHAIN_FILE")" >> $cross
++  fi
+@@ -1944,0 +1950,3 @@ if test "$skip_meson" = no; then
++    if test "$host_os" = android && test -n "$ANDROID_NATIVE_API_LEVEL"; then
++      echo "system_version = '$ANDROID_NATIVE_API_LEVEL'" >> $cross
++    fi
+diff --git a/fsdev/9p-iov-marshal.c b/fsdev/9p-iov-marshal.c
+index 0c5a1a0fa2..16e945f11a 100644
+--- a/fsdev/9p-iov-marshal.c
++++ b/fsdev/9p-iov-marshal.c
+@@ -282 +282 @@ ssize_t v9fs_iov_vmarshal(struct iovec *in_sg, int in_num, size_t offset,
+-                                      statp->st_atime_nsec,
++                                      statp->atime_nsec,
+@@ -284 +284 @@ ssize_t v9fs_iov_vmarshal(struct iovec *in_sg, int in_num, size_t offset,
+-                                      statp->st_mtime_nsec,
++                                      statp->mtime_nsec,
+@@ -286 +286 @@ ssize_t v9fs_iov_vmarshal(struct iovec *in_sg, int in_num, size_t offset,
+-                                      statp->st_ctime_nsec,
++                                      statp->ctime_nsec,
+diff --git a/fsdev/9p-marshal.h b/fsdev/9p-marshal.h
+index 8995e42067..71d4e6907c 100644
+--- a/fsdev/9p-marshal.h
++++ b/fsdev/9p-marshal.h
+@@ -62 +62 @@ typedef struct V9fsStatDotl {
+-    uint64_t st_atime_nsec;
++    uint64_t atime_nsec;
+@@ -64 +64 @@ typedef struct V9fsStatDotl {
+-    uint64_t st_mtime_nsec;
++    uint64_t mtime_nsec;
+@@ -66 +66 @@ typedef struct V9fsStatDotl {
+-    uint64_t st_ctime_nsec;
++    uint64_t ctime_nsec;
+diff --git a/hw/9pfs/9p.c b/hw/9pfs/9p.c
+index bc4a016ee3..62f29172dd 100644
+--- a/hw/9pfs/9p.c
++++ b/hw/9pfs/9p.c
+@@ -1378,3 +1378,3 @@ static int stat_to_v9stat_dotl(V9fsPDU *pdu, const struct stat *stbuf,
+-    v9lstat->st_atime_nsec = stbuf->st_atimespec.tv_nsec;
+-    v9lstat->st_mtime_nsec = stbuf->st_mtimespec.tv_nsec;
+-    v9lstat->st_ctime_nsec = stbuf->st_ctimespec.tv_nsec;
++    v9lstat->atime_nsec = stbuf->st_atimespec.tv_nsec;
++    v9lstat->mtime_nsec = stbuf->st_mtimespec.tv_nsec;
++    v9lstat->ctime_nsec = stbuf->st_ctimespec.tv_nsec;
+@@ -1382,3 +1382,3 @@ static int stat_to_v9stat_dotl(V9fsPDU *pdu, const struct stat *stbuf,
+-    v9lstat->st_atime_nsec = stbuf->st_atim.tv_nsec;
+-    v9lstat->st_mtime_nsec = stbuf->st_mtim.tv_nsec;
+-    v9lstat->st_ctime_nsec = stbuf->st_ctim.tv_nsec;
++    v9lstat->atime_nsec = stbuf->st_atim.tv_nsec;
++    v9lstat->mtime_nsec = stbuf->st_mtim.tv_nsec;
++    v9lstat->ctime_nsec = stbuf->st_ctim.tv_nsec;
+diff --git a/hw/9pfs/meson.build b/hw/9pfs/meson.build
+index 7f4d6e3a45..826cb52f8a 100644
+--- a/hw/9pfs/meson.build
++++ b/hw/9pfs/meson.build
+@@ -24 +24,6 @@ fs_ss.add(when: 'CONFIG_XEN_BUS', if_true: files('xen-9p-backend.c'))
+-system_ss.add_all(when: 'CONFIG_FSDEV_9P', if_true: fs_ss)
++# The local 9p host backend depends on Linux/macOS/FreeBSD filesystem APIs.
++# Android does not enable virtfs and Bionic does not provide the host API set
++# expected by this backend; do not compile its unused host implementation.
++if host_os != 'android'
++  system_ss.add_all(when: 'CONFIG_FSDEV_9P', if_true: fs_ss)
++endif
+diff --git a/hw/hyperv/hyperv.c b/hw/hyperv/hyperv.c
+index e4d0688dbf..07d1d0dfc5 100644
+--- a/hw/hyperv/hyperv.c
++++ b/hw/hyperv/hyperv.c
+@@ -676,0 +677 @@ static int set_event_flag_handler(uint32_t conn_id, EventNotifier *notifier)
++#if !defined(__ANDROID__)
+@@ -677,0 +679 @@ static bool process_event_flags_userspace;
++#endif
+@@ -680,0 +683,5 @@ int hyperv_set_event_flag_handler(uint32_t conn_id, EventNotifier *notifier)
++#if defined(__ANDROID__)
++    /* Android's NDK does not expose KVM Hyper-V eventfd ioctls, and BoxDroid
++     * uses TCG rather than a host KVM accelerator. */
++    return set_event_flag_handler(conn_id, notifier);
++#else
+@@ -698,0 +706 @@ int hyperv_set_event_flag_handler(uint32_t conn_id, EventNotifier *notifier)
++#endif
+diff --git a/hw/remote/meson.build b/hw/remote/meson.build
+index 41eb4971d9..a62ddc5606 100644
+--- a/hw/remote/meson.build
++++ b/hw/remote/meson.build
+@@ -3,7 +3,8 @@ remote_ss = ss.source_set()
+-remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('machine.c'))
+-remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('mpqemu-link.c'))
+-remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('message.c'))
+-remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('remote-obj.c'))
+-remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('proxy.c'))
+-remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('iohub.c'))
+-remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('iommu.c'))
++if host_os == 'linux'
++  remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('machine.c'))
++  remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('mpqemu-link.c'))
++  remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('message.c'))
++  remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('remote-obj.c'))
++  remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('proxy.c'))
++  remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('iohub.c'))
++  remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('iommu.c'))
+@@ -11,3 +12,3 @@ remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('iommu.c'))
+-remote_ss.add(when: 'CONFIG_VFIO_USER_SERVER', if_true: libvfio_user_dep)
+-remote_ss.add(when: 'CONFIG_VFIO_USER_SERVER', if_true: files('vfio-user-obj.c'),
+-              if_false: files('vfio-user-obj-stub.c'))
++  remote_ss.add(when: 'CONFIG_VFIO_USER_SERVER', if_true: libvfio_user_dep)
++  remote_ss.add(when: 'CONFIG_VFIO_USER_SERVER', if_true: files('vfio-user-obj.c'),
++                if_false: files('vfio-user-obj-stub.c'))
+@@ -15,2 +16,2 @@ remote_ss.add(when: 'CONFIG_VFIO_USER_SERVER', if_true: files('vfio-user-obj.c')
+-specific_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('memory.c'))
+-specific_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('proxy-memory-listener.c'))
++  specific_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('memory.c'))
++  specific_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('proxy-memory-listener.c'))
+@@ -18 +19,2 @@ specific_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('proxy-memory-listen
+-system_ss.add_all(when: 'CONFIG_MULTIPROCESS', if_true: remote_ss)
++  system_ss.add_all(when: 'CONFIG_MULTIPROCESS', if_true: remote_ss)
++endif
+diff --git a/hw/scsi/meson.build b/hw/scsi/meson.build
+index b874fe1ecd..5b3bb85b11 100644
+--- a/hw/scsi/meson.build
++++ b/hw/scsi/meson.build
+@@ -21 +21,5 @@ virtio_scsi_ss.add(files('virtio-scsi-dataplane.c'))
+-virtio_scsi_ss.add(when: 'CONFIG_VHOST_SCSI', if_true: files('vhost-scsi.c'))
++if host_os != 'android'
++  # Android's NDK UAPI virtio headers conflict with QEMU's vendored standard
++  # headers, and kernel vhost-scsi is not an Android userspace facility.
++  virtio_scsi_ss.add(when: 'CONFIG_VHOST_SCSI', if_true: files('vhost-scsi.c'))
++endif
+diff --git a/hw/scsi/scsi-disk.c b/hw/scsi/scsi-disk.c
+index b4782c6248..a1e155100c 100644
+--- a/hw/scsi/scsi-disk.c
++++ b/hw/scsi/scsi-disk.c
+@@ -47 +47 @@
+-#ifdef __linux
++#if defined(__linux) && !defined(__ANDROID__)
+@@ -2739 +2739 @@ static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
+-#ifdef __linux__
++#if defined(__linux__) && !defined(__ANDROID__)
+@@ -3290 +3290 @@ static const TypeInfo scsi_cd_info = {
+-#ifdef __linux__
++#if defined(__linux__) && !defined(__ANDROID__)
+@@ -3336 +3336 @@ static void scsi_disk_register_types(void)
+-#ifdef __linux__
++#if defined(__linux__) && !defined(__ANDROID__)
+diff --git a/hw/scsi/scsi-generic.c b/hw/scsi/scsi-generic.c
+index 9e380a2109..0146973096 100644
+--- a/hw/scsi/scsi-generic.c
++++ b/hw/scsi/scsi-generic.c
+@@ -27 +27 @@
+-#ifdef __linux__
++#if defined(__linux__) && !defined(__ANDROID__)
+@@ -818 +818 @@ type_init(scsi_generic_register_types)
+-#endif /* __linux__ */
++#endif /* Linux host (excluding Android) */
+diff --git a/hw/tpm/meson.build b/hw/tpm/meson.build
+index 6968e60b3f..5241fb8ac6 100644
+--- a/hw/tpm/meson.build
++++ b/hw/tpm/meson.build
+@@ -1,7 +1,9 @@
+-system_ss.add(when: 'CONFIG_TPM_TIS', if_true: files('tpm_tis_common.c'))
+-system_ss.add(when: 'CONFIG_TPM_TIS_ISA', if_true: files('tpm_tis_isa.c'))
+-system_ss.add(when: 'CONFIG_TPM_TIS_SYSBUS', if_true: files('tpm_tis_sysbus.c'))
+-system_ss.add(when: 'CONFIG_TPM_TIS_I2C', if_true: files('tpm_tis_i2c.c'))
+-system_ss.add(when: 'CONFIG_TPM_CRB', if_true: files('tpm_crb.c'))
+-system_ss.add(when: 'CONFIG_TPM_TIS', if_true: files('tpm_ppi.c'))
+-system_ss.add(when: 'CONFIG_TPM_CRB', if_true: files('tpm_ppi.c'))
++if host_os != 'android'
++  system_ss.add(when: 'CONFIG_TPM_TIS', if_true: files('tpm_tis_common.c'))
++  system_ss.add(when: 'CONFIG_TPM_TIS_ISA', if_true: files('tpm_tis_isa.c'))
++  system_ss.add(when: 'CONFIG_TPM_TIS_SYSBUS', if_true: files('tpm_tis_sysbus.c'))
++  system_ss.add(when: 'CONFIG_TPM_TIS_I2C', if_true: files('tpm_tis_i2c.c'))
++  system_ss.add(when: 'CONFIG_TPM_CRB', if_true: files('tpm_crb.c'))
++  system_ss.add(when: 'CONFIG_TPM_TIS', if_true: files('tpm_ppi.c'))
++  system_ss.add(when: 'CONFIG_TPM_CRB', if_true: files('tpm_ppi.c'))
++endif
+@@ -9 +11,3 @@ system_ss.add(when: 'CONFIG_TPM_CRB', if_true: files('tpm_ppi.c'))
+-specific_ss.add(when: 'CONFIG_TPM_SPAPR', if_true: files('tpm_spapr.c'))
++if host_os != 'android'
++  specific_ss.add(when: 'CONFIG_TPM_SPAPR', if_true: files('tpm_spapr.c'))
++endif
+diff --git a/hw/vfio-user/meson.build b/hw/vfio-user/meson.build
+index 2ed0ae5b1d..702c670e5e 100644
+--- a/hw/vfio-user/meson.build
++++ b/hw/vfio-user/meson.build
+@@ -4,6 +4,7 @@ vfio_user_ss = ss.source_set()
+-vfio_user_ss.add(files(
+-  'container.c',
+-  'device.c',
+-  'pci.c',
+-  'proxy.c',
+-))
++if host_os != 'android'
++  vfio_user_ss.add(files(
++    'container.c',
++    'device.c',
++    'pci.c',
++    'proxy.c',
++  ))
+@@ -11 +12,2 @@ vfio_user_ss.add(files(
+-system_ss.add_all(when: 'CONFIG_VFIO_USER', if_true: vfio_user_ss)
++  system_ss.add_all(when: 'CONFIG_VFIO_USER', if_true: vfio_user_ss)
++endif
+diff --git a/hw/vfio/meson.build b/hw/vfio/meson.build
+index 82f68698fb..cd16d43d74 100644
+--- a/hw/vfio/meson.build
++++ b/hw/vfio/meson.build
+@@ -4,14 +4,15 @@ vfio_ss = ss.source_set()
+-vfio_ss.add(files(
+-  'listener.c',
+-  'container.c',
+-  'container-legacy.c',
+-  'helpers.c',
+-))
+-vfio_ss.add(when: 'CONFIG_PSERIES', if_true: files('spapr.c'))
+-vfio_ss.add(when: 'CONFIG_VFIO_PCI', if_true: files(
+-  'pci-quirks.c',
+-  'pci.c',
+-))
+-vfio_ss.add(when: 'CONFIG_VFIO_CCW', if_true: files('ccw.c'))
+-vfio_ss.add(when: 'CONFIG_VFIO_AP', if_true: files('ap.c'))
+-vfio_ss.add(when: 'CONFIG_VFIO_IGD', if_true: files('igd.c'))
++if host_os != 'android'
++  vfio_ss.add(files(
++    'listener.c',
++    'container.c',
++    'container-legacy.c',
++    'helpers.c',
++  ))
++  vfio_ss.add(when: 'CONFIG_PSERIES', if_true: files('spapr.c'))
++  vfio_ss.add(when: 'CONFIG_VFIO_PCI', if_true: files(
++    'pci-quirks.c',
++    'pci.c',
++  ))
++  vfio_ss.add(when: 'CONFIG_VFIO_CCW', if_true: files('ccw.c'))
++  vfio_ss.add(when: 'CONFIG_VFIO_AP', if_true: files('ap.c'))
++  vfio_ss.add(when: 'CONFIG_VFIO_IGD', if_true: files('igd.c'))
+@@ -19 +20 @@ vfio_ss.add(when: 'CONFIG_VFIO_IGD', if_true: files('igd.c'))
+-specific_ss.add_all(when: 'CONFIG_VFIO', if_true: vfio_ss)
++  specific_ss.add_all(when: 'CONFIG_VFIO', if_true: vfio_ss)
+@@ -21,16 +22,17 @@ specific_ss.add_all(when: 'CONFIG_VFIO', if_true: vfio_ss)
+-system_ss.add(when: 'CONFIG_VFIO', if_true: files(
+-  'cpr.c',
+-  'cpr-legacy.c',
+-  'device.c',
+-  'migration.c',
+-  'migration-multifd.c',
+-  'region.c',
+-))
+-system_ss.add(when: ['CONFIG_VFIO', 'CONFIG_IOMMUFD'], if_true: files(
+-  'iommufd.c',
+-  'cpr-iommufd.c',
+-))
+-system_ss.add(when: 'CONFIG_IOMMUFD', if_false: files('iommufd-stubs.c'))
+-system_ss.add(when: 'CONFIG_VFIO_PCI', if_true: files(
+-  'display.c',
+-))
++  system_ss.add(when: 'CONFIG_VFIO', if_true: files(
++    'cpr.c',
++    'cpr-legacy.c',
++    'device.c',
++    'migration.c',
++    'migration-multifd.c',
++    'region.c',
++  ))
++  system_ss.add(when: ['CONFIG_VFIO', 'CONFIG_IOMMUFD'], if_true: files(
++    'iommufd.c',
++    'cpr-iommufd.c',
++  ))
++  system_ss.add(when: 'CONFIG_IOMMUFD', if_false: files('iommufd-stubs.c'))
++  system_ss.add(when: 'CONFIG_VFIO_PCI', if_true: files(
++    'display.c',
++  ))
++endif
+diff --git a/hw/virtio/meson.build b/hw/virtio/meson.build
+index affd66887d..0c29b3d98b 100644
+--- a/hw/virtio/meson.build
++++ b/hw/virtio/meson.build
+@@ -10 +10,5 @@ system_virtio_ss.add(when: 'CONFIG_VIRTIO_IOMMU', if_true: files('virtio-iommu.c
+-system_virtio_ss.add(when: 'CONFIG_VHOST_VDPA_DEV', if_true: files('vdpa-dev.c'))
++if host_os != 'android'
++  # The NDK ships partial kernel UAPI headers that conflict with QEMU's
++  # vendored virtio headers; Android apps cannot use kernel vDPA devices.
++  system_virtio_ss.add(when: 'CONFIG_VHOST_VDPA_DEV', if_true: files('vdpa-dev.c'))
++endif
+@@ -88 +92,3 @@ virtio_pci_ss.add(when: 'CONFIG_VIRTIO_MEM', if_true: files('virtio-mem-pci.c'))
+-virtio_pci_ss.add(when: 'CONFIG_VHOST_VDPA_DEV', if_true: files('vdpa-dev-pci.c'))
++if host_os != 'android'
++  virtio_pci_ss.add(when: 'CONFIG_VHOST_VDPA_DEV', if_true: files('vdpa-dev-pci.c'))
++endif
+diff --git a/hw/xbox/nv2a/pgraph/gl/meson.build b/hw/xbox/nv2a/pgraph/gl/meson.build
+index c19a542adb..b42c6b71f1 100644
+--- a/hw/xbox/nv2a/pgraph/gl/meson.build
++++ b/hw/xbox/nv2a/pgraph/gl/meson.build
+@@ -1,12 +1,13 @@
+-specific_ss.add([sdl, gloffscreen, files(
+-	'blit.c',
+-	'debug.c',
+-	'display.c',
+-	'draw.c',
+-	'gpuprops.c',
+-	'renderer.c',
+-	'reports.c',
+-	'shaders.c',
+-	'surface.c',
+-	'texture.c',
+-	'vertex.c',
++if opengl.found()
++	specific_ss.add([sdl, gloffscreen, files(
++		'blit.c',
++		'debug.c',
++		'display.c',
++		'draw.c',
++		'gpuprops.c',
++		'renderer.c',
++		'reports.c',
++		'shaders.c',
++		'surface.c',
++		'texture.c',
++		'vertex.c',
+@@ -13,0 +15 @@ specific_ss.add([sdl, gloffscreen, files(
++endif
+diff --git a/hw/xbox/nv2a/pgraph/thirdparty/meson.build b/hw/xbox/nv2a/pgraph/thirdparty/meson.build
+index fbc3751ea7..d8cd6715e1 100644
+--- a/hw/xbox/nv2a/pgraph/thirdparty/meson.build
++++ b/hw/xbox/nv2a/pgraph/thirdparty/meson.build
+@@ -14,5 +14,8 @@ nv2a_vsh_cpu = declare_dependency(include_directories: nv2a_vsh_cpu_subproj.incl
+-libgloffscreen = static_library('libgloffscreen',
+-                          sources: files('gloffscreen/common.c', 'gloffscreen/sdl.c'),
+-                          dependencies: sdl)
+-gloffscreen = declare_dependency(link_with: libgloffscreen,
+-                           include_directories: ['gloffscreen'])
++gloffscreen = not_found
++if opengl.found()
++	libgloffscreen = static_library('libgloffscreen',
++	                          sources: files('gloffscreen/common.c', 'gloffscreen/sdl.c'),
++	                          dependencies: sdl)
++	gloffscreen = declare_dependency(link_with: libgloffscreen,
++	                           include_directories: ['gloffscreen'])
++endif
+diff --git a/hw/xbox/nv2a/pgraph/vk/display.c b/hw/xbox/nv2a/pgraph/vk/display.c
+index 6b9e5851c4..388c835f84 100644
+--- a/hw/xbox/nv2a/pgraph/vk/display.c
++++ b/hw/xbox/nv2a/pgraph/vk/display.c
+@@ -581 +580,0 @@ static void create_display_image(PGRAPHState *pg, int width, int height)
+-    const GLint gl_internal_format = GL_RGBA8;
+@@ -584,0 +584 @@ static void create_display_image(PGRAPHState *pg, int width, int height)
++    const GLint gl_internal_format = GL_RGBA8;
+@@ -619,0 +620 @@ static void create_display_image(PGRAPHState *pg, int width, int height)
++#if HAVE_EXTERNAL_MEMORY
+@@ -628,0 +630 @@ static void create_display_image(PGRAPHState *pg, int width, int height)
++#endif
+@@ -643,0 +646 @@ static void create_display_image(PGRAPHState *pg, int width, int height)
++#if HAVE_EXTERNAL_MEMORY
+@@ -654,0 +658 @@ static void create_display_image(PGRAPHState *pg, int width, int height)
++#endif
+diff --git a/hw/xbox/nv2a/pgraph/vk/renderer.c b/hw/xbox/nv2a/pgraph/vk/renderer.c
+index 4272bbceb6..341f97ce51 100644
+--- a/hw/xbox/nv2a/pgraph/vk/renderer.c
++++ b/hw/xbox/nv2a/pgraph/vk/renderer.c
+@@ -23,2 +22,0 @@
+-#include "gloffscreen.h"
+-
+@@ -25,0 +24 @@
++#include "gloffscreen.h"
+@@ -174,0 +174 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
++#if HAVE_EXTERNAL_MEMORY
+@@ -175,0 +176 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
++#endif
+diff --git a/hw/xbox/nv2a/pgraph/vk/renderer.h b/hw/xbox/nv2a/pgraph/vk/renderer.h
+index deb8762225..ed3bc5535c 100644
+--- a/hw/xbox/nv2a/pgraph/vk/renderer.h
++++ b/hw/xbox/nv2a/pgraph/vk/renderer.h
+@@ -43,0 +44 @@
++#ifdef CONFIG_OPENGL
+@@ -44,0 +46,3 @@
++#else
++#define HAVE_EXTERNAL_MEMORY 0
++#endif
+@@ -289 +293,2 @@ typedef struct PGRAPHVkDisplayState {
+-    // OpenGL Interop
++#if HAVE_EXTERNAL_MEMORY
++    // OpenGL interop with the desktop display backend.
+@@ -296,0 +302 @@ typedef struct PGRAPHVkDisplayState {
++#endif
+diff --git a/meson.build b/meson.build
+index 82e5f5af65..9376478dc7 100644
+--- a/meson.build
++++ b/meson.build
+@@ -5,0 +6,7 @@ project('qemu', ['c', 'cpp'], meson_version: '>=1.5.0',
++# Cross builds need build-machine C/C++ compilers for host generators (for
++# example target/hexagon/gen_semantics.c). Configure supplies these through
++# its native file; the target compilers above remain Android/Bionic.
++if meson.is_cross_build()
++  add_languages('c', 'cpp', native: true, required: true)
++endif
++
+@@ -53 +60 @@ bsd_oses = ['gnu/kfreebsd', 'freebsd', 'netbsd', 'openbsd', 'dragonfly', 'darwin
+-supported_oses = ['windows', 'freebsd', 'netbsd', 'openbsd', 'darwin', 'sunos', 'linux', 'emscripten']
++supported_oses = ['windows', 'freebsd', 'netbsd', 'openbsd', 'darwin', 'sunos', 'linux', 'android', 'emscripten']
+@@ -1397 +1404 @@ rt = not_found
+-if host_os != 'windows'
++if host_os != 'windows' and cc.get_define('__ANDROID__') == ''
+@@ -1462,33 +1469,36 @@ endif
+-curl = dependency('libcurl', version: '>=7.29.0',
+-                  method: 'pkg-config',
+-                  required: false)
+-if not curl.found()
+-  if host_os == 'windows'
+-    curl_platform_opts = ['schannel=enabled', 'sspi=enabled']
+-  elif host_os == 'darwin'
+-    curl_platform_opts = ['secure-transport=enabled']
+-  else
+-    curl_platform_opts = ['openssl=enabled']
+-  endif
+-  curl_sub = subproject('curl',
+-    default_options: [
+-      'ssl=enabled',
+-      'http=enabled',
+-      'ftp=enabled',
+-      'dict=disabled',
+-      'file=disabled',
+-      'gopher=disabled',
+-      'imap=disabled',
+-      'ldap=disabled',
+-      'ldaps=disabled',
+-      'mqtt=disabled',
+-      'pop3=disabled',
+-      'rtmp=disabled',
+-      'rtsp=disabled',
+-      'smb=disabled',
+-      'smtp=disabled',
+-      'telnet=disabled',
+-      'tftp=disabled',
+-      'default_library=static',
+-    ] + curl_platform_opts)
+-  curl = curl_sub.get_variable('curl_dep')
++curl = not_found
++if not get_option('curl').disabled()
++  curl = dependency('libcurl', version: '>=7.29.0',
++                    method: 'pkg-config',
++                    required: false)
++  if not curl.found()
++    if host_os == 'windows'
++      curl_platform_opts = ['schannel=enabled', 'sspi=enabled']
++    elif host_os == 'darwin'
++      curl_platform_opts = ['secure-transport=enabled']
++    else
++      curl_platform_opts = ['openssl=enabled']
++    endif
++    curl_sub = subproject('curl',
++      default_options: [
++        'ssl=enabled',
++        'http=enabled',
++        'ftp=enabled',
++        'dict=disabled',
++        'file=disabled',
++        'gopher=disabled',
++        'imap=disabled',
++        'ldap=disabled',
++        'ldaps=disabled',
++        'mqtt=disabled',
++        'pop3=disabled',
++        'rtmp=disabled',
++        'rtsp=disabled',
++        'smb=disabled',
++        'smtp=disabled',
++        'telnet=disabled',
++        'tftp=disabled',
++        'default_library=static',
++      ] + curl_platform_opts)
++    curl = curl_sub.get_variable('curl_dep')
++  endif
+@@ -1888 +1898,2 @@ opengl = not_found
+-if not get_option('opengl').auto() or have_system or have_vhost_user_gpu
++if not get_option('opengl').disabled() and \
++   (not get_option('opengl').auto() or have_system or have_vhost_user_gpu)
+@@ -2392 +2403 @@ if host_os == 'windows'
+-elif host_os == 'linux'
++elif host_os in ['linux', 'android']
+@@ -2431,5 +2442,9 @@ endif
+-if host_os == 'windows'
+-  libpcap = declare_dependency(include_directories: 'winpcap-loader/include',
+-                               link_args: ['-lws2_32'])
+-else
+-  libpcap = dependency('libpcap', method: 'pkg-config', required: true)
++libpcap = not_found
++if not get_option('libpcap').disabled()
++  if host_os == 'windows'
++    libpcap = declare_dependency(include_directories: 'winpcap-loader/include',
++                                 link_args: ['-lws2_32'])
++  else
++    libpcap = dependency('libpcap', method: 'pkg-config',
++                         required: get_option('libpcap'))
++  endif
+@@ -2439,0 +2455 @@ libsamplerate = dependency('samplerate', method: 'pkg-config', required: true)
++imgui_opengl = get_option('opengl').disabled() ? 'disabled' : 'enabled'
+@@ -2448 +2464 @@ imgui_proj = subproject('imgui', required: true,
+-                           'opengl=enabled',
++                           'opengl=' + imgui_opengl,
+@@ -3359 +3375 @@ elif host_os == 'windows'
+-elif host_os == 'linux'
++elif host_os in ['linux', 'android']
+diff --git a/meson_options.txt b/meson_options.txt
+index b1e7b3484d..ef622e1d05 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -242,0 +243,2 @@ option('netmap', type : 'feature', value : 'auto',
++option('libpcap', type : 'feature', value : 'enabled',
++       description: 'libpcap network capture backend')
+diff --git a/migration/postcopy-ram.c b/migration/postcopy-ram.c
+index 715ef021a9..94acde2487 100644
+--- a/migration/postcopy-ram.c
++++ b/migration/postcopy-ram.c
+@@ -103 +103 @@ void postcopy_thread_create(MigrationIncomingState *mis,
+-#if defined(__linux__)
++#if defined(CONFIG_LINUX)
+@@ -109 +109 @@ void postcopy_thread_create(MigrationIncomingState *mis,
+-#if defined(__linux__) && defined(__NR_userfaultfd) && defined(CONFIG_EVENTFD)
++#if defined(CONFIG_LINUX) && defined(__NR_userfaultfd) && defined(CONFIG_EVENTFD)
+diff --git a/migration/ram.c b/migration/ram.c
+index 29f016cb25..ea21982575 100644
+--- a/migration/ram.c
++++ b/migration/ram.c
+@@ -69 +69 @@
+-#if defined(__linux__)
++#if defined(CONFIG_LINUX)
+@@ -71 +71 @@
+-#endif /* defined(__linux__) */
++#endif /* defined(CONFIG_LINUX) */
+@@ -1469 +1469 @@ static RAMBlock *unqueue_page(RAMState *rs, ram_addr_t *offset)
+-#if defined(__linux__)
++#if defined(CONFIG_LINUX)
+@@ -1848 +1848 @@ void ram_write_tracking_stop(void)
+-#endif /* defined(__linux__) */
++#endif /* defined(CONFIG_LINUX) */
+diff --git a/net/meson.build b/net/meson.build
+index 804eb71f82..b9ddd8bd21 100644
+--- a/net/meson.build
++++ b/net/meson.build
+@@ -65 +65 @@ endif
+-system_ss.add([libpcap, files('pcap.c')])
++system_ss.add(when: libpcap, if_true: [libpcap, files('pcap.c')])
+diff --git a/subprojects/dsp56300/meson.build b/subprojects/dsp56300/meson.build
+index 808b1716d8..1307ddbc18 100644
+--- a/subprojects/dsp56300/meson.build
++++ b/subprojects/dsp56300/meson.build
+@@ -4,0 +5,3 @@ fs = import('fs')
++add_languages('c', native: false, required: true)
++android = meson.is_cross_build() and meson.get_compiler('c').get_define('__ANDROID__') != ''
++
+@@ -11,0 +15,2 @@ elif host_os == 'windows'
++elif host_os == 'android'
++  os_suffix = 'linux-android'
+@@ -13 +18 @@ elif host_os == 'linux'
+-  os_suffix = 'unknown-linux-gnu'
++  os_suffix = android ? 'linux-android' : 'unknown-linux-gnu'
+@@ -23,7 +28,27 @@ url = 'https://github.com/mborgerson/dsp56300/releases/download/v@0@/@1@'.format
+-lib = meson.current_build_dir() / prefix / 'lib' / 'libdsp56300_emu_ffi.a'
+-
+-if not fs.exists(lib)
+-  src_archive = meson.current_source_dir() / archive
+-  if not fs.exists(src_archive)
+-    message('Downloading dsp56300 @0@ for @1@...'.format(ver, rust_target))
+-    run_command(find_program('curl'), '-fsSL', url, '-o', src_archive, check: true)
++if host_os == 'android'
++  # The upstream DSP release does not publish Android archives. Build the
++  # upstream Rust crate with its pinned Cargo.lock and the Android NDK linker.
++  dsp_source = run_command('sh', '-c',
++                           'printf %s "$BOXDROID_DSP56300_SOURCE"',
++                           check: true).stdout().strip()
++  if dsp_source == ''
++    error('Set BOXDROID_DSP56300_SOURCE to the matching DSP56300 source checkout')
++  endif
++  lib = meson.current_build_dir() / 'cargo-target' / rust_target / 'release' / 'libdsp56300_emu_ffi.a'
++  if not fs.exists(lib)
++    cargo = find_program('cargo')
++    run_command(cargo, 'build', '--locked', '--manifest-path',
++                dsp_source / 'crates/emu-ffi/Cargo.toml', '--target', rust_target,
++                '--release', '--target-dir', meson.current_build_dir() / 'cargo-target',
++                check: true)
++  endif
++  prefix = dsp_source / 'crates/emu-ffi'
++else
++  lib = meson.current_build_dir() / prefix / 'lib' / 'libdsp56300_emu_ffi.a'
++  if not fs.exists(lib)
++    src_archive = meson.current_source_dir() / archive
++    if not fs.exists(src_archive)
++      message('Downloading dsp56300 @0@ for @1@...'.format(ver, rust_target))
++      run_command(find_program('curl'), '-fsSL', url, '-o', src_archive, check: true)
++    endif
++    run_command('tar', 'xzf', src_archive, '-C', meson.current_build_dir(), check: true)
+@@ -31 +55,0 @@ if not fs.exists(lib)
+-  run_command('tar', 'xzf', src_archive, '-C', meson.current_build_dir(), check: true)
+@@ -35 +59,3 @@ link_args = []
+-if host_os == 'linux'
++if android
++  link_args = ['-ldl', '-lm']
++elif host_os == 'linux'
+diff --git a/ui/meson.build b/ui/meson.build
+index ea46bf0f44..4d1a63bebf 100644
+--- a/ui/meson.build
++++ b/ui/meson.build
+@@ -29,2 +28,0 @@ xemu_ss.add(files(
+-
+-  'xemu.c',
+@@ -32,2 +29,0 @@ xemu_ss.add(files(
+-  'xemu-snapshots.c',
+-  'xemu-thumbnail.cc',
+@@ -35,0 +32,10 @@ xemu_ss.add(files(
++xemu_ss.add(sdl, json, fatx, tomlplusplus, genconfig)
++
++# These components implement Xemu's SDL/OpenGL desktop frontend. Keep them out
++# of Android's native core build; Android presentation is a separate platform
++# integration and is not part of this cross-build milestone.
++if host_os != 'android'
++  xemu_ss.add(files('xemu.c', 'xemu-snapshots.c', 'xemu-thumbnail.cc'))
++  subdir('xui')
++  xemu_ss.add(imgui, implot, stb_image, opengl, fa, fpng)
++endif
+@@ -43,2 +48,0 @@ endif
+-subdir('xui')
+-
+@@ -57 +60,0 @@ endif
+-xemu_ss.add(imgui, implot, stb_image, sdl, opengl, fa, fpng, json, fatx, tomlplusplus, genconfig)
+diff --git a/util/oslib-posix.c b/util/oslib-posix.c
+index 3c14b72665..5d03c4b955 100644
+--- a/util/oslib-posix.c
++++ b/util/oslib-posix.c
+@@ -47 +47 @@
+-#ifdef CONFIG_LINUX
++#if defined(CONFIG_LINUX) || defined(__ANDROID__)
+@@ -61,0 +62 @@
++#include "qemu/memfd.h"
+@@ -986,0 +988,4 @@ int qemu_shm_alloc(size_t size, Error **errp)
++#ifdef __ANDROID__
++    /* Bionic does not implement POSIX shm_open; use the Android kernel memfd. */
++    return qemu_memfd_create("qemu-shm", size, false, 0, 0, errp);
++#else
+@@ -1034,0 +1040 @@ int qemu_shm_alloc(size_t size, Error **errp)
++#endif
