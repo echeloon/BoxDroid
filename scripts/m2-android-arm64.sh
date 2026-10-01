@@ -30,6 +30,7 @@ EXTRA_CFLAGS="${BOXDROID_M2_EXTRA_CFLAGS--DXBOX=1}"
 ENABLE_SDL="${BOXDROID_M2_ENABLE_SDL:-1}"
 M3_RUNTIME="${BOXDROID_M3_RUNTIME:-0}"
 M4_PRESENTER="${BOXDROID_M4_PRESENTER:-0}"
+M5_XBOX_RUNTIME="${BOXDROID_M5_XBOX_RUNTIME:-0}"
 NEED_I386=0
 if [[ ",${TARGET_LIST}," == *,i386-softmmu,* ]]; then
     NEED_I386=1
@@ -131,7 +132,14 @@ fi
 
 printf '%s %s\n' "$(patch_series_hash)" "$(source_diff_hash)" > "$PATCH_STATE"
 
-if [[ "$M3_RUNTIME" == 1 ]]; then
+if [[ "$M5_XBOX_RUNTIME" == 1 ]]; then
+    [[ "$TARGET_LIST" == i386-softmmu ]] || \
+        die "M5 Xbox runtime currently requires BOXDROID_M2_TARGET_LIST=i386-softmmu"
+    cp "$ROOT/native/android/m5/boxdroid-xbox-runtime.c" "$SOURCE/system/boxdroid-m5-runtime.c"
+    cp "$ROOT/native/android/m5/boxdroid-xbox-settings.c" "$SOURCE/system/boxdroid-m5-settings.c"
+    cp "$ROOT/native/android/m5/boxdroid-m5.map" "$SOURCE/system/boxdroid-m5.map"
+    cp "$ROOT/native/android/m5/boxdroid-vulkan-presenter.cpp" "$SOURCE/system/boxdroid-vulkan-presenter.cpp"
+elif [[ "$M3_RUNTIME" == 1 ]]; then
     [[ "$TARGET_LIST" == aarch64-softmmu ]] || \
         die "M3 embedded runtime currently requires BOXDROID_M2_TARGET_LIST=aarch64-softmmu"
     runtime_source="$ROOT/native/android/m3/boxdroid-runtime.c"
@@ -235,6 +243,9 @@ if [[ ! -e "$BUILD/meson-private/coredata.dat" ]]; then
     if [[ "$M4_PRESENTER" == 1 ]]; then
         configure_args+=( -Dboxdroid_m4_presenter=true )
     fi
+    if [[ "$M5_XBOX_RUNTIME" == 1 ]]; then
+        configure_args+=( -Dboxdroid_m5_xbox_runtime=true )
+    fi
     "$SOURCE/configure" \
         "${configure_args[@]}"
 else
@@ -245,6 +256,9 @@ else
             meson_args+=( -Dboxdroid_m4_presenter=true )
         fi
         "$HOST_VENV/bin/meson" configure "$BUILD" "${meson_args[@]}"
+    fi
+    if [[ "$M5_XBOX_RUNTIME" == 1 ]]; then
+        "$HOST_VENV/bin/meson" configure "$BUILD" -Dboxdroid_m5_xbox_runtime=true
     fi
 fi
 

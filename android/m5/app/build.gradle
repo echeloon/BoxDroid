@@ -1,0 +1,39 @@
+plugins {
+    id 'com.android.application'
+}
+
+def m5BuildRoot = providers.gradleProperty('m5BuildRoot').orNull
+if (m5BuildRoot == null) {
+    throw new GradleException('Pass -Pm5BuildRoot=<BoxDroid build/m3 directory>')
+}
+
+android {
+    namespace 'org.boxdroid.m5'
+    compileSdk 36
+    buildToolsVersion '36.0.0'
+    ndkVersion '30.0.16248370'
+
+    defaultConfig {
+        applicationId 'org.boxdroid.m5'
+        minSdk 26
+        targetSdk 33
+        versionCode 1
+        versionName '0.3.0'
+        ndk { abiFilters 'arm64-v8a' }
+    }
+
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ["${m5BuildRoot}/jniLibs"]
+            assets.srcDirs = ["${m5BuildRoot}/assets"]
+        }
+    }
+
+    buildTypes {
+        debug {
+            debuggable true
+            jniDebuggable true
+        }
+        release { minifyEnabled false }
+    }
+}
