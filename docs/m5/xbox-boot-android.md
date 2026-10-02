@@ -19,7 +19,8 @@ QEMU's placeholder console surface instead of presenting it as Xbox output.
 - NDK: `30.0.16248370`; Clang/LLD 21.0.0.
 - Ordered downstream patches: M2, M3, M4, then
   `0004-m5-android-xbox-headless-core.patch`, followed by
-  `0005-m5-display-refresh-diagnostics.patch`.
+  `0005-m5-display-refresh-diagnostics.patch` and
+  `0006-m5-scanout-black-localization.patch`.
 
 The Xemu changes remain in the downstream patch series. Android lifecycle,
 firmware staging, JNI and Vulkan WSI code live under `native/android/m5` and
@@ -120,6 +121,39 @@ The changed behavior has not been isolated or repeated enough to call the
 shutdown path reliably resolved. Both captured Android crash buffers were
 empty.
 
+## Bounded scanout black localization
+
+The follow-up Retroid run used the same script and 45-second observation window.
+It sampled at most 4 MiB once at each pixel-data boundary and did not change
+surface selection, Vulkan synchronization, or presenter behavior. Results:
+
+| Boundary | Evidence |
+| --- | --- |
+| Selected NV2A binding | PCRTC `0x32a4000`, line offset `0xa00`, lookup `0x32a4a00`; binding `[0x32a4000,0x33d0000)`, delta `0xa00`, pitch 2560, 640×480, format `0x8` / VkFormat 44; `draw_dirty=1`, `upload_pending=0`, `initialized=1`, `cleared=0`, frame time 1, draw time 4 |
+| Download decision | 2 waits; 1 dirty/requested, 1 skipped, 1 actual GPU download after command completion and mapped-memory invalidation |
+| Vulkan staging readback | 1,228,800 sampled bytes; 0 nonzero bytes; hash `f3ee4d06bf3e0383` |
+| Xbox VRAM after copy | 1,228,800 sampled bytes; 0 nonzero bytes; hash `f3ee4d06bf3e0383` |
+| QEMU DisplaySurface before pixman | 1,228,800 sampled bytes; 0 nonzero bytes; hash `f3ee4d06bf3e0383`; format `0x20020888`, stride 2560, 640×480, flags 0, direct VRAM backing |
+| BoxDroid RGBA after pixman | 1,228,800 sampled bytes; 307,200 nonzero bytes from alpha; 0 nonblack pixels; hash `c29a7452cec88383` |
+| Presenter input | Same RGBA buffer passed directly to the presenter; no separate sample was needed |
+
+The first sampled boundary, Vulkan staging, was already all zero. The matching
+VRAM and DisplaySurface hashes show that the subsequent CPU copy and direct VGA
+surface path preserved those bytes; pixman only supplied opaque alpha. Thus
+there is no proven nonblack pixel boundary. This localizes the black image to
+the selected GPU surface contents or the GPU-to-staging result, before the
+VRAM/VGA/pixman/presenter handoff. The available evidence does not distinguish
+black guest rendering from selecting a surface whose contents do not contain
+the guest image.
+
+After a successful lookup, one bounded later miss recorded PCRTC `0x3c00000`,
+line offset `0xa00`, lookup `0x3c00a00`. The nearest active color binding was
+`[0x3628000,0x3880000)`, pitch 5120, 1280×480, format `0x8`; it did not cover
+the lookup address. During this run the summary counted 53 lookups, 2 hits and
+51 misses. The device screenshot remained black and no boot checkpoint was
+reached. The crash buffer was empty; the diagnostic closed with status 0 and
+clean Vulkan shutdown. M5 remains PARTIAL.
+
 ## Verified and outstanding
 
 | M5 item | Current result |
@@ -131,8 +165,8 @@ empty.
 | NV2A Vulkan renderer initialization | Verified |
 | Recurring display refresh / `graphic_hw_update()` | Verified: 2,379 / 2,379 calls in 45 s |
 | Guest display-register writes and color surface bindings | Verified: PCRTC/VGA/PGRAPH writes; 12 color bindings |
-| NV2A framebuffer lookup/readback | Verified: 2 hits and 2 completed 640x480 readbacks; 53 misses |
-| Android presenter handoff | Verified: 2 Xbox-derived frames accepted; first source frame had 0 nonblack pixels |
+| NV2A framebuffer lookup/readback | Verified: 2 hits; 1 GPU download performed, 1 subsequent hit skipped it; 51 misses |
+| Android presenter handoff | Verified: 2 Xbox-path frames accepted; sampled source had 0 nonblack pixels |
 | Visible Xbox-produced image | Not observed; device screenshot was black |
 | Visible Xbox boot checkpoint | Not reached |
 | Clean embedded QEMU shutdown | Observed in two refresh-enabled runs; earlier stall remains unexplained |

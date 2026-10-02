@@ -16,6 +16,7 @@
 #include "ui/console.h"
 #include "ui/surface.h"
 #include "hw/xbox/nv2a/nv2a.h"
+#include "hw/xbox/nv2a/nv2a_int.h"
 #include "hw/xbox/nv2a/boxdroid-m5-diagnostics.h"
 
 #define ARG(value) ((char *)(value))
@@ -38,6 +39,11 @@ static char *arguments[33];
 static char *eeprom_path;
 static uint64_t guest_frame_count;
 static uint64_t diagnostic_counts[BOXDROID_M5_DIAG_COUNT];
+static uint64_t diagnostic_sample_counts[BOXDROID_M5_SAMPLE_COUNT];
+static const void *diagnostic_scanout_surface;
+static bool diagnostic_binding_logged;
+static bool diagnostic_late_miss_logged;
+static bool diagnostic_display_surface_logged;
 
 void xemu_queue_notification(const char *message);
 void xemu_queue_error_message(const char *message);
@@ -71,7 +77,7 @@ static void xbox_display_update(DisplayChangeListener *dcl,
     }
     surface_width_px = surface_width(surface);
     surface_height_px = surface_height(surface);
-    stride = surface_width_px * 4;
+    stride = surface_stride(surface);
     if (surface_width_px <= 0 || surface_height_px <= 0) {
         return;
     }
@@ -81,7 +87,30 @@ static void xbox_display_update(DisplayChangeListener *dcl,
         nv2a_release_framebuffer_surface();
         return;
     }
-    rgba = g_malloc((size_t) stride * surface_height_px);
+    size_t display_surface_bytes = (size_t) stride * surface_height_px;
+    uintptr_t surface_data_address = (uintptr_t) surface_data(surface);
+    uintptr_t vram_begin = g_nv2a ? (uintptr_t) g_nv2a->vram_ptr : 0;
+    uintptr_t vram_end = g_nv2a ? vram_begin + memory_region_size(g_nv2a->vram) : 0;
+    bool direct_vram = g_nv2a && surface_data_address >= vram_begin &&
+                       surface_data_address < vram_end;
+    if (!__atomic_exchange_n(&diagnostic_display_surface_logged, true, __ATOMIC_RELAXED)) {
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+                            "M5_DISPLAY_SURFACE_FIRST format=0x%x stride=%d extent=%dx%d"
+                            " flags=0x%x allocated=%d backing=%s share_handle=%d",
+                            surface_format(surface), stride, surface_width_px,
+                            surface_height_px, surface->flags,
+                            surface_is_allocated(surface),
+                            direct_vram ? "direct_vram" :
+                                (surface_is_allocated(surface) ? "allocated_shadow" : "external"),
+                            (int) surface->share_handle);
+    }
+    boxdroid_m5_diag_sample(BOXDROID_M5_SAMPLE_DISPLAY_SURFACE,
+                            surface_data(surface), display_surface_bytes,
+                            UINT64_MAX, direct_vram ? "direct-vram-before-pixman" :
+                            "surface-before-pixman");
+
+    rgba = g_malloc((size_t) surface_width_px * surface_height_px * 4);
+    stride = surface_width_px * 4;
     converted = pixman_image_create_bits(PIXMAN_a8b8g8r8,
                                           surface_width_px,
                                           surface_height_px,
@@ -104,6 +133,9 @@ static void xbox_display_update(DisplayChangeListener *dcl,
             nonblack_pixels++;
         }
     }
+    boxdroid_m5_diag_sample(BOXDROID_M5_SAMPLE_PIXMAN_RGBA, rgba,
+                            (size_t) stride * surface_height_px,
+                            nonblack_pixels, "after-pixman-copy");
     if (boxdroid_android_present_rgba(rgba, surface_width_px,
                                       surface_height_px, stride)) {
         guest_frame_count++;
@@ -237,6 +269,21 @@ void boxdroid_m5_diag_event(BoxDroidM5Diagnostic event,
                             " nonblack_pixels=%" PRIu64,
                             a, b, c, d, e);
         break;
+    case BOXDROID_M5_DIAG_DOWNLOAD_WAIT:
+        __android_log_print(ANDROID_LOG_INFO, TAG, "M5_DOWNLOAD_WAIT_FIRST");
+        break;
+    case BOXDROID_M5_DIAG_DOWNLOAD_DIRTY:
+        __android_log_print(ANDROID_LOG_INFO, TAG, "M5_DOWNLOAD_DIRTY_FIRST");
+        break;
+    case BOXDROID_M5_DIAG_DOWNLOAD_REQUESTED:
+        __android_log_print(ANDROID_LOG_INFO, TAG, "M5_DOWNLOAD_REQUESTED_FIRST");
+        break;
+    case BOXDROID_M5_DIAG_DOWNLOAD_SKIPPED:
+        __android_log_print(ANDROID_LOG_INFO, TAG, "M5_DOWNLOAD_SKIPPED_FIRST");
+        break;
+    case BOXDROID_M5_DIAG_DOWNLOAD_PERFORMED:
+        __android_log_print(ANDROID_LOG_INFO, TAG, "M5_DOWNLOAD_PERFORMED_FIRST");
+        break;
     case BOXDROID_M5_DIAG_COUNT:
         break;
     }
@@ -270,6 +317,105 @@ void boxdroid_m5_diag_summary(void)
         __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_FRAMEBUFFER_MISS], __ATOMIC_RELAXED),
         __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_READBACK_BEGIN], __ATOMIC_RELAXED),
         __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_READBACK_COMPLETE], __ATOMIC_RELAXED));
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "M5_DIAG_DOWNLOAD wait=%" PRIu64 " dirty=%" PRIu64
+        " requested=%" PRIu64 " skipped=%" PRIu64 " performed=%" PRIu64,
+        __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_DOWNLOAD_WAIT], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_DOWNLOAD_DIRTY], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_DOWNLOAD_REQUESTED], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_DOWNLOAD_SKIPPED], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_DOWNLOAD_PERFORMED], __ATOMIC_RELAXED));
+}
+
+void boxdroid_m5_diag_binding(const BoxDroidM5BindingInfo *info)
+{
+    if (__atomic_exchange_n(&diagnostic_binding_logged, true, __ATOMIC_RELAXED)) {
+        return;
+    }
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "M5_SCANOUT_BINDING_FIRST pcrtc=0x%" PRIx64 " line_offset=0x%" PRIx64
+        " lookup=0x%" PRIx64 " range=[0x%" PRIx64 ",0x%" PRIx64 ")"
+        " delta=0x%" PRIx64 " pitch=%" PRIu64 " extent=%" PRIu64 "x%" PRIu64
+        " format=0x%" PRIx64 " vk_format=%" PRIu64 " draw_dirty=%d"
+        " upload_pending=%d initialized=%d cleared=%d frame_time=%" PRId64
+        " draw_time=%" PRId64,
+        info->pcrtc_start, info->line_offset, info->lookup_address,
+        info->binding_base, info->binding_end, info->delta,
+        info->pitch, info->width, info->height, info->color_format,
+        info->host_vk_format, info->draw_dirty, info->upload_pending,
+        info->initialized, info->cleared, info->frame_time, info->draw_time);
+}
+
+void boxdroid_m5_diag_late_miss(uint64_t pcrtc_start, uint64_t line_offset,
+                                uint64_t lookup_address,
+                                const BoxDroidM5BindingInfo *nearest)
+{
+    if (__atomic_exchange_n(&diagnostic_late_miss_logged, true, __ATOMIC_RELAXED)) {
+        return;
+    }
+    if (nearest) {
+        __android_log_print(ANDROID_LOG_WARN, TAG,
+            "M5_SCANOUT_LATE_MISS_FIRST pcrtc=0x%" PRIx64 " line_offset=0x%" PRIx64
+            " lookup=0x%" PRIx64 " nearest=[0x%" PRIx64 ",0x%" PRIx64 ")"
+            " pitch=%" PRIu64 " extent=%" PRIu64 "x%" PRIu64 " format=0x%" PRIx64,
+            pcrtc_start, line_offset, lookup_address, nearest->binding_base,
+            nearest->binding_end, nearest->pitch, nearest->width, nearest->height,
+            nearest->color_format);
+    } else {
+        __android_log_print(ANDROID_LOG_WARN, TAG,
+            "M5_SCANOUT_LATE_MISS_FIRST pcrtc=0x%" PRIx64 " line_offset=0x%" PRIx64
+            " lookup=0x%" PRIx64 " nearest=none",
+            pcrtc_start, line_offset, lookup_address);
+    }
+}
+
+void boxdroid_m5_diag_track_surface(const void *surface)
+{
+    __atomic_store_n(&diagnostic_scanout_surface, surface, __ATOMIC_RELAXED);
+}
+
+bool boxdroid_m5_diag_is_tracked_surface(const void *surface)
+{
+    return __atomic_load_n(&diagnostic_scanout_surface, __ATOMIC_RELAXED) == surface;
+}
+
+void boxdroid_m5_diag_sample(BoxDroidM5SampleBoundary boundary,
+                             const void *data, size_t size,
+                             uint64_t nonblack_pixels,
+                             const char *copy_status)
+{
+    static const char *const names[BOXDROID_M5_SAMPLE_COUNT] = {
+        "nv2a_staging", "xbox_vram", "display_surface", "pixman_rgba",
+    };
+    const size_t limit = 4 * 1024 * 1024;
+    size_t sample_size = MIN(size, limit);
+    uint64_t hash = UINT64_C(1469598103934665603);
+    uint64_t nonzero_bytes = 0;
+    const uint8_t *bytes = data;
+
+    if ((unsigned) boundary >= BOXDROID_M5_SAMPLE_COUNT || !data ||
+        __atomic_exchange_n(&diagnostic_sample_counts[boundary], 1, __ATOMIC_RELAXED)) {
+        return;
+    }
+    for (size_t i = 0; i < sample_size; ++i) {
+        hash ^= bytes[i];
+        hash *= UINT64_C(1099511628211);
+        nonzero_bytes += bytes[i] != 0;
+    }
+    if (nonblack_pixels == UINT64_MAX) {
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_SAMPLE_FIRST boundary=%s sample_bytes=%zu total_bytes=%zu"
+            " nonzero_bytes=%" PRIu64 " nonblack_pixels=n/a"
+            " hash=%016" PRIx64 " status=%s",
+            names[boundary], sample_size, size, nonzero_bytes, hash, copy_status);
+    } else {
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_SAMPLE_FIRST boundary=%s sample_bytes=%zu total_bytes=%zu"
+            " nonzero_bytes=%" PRIu64 " nonblack_pixels=%" PRIu64
+            " hash=%016" PRIx64 " status=%s",
+            names[boundary], sample_size, size, nonzero_bytes, nonblack_pixels,
+            hash, copy_status);
+    }
 }
 
 static void log_message(int priority, const char *message)

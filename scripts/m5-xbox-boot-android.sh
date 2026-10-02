@@ -57,7 +57,7 @@ PY
 
 [[ "$(git -C "$ROOT" branch --show-current)" == android-port ]] || die "must run on android-port"
 [[ "$(git -C "$ROOT/upstream/xemu" rev-parse HEAD)" == "$PIN" ]] || die "upstream/xemu is not pinned at $PIN"
-for patch in 0001-m2-android-arm64-cross-build.patch 0002-m3-generic-headless-target.patch 0003-m4-android-vulkan-presentation.patch 0004-m5-android-xbox-headless-core.patch 0005-m5-display-refresh-diagnostics.patch; do
+for patch in 0001-m2-android-arm64-cross-build.patch 0002-m3-generic-headless-target.patch 0003-m4-android-vulkan-presentation.patch 0004-m5-android-xbox-headless-core.patch 0005-m5-display-refresh-diagnostics.patch 0006-m5-scanout-black-localization.patch; do
     grep -qx "$patch" "$ROOT/patches/xemu/series" || die "patch series is missing $patch"
 done
 
