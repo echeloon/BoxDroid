@@ -89,6 +89,11 @@ void boxdroid_m5_diag_vram_sample(const char *boundary, uint64_t start,
 void boxdroid_m5_diag_vram_write(const char *writer, uint64_t address,
                                 uint64_t bytes, uint64_t source,
                                 uint64_t guest_pc);
+void boxdroid_m5_diag_cpu_store_value(uint64_t address, size_t size,
+                                      const uint8_t *before,
+                                      const uint8_t *after, uint64_t guest_pc,
+                                      uint64_t pcrtc_start,
+                                      int64_t pre_store_us);
 void boxdroid_m5_diag_vram_read(const char *reader, uint64_t address,
                                uint64_t bytes);
 void boxdroid_m5_diag_target_vram_sample(const char *boundary,

@@ -26,6 +26,7 @@
 #define M5_RAW_FB_HEIGHT 480U
 #define M5_RAW_FB_SIZE ((size_t) M5_RAW_FB_PITCH * M5_RAW_FB_HEIGHT)
 #define M5_FB_WRITE_LOG_CAP 16
+#define M5_VALUE_LOG_CAP 64
 
 extern bool boxdroid_android_present_rgba(const uint8_t *pixels,
                                          uint32_t width, uint32_t height,
@@ -80,6 +81,25 @@ static BoxDroidM5FramebufferSamples m5_fb_samples[2];
 static pthread_mutex_t m5_fb_sample_lock = PTHREAD_MUTEX_INITIALIZER;
 static int64_t m5_fb_periodic_sample_us;
 static bool m5_fb_first_pcrtc_sampled;
+typedef struct BoxDroidM5ValueWrite {
+    uint64_t sequence, address, guest_pc, before, after;
+    int64_t pre_store_us;
+    uint8_t size;
+    uint8_t change;
+} BoxDroidM5ValueWrite;
+static uint64_t m5_value_count, m5_value_zero, m5_value_nonzero;
+static uint64_t m5_value_zero_bytes, m5_value_nonzero_bytes;
+static uint64_t m5_value_large, m5_value_after_switch;
+static uint64_t m5_value_after_zero, m5_value_after_nonzero;
+static uint64_t m5_value_first_nonzero_us;
+static uint64_t m5_value_first_after_count, m5_value_first_nonzero_count;
+static uint64_t m5_value_last_nonzero_count;
+static uint64_t m5_value_unique_bytes, m5_value_unique_words;
+static uint8_t m5_value_byte_seen[(M5_RAW_FB_SIZE + 7) / 8];
+static uint8_t m5_value_word_seen[(M5_RAW_FB_SIZE / 4 + 7) / 8];
+static BoxDroidM5ValueWrite m5_value_first_after[M5_VALUE_LOG_CAP];
+static BoxDroidM5ValueWrite m5_value_first_nonzero[M5_VALUE_LOG_CAP];
+static BoxDroidM5ValueWrite m5_value_last_nonzero[M5_VALUE_LOG_CAP];
 static uint64_t diagnostic_counts[BOXDROID_M5_DIAG_COUNT];
 static uint64_t diagnostic_sample_counts[BOXDROID_M5_SAMPLE_COUNT];
 static const void *diagnostic_scanout_surface;
@@ -118,6 +138,7 @@ static const char *const binding_event_names[BOXDROID_M5_BINDING_EVENT_COUNT] = 
     "guest_draw", "gpu_probe", "staging_compare", "scanout",
 };
 static void boxdroid_m5_diag_binding_summary_all(void);
+static void boxdroid_m5_diag_value_summary(void);
 
 uint64_t boxdroid_m5_diag_record(const char *event, uint64_t a, uint64_t b,
                                 uint64_t c, uint64_t d, uint64_t e,
@@ -309,6 +330,95 @@ void boxdroid_m5_diag_vram_write(const char *writer, uint64_t address,
     }
 }
 
+/* The QEMU memory callback fires before the store. Its caller samples the
+ * bytes at the next callback on the same vCPU thread, after this store ran. */
+void boxdroid_m5_diag_cpu_store_value(uint64_t address, size_t size,
+                                      const uint8_t *before,
+                                      const uint8_t *after, uint64_t guest_pc,
+                                      uint64_t pcrtc_start,
+                                      int64_t pre_store_us)
+{
+    uint64_t begin, end;
+    uint64_t before_word = 0, after_word = 0;
+    bool before_nonzero = false, after_nonzero = false;
+    BoxDroidM5ValueWrite record;
+
+    if (!before || !after || !size || address > UINT64_MAX - size) {
+        return;
+    }
+    begin = MAX(address, M5_RAW_FB_BASE);
+    end = MIN(address + size, M5_RAW_FB_BASE + M5_RAW_FB_SIZE);
+    if (begin >= end) {
+        return;
+    }
+    if (size > 8) {
+        pthread_mutex_lock(&m5_vram_write_lock);
+        m5_value_large++;
+        pthread_mutex_unlock(&m5_vram_write_lock);
+        return;
+    }
+    for (size_t i = 0; i < size; ++i) {
+        before_word |= (uint64_t)before[i] << (8 * i);
+        after_word |= (uint64_t)after[i] << (8 * i);
+    }
+    for (uint64_t offset = begin; offset < end; ++offset) {
+        size_t i = offset - address;
+        before_nonzero |= before[i] != 0;
+        after_nonzero |= after[i] != 0;
+    }
+    record = (BoxDroidM5ValueWrite) {
+        .sequence = __atomic_add_fetch(&m5_diagnostic_sequence, 1,
+                                        __ATOMIC_RELAXED),
+        .address = address, .guest_pc = guest_pc,
+        .before = before_word, .after = after_word,
+        .pre_store_us = pre_store_us, .size = size,
+        .change = !before_nonzero && after_nonzero ? 1 :
+                  before_nonzero && !after_nonzero ? 2 :
+                  before_nonzero && after_nonzero &&
+                  before_word != after_word ? 3 : 0,
+    };
+    pthread_mutex_lock(&m5_vram_write_lock);
+    m5_value_count++;
+    m5_value_zero += !after_nonzero;
+    m5_value_nonzero += after_nonzero;
+    for (uint64_t offset = begin; offset < end; ++offset) {
+        size_t i = offset - address;
+        uint64_t relative = offset - M5_RAW_FB_BASE;
+        uint64_t word = relative / 4;
+        uint8_t bit = 1u << (relative & 7);
+        uint8_t word_bit = 1u << (word & 7);
+        m5_value_zero_bytes += after[i] == 0;
+        m5_value_nonzero_bytes += after[i] != 0;
+        if (!(m5_value_byte_seen[relative / 8] & bit)) {
+            m5_value_byte_seen[relative / 8] |= bit;
+            m5_value_unique_bytes++;
+        }
+        if (!(m5_value_word_seen[word / 8] & word_bit)) {
+            m5_value_word_seen[word / 8] |= word_bit;
+            m5_value_unique_words++;
+        }
+    }
+    if (pcrtc_start == M5_RAW_FB_BASE) {
+        m5_value_after_switch++;
+        m5_value_after_zero += !after_nonzero;
+        m5_value_after_nonzero += after_nonzero;
+        if (m5_value_first_after_count < M5_VALUE_LOG_CAP) {
+            m5_value_first_after[m5_value_first_after_count++] = record;
+        }
+        if (after_nonzero) {
+            if (!m5_value_first_nonzero_us) {
+                m5_value_first_nonzero_us = pre_store_us;
+            }
+            if (m5_value_first_nonzero_count < M5_VALUE_LOG_CAP) {
+                m5_value_first_nonzero[m5_value_first_nonzero_count++] = record;
+            }
+            m5_value_last_nonzero[m5_value_last_nonzero_count++ %
+                                  M5_VALUE_LOG_CAP] = record;
+        }
+    }
+    pthread_mutex_unlock(&m5_vram_write_lock);
+}
+
 void boxdroid_m5_diag_vram_read(const char *reader, uint64_t address,
                                uint64_t bytes)
 {
@@ -396,6 +506,11 @@ void boxdroid_m5_diag_framebuffer_sample(const char *boundary,
     size_t sample_bytes = MIN(length, M5_RAW_FB_SIZE);
     uint64_t hash = UINT64_C(1469598103934665603);
     uint64_t nonzero_bytes = 0, rgb_nonblack_pixels = 0;
+    uint64_t packed16_nonzero = 0, packed24_nonzero = 0;
+    uint64_t alpha_only_pixels = 0, white_rgb_pixels = 0;
+    uint32_t min_x = M5_RAW_FB_WIDTH, min_y = M5_RAW_FB_HEIGHT;
+    uint32_t max_x = 0, max_y = 0, active_rows = 0;
+    bool row_active[M5_RAW_FB_HEIGHT] = { 0 };
     int64_t timestamp_us = g_get_monotonic_time();
     uint64_t sequence;
 
@@ -408,7 +523,30 @@ void boxdroid_m5_diag_framebuffer_sample(const char *boundary,
         nonzero_bytes += data[i] != 0;
     }
     for (size_t i = 0; i < sample_bytes; i += 4) {
-        rgb_nonblack_pixels += data[i] || data[i + 1] || data[i + 2];
+        bool rgb = data[i] || data[i + 1] || data[i + 2];
+        rgb_nonblack_pixels += rgb;
+        alpha_only_pixels += !rgb && data[i + 3] != 0;
+        white_rgb_pixels += data[i] == 0xff && data[i + 1] == 0xff &&
+                            data[i + 2] == 0xff;
+        if (rgb) {
+            uint32_t pixel = i / 4;
+            uint32_t x = pixel % M5_RAW_FB_WIDTH;
+            uint32_t y = pixel / M5_RAW_FB_WIDTH;
+            min_x = MIN(min_x, x);
+            min_y = MIN(min_y, y);
+            max_x = MAX(max_x, x);
+            max_y = MAX(max_y, y);
+            if (!row_active[y]) {
+                row_active[y] = true;
+                active_rows++;
+            }
+        }
+    }
+    for (size_t i = 0; i < sample_bytes; i += 2) {
+        packed16_nonzero += data[i] || data[i + 1];
+    }
+    for (size_t i = 0; i + 2 < sample_bytes; i += 3) {
+        packed24_nonzero += data[i] || data[i + 1] || data[i + 2];
     }
     sequence = boxdroid_m5_diag_record("FRAMEBUFFER_SAMPLE", pcrtc_start,
         M5_RAW_FB_BASE, M5_RAW_FB_PITCH,
@@ -449,6 +587,17 @@ void boxdroid_m5_diag_framebuffer_sample(const char *boundary,
         sequence, timestamp_us, boundary, pcrtc_start, M5_RAW_FB_BASE,
         M5_RAW_FB_PITCH, M5_RAW_FB_WIDTH, M5_RAW_FB_HEIGHT, sample_bytes,
         nonzero_bytes, rgb_nonblack_pixels, hash);
+    if (pcrtc_start == M5_RAW_FB_BASE &&
+        (g_strcmp0(boundary, "raw-vram-stop") == 0 ||
+         (rgb_nonblack_pixels && !m5_fb_samples[0].rgb_samples))) {
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_FRAMEBUFFER_GEOMETRY boundary=%s rgb_bbox=%u,%u-%u,%u"
+            " active_rows=%u rgb_white=%" PRIu64 " alpha_only=%" PRIu64
+            " packed16_nonzero=%" PRIu64 " packed24_nonzero=%" PRIu64,
+            boundary, min_x, min_y, max_x, max_y, active_rows,
+            white_rgb_pixels, alpha_only_pixels,
+            packed16_nonzero, packed24_nonzero);
+    }
 }
 
 void xemu_queue_notification(const char *message);
@@ -597,6 +746,14 @@ static void xbox_display_refresh(DisplayChangeListener *dcl)
                 g_nv2a->pcrtc.start, g_nv2a->vram_ptr + M5_RAW_FB_BASE,
                 M5_RAW_FB_SIZE);
             g_nv2a->vga.get_params(&g_nv2a->vga, &params);
+            __android_log_print(ANDROID_LOG_INFO, TAG,
+                "M5_VGA_MODE pcrtc=0x%" PRIx64 " start=0x%x"
+                " pitch=%u depth=%d cr28=0x%x extent=%dx%d",
+                g_nv2a->pcrtc.start, params.start_addr * 4,
+                params.line_offset, g_nv2a->vga.get_bpp(&g_nv2a->vga),
+                g_nv2a->vga.cr[0x28],
+                surface ? surface_width(surface) : 0,
+                surface ? surface_height(surface) : 0);
             if (surface && surface->image &&
                 (uint64_t)params.start_addr * 4 == M5_RAW_FB_BASE &&
                 surface_stride(surface) * surface_height(surface) >=
@@ -733,6 +890,90 @@ void boxdroid_m5_diag_event(BoxDroidM5Diagnostic event,
     }
 }
 
+static void boxdroid_m5_diag_value_summary(void)
+{
+    BoxDroidM5ValueWrite first_after[M5_VALUE_LOG_CAP];
+    BoxDroidM5ValueWrite first_nonzero[M5_VALUE_LOG_CAP];
+    BoxDroidM5ValueWrite last_nonzero[M5_VALUE_LOG_CAP];
+    uint64_t count, zero, nonzero, zero_bytes, nonzero_bytes, large;
+    uint64_t after_switch, after_zero, after_nonzero;
+    uint64_t first_nonzero_us, unique_bytes, unique_words;
+    uint64_t first_after_count, first_nonzero_count, last_nonzero_count;
+
+    pthread_mutex_lock(&m5_vram_write_lock);
+    count = m5_value_count;
+    zero = m5_value_zero;
+    nonzero = m5_value_nonzero;
+    zero_bytes = m5_value_zero_bytes;
+    nonzero_bytes = m5_value_nonzero_bytes;
+    large = m5_value_large;
+    after_switch = m5_value_after_switch;
+    after_zero = m5_value_after_zero;
+    after_nonzero = m5_value_after_nonzero;
+    first_nonzero_us = m5_value_first_nonzero_us;
+    unique_bytes = m5_value_unique_bytes;
+    unique_words = m5_value_unique_words;
+    first_after_count = m5_value_first_after_count;
+    first_nonzero_count = m5_value_first_nonzero_count;
+    last_nonzero_count = m5_value_last_nonzero_count;
+    memcpy(first_after, m5_value_first_after, sizeof(first_after));
+    memcpy(first_nonzero, m5_value_first_nonzero, sizeof(first_nonzero));
+    memcpy(last_nonzero, m5_value_last_nonzero, sizeof(last_nonzero));
+    pthread_mutex_unlock(&m5_vram_write_lock);
+
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "M5_VALUE_SUMMARY classified=%" PRIu64 " zero=%" PRIu64
+        " nonzero=%" PRIu64 " zero_bytes=%" PRIu64
+        " nonzero_bytes=%" PRIu64 " large_unclassified=%" PRIu64
+        " after_pcrtc_3c=%" PRIu64 " after_zero=%" PRIu64
+        " after_nonzero=%" PRIu64 " unique_bytes=%" PRIu64
+        " unique_words=%" PRIu64 " first_nonzero_mono_us=%" PRIu64,
+        count, zero, nonzero, zero_bytes, nonzero_bytes, large,
+        after_switch, after_zero, after_nonzero,
+        unique_bytes, unique_words, first_nonzero_us);
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "M5_VALUE_RECORD_COUNTS first_after=%" PRIu64
+        " first_nonzero=%" PRIu64 " last_nonzero_total=%" PRIu64,
+        first_after_count, first_nonzero_count, last_nonzero_count);
+    for (unsigned int group = 0; group < 3; ++group) {
+        BoxDroidM5ValueWrite *entries = group == 0 ? first_after :
+            (group == 1 ? first_nonzero : last_nonzero);
+        uint64_t total = group == 0 ? first_after_count :
+            (group == 1 ? first_nonzero_count : last_nonzero_count);
+        uint64_t count_to_log = MIN(total, M5_VALUE_LOG_CAP);
+        uint64_t start = group == 2 && total > M5_VALUE_LOG_CAP ?
+            total % M5_VALUE_LOG_CAP : 0;
+        const char *label = group == 0 ? "FIRST_AFTER_PCRTC" :
+            (group == 1 ? "FIRST_NONZERO" : "LAST_NONZERO");
+        for (uint64_t i = 0; i < count_to_log; i += 4) {
+            char message[2048];
+            size_t used = g_snprintf(message, sizeof(message),
+                                     "M5_VALUE_%s", label);
+            for (uint64_t j = i; j < MIN(i + 4, count_to_log); ++j) {
+                BoxDroidM5ValueWrite *entry =
+                    &entries[(start + j) % M5_VALUE_LOG_CAP];
+                uint64_t relative = entry->address - M5_RAW_FB_BASE;
+                uint64_t x = (relative % M5_RAW_FB_PITCH) / 4;
+                uint64_t y = relative / M5_RAW_FB_PITCH;
+                int written = g_snprintf(message + used, sizeof(message) - used,
+                    " [%" PRIu64 ",s=%" PRIu64 ",t=%" PRId64
+                    ",pc=%" PRIx64 ",a=%" PRIx64 ",n=%u,o=%" PRIx64
+                    ",xy=%" PRIu64 ":%" PRIu64 ",old=%" PRIx64
+                    ",new=%" PRIx64 ",c=%u]",
+                    j, entry->sequence, entry->pre_store_us,
+                    entry->guest_pc, entry->address, entry->size,
+                    relative, x, y, entry->before, entry->after,
+                    entry->change);
+                if (written < 0 || (size_t)written >= sizeof(message) - used) {
+                    break;
+                }
+                used += written;
+            }
+            __android_log_print(ANDROID_LOG_INFO, TAG, "%s", message);
+        }
+    }
+}
+
 void boxdroid_m5_diag_summary(void)
 {
     __android_log_print(ANDROID_LOG_INFO, TAG,
@@ -842,6 +1083,7 @@ void boxdroid_m5_diag_summary(void)
             samples[i].last_sample_us, samples[i].last_nonzero_bytes,
             samples[i].last_rgb_pixels);
     }
+    boxdroid_m5_diag_value_summary();
     pthread_mutex_lock(&m5_order_lock);
     if (m5_have_pgraph_target) {
         __android_log_print(ANDROID_LOG_INFO, TAG,
