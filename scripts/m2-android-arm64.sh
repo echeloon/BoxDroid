@@ -139,6 +139,8 @@ if [[ "$M5_XBOX_RUNTIME" == 1 ]]; then
     cp "$ROOT/native/android/m5/boxdroid-xbox-settings.c" "$SOURCE/system/boxdroid-m5-settings.c"
     cp "$ROOT/native/android/m5/boxdroid-m5.map" "$SOURCE/system/boxdroid-m5.map"
     cp "$ROOT/native/android/m5/boxdroid-vulkan-presenter.cpp" "$SOURCE/system/boxdroid-vulkan-presenter.cpp"
+    cp "$ROOT/native/android/m5/boxdroid-m5-diagnostics.h" "$SOURCE/hw/xbox/nv2a/boxdroid-m5-diagnostics.h"
+    cp "$ROOT/native/android/m5/boxdroid-m5-diagnostics.h" "$SOURCE/system/boxdroid-m5-diagnostics.h"
 elif [[ "$M3_RUNTIME" == 1 ]]; then
     [[ "$TARGET_LIST" == aarch64-softmmu ]] || \
         die "M3 embedded runtime currently requires BOXDROID_M2_TARGET_LIST=aarch64-softmmu"

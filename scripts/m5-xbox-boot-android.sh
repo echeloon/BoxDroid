@@ -57,7 +57,7 @@ PY
 
 [[ "$(git -C "$ROOT" branch --show-current)" == android-port ]] || die "must run on android-port"
 [[ "$(git -C "$ROOT/upstream/xemu" rev-parse HEAD)" == "$PIN" ]] || die "upstream/xemu is not pinned at $PIN"
-for patch in 0001-m2-android-arm64-cross-build.patch 0002-m3-generic-headless-target.patch 0003-m4-android-vulkan-presentation.patch 0004-m5-android-xbox-headless-core.patch; do
+for patch in 0001-m2-android-arm64-cross-build.patch 0002-m3-generic-headless-target.patch 0003-m4-android-vulkan-presentation.patch 0004-m5-android-xbox-headless-core.patch 0005-m5-display-refresh-diagnostics.patch; do
     grep -qx "$patch" "$ROOT/patches/xemu/series" || die "patch series is missing $patch"
 done
 
@@ -136,6 +136,8 @@ pid="$("${ADB[@]}" shell pidof "$PACKAGE" | tr -d '\r')"
 echo "pid=$pid" > "$RESULTS/process.txt"
 sleep "$OBSERVE_SECS"
 "${ADB[@]}" exec-out screencap -p > "$RESULTS/screen.png"
+"${ADB[@]}" shell input keyevent KEYCODE_BACK > "$RESULTS/stop-trigger.txt" 2>&1 || true
+sleep 2
 "${ADB[@]}" logcat -d -s BoxDroidM5:I BoxDroidM4:I '*:S' > "$RESULTS/logcat.txt"
 "${ADB[@]}" logcat -b crash -d > "$RESULTS/crash-buffer.txt"
 "${ADB[@]}" exec-out run-as "$PACKAGE" cat files/m5-qemu.log > "$RESULTS/qemu-exec-trace.log" 2>/dev/null || true

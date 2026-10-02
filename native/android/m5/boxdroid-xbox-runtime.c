@@ -6,6 +6,7 @@
 #include <errno.h>
 
 #include "qemu/main-loop.h"
+#include "qemu/timer.h"
 #include "system/replay.h"
 #include "system/runstate.h"
 #include "system/system.h"
@@ -15,6 +16,7 @@
 #include "ui/console.h"
 #include "ui/surface.h"
 #include "hw/xbox/nv2a/nv2a.h"
+#include "hw/xbox/nv2a/boxdroid-m5-diagnostics.h"
 
 #define ARG(value) ((char *)(value))
 
@@ -35,6 +37,7 @@ static int loop_status;
 static char *arguments[33];
 static char *eeprom_path;
 static uint64_t guest_frame_count;
+static uint64_t diagnostic_counts[BOXDROID_M5_DIAG_COUNT];
 
 void xemu_queue_notification(const char *message);
 void xemu_queue_error_message(const char *message);
@@ -54,10 +57,14 @@ static void xbox_display_update(DisplayChangeListener *dcl,
     uint8_t *rgba;
     pixman_image_t *converted;
     uint64_t frame_hash = UINT64_C(1469598103934665603);
+    uint64_t nonblack_pixels = 0;
     (void) x;
     (void) y;
     (void) width;
     (void) height;
+    boxdroid_m5_diag_event(BOXDROID_M5_DIAG_DISPLAY_CALLBACK,
+                           (uint64_t) x, (uint64_t) y,
+                           (uint64_t) width, (uint64_t) height, 0, 0);
 
     if (!surface || !surface->image) {
         return;
@@ -92,28 +99,178 @@ static void xbox_display_update(DisplayChangeListener *dcl,
         frame_hash ^= rgba[i];
         frame_hash *= UINT64_C(1099511628211);
     }
+    for (size_t i = 0; i < (size_t) surface_width_px * surface_height_px; ++i) {
+        if (rgba[i * 4] || rgba[i * 4 + 1] || rgba[i * 4 + 2]) {
+            nonblack_pixels++;
+        }
+    }
     if (boxdroid_android_present_rgba(rgba, surface_width_px,
                                       surface_height_px, stride)) {
         guest_frame_count++;
+        boxdroid_m5_diag_event(BOXDROID_M5_DIAG_FRAME_PRESENT,
+                               guest_frame_count, frame_hash,
+                               surface_width_px, surface_height_px,
+                               nonblack_pixels, 0);
         if (guest_frame_count == 1 || guest_frame_count % 120 == 0) {
             __android_log_print(ANDROID_LOG_INFO, TAG,
                                 "XBOX_NV2A_FRAME_PRESENT count=%" PRIu64
-                                " guest_extent=%dx%d pixel_hash=%016" PRIx64,
+                                " guest_extent=%dx%d pixel_hash=%016" PRIx64
+                                " nonblack_pixels=%" PRIu64,
                                 guest_frame_count, surface_width_px,
-                                surface_height_px, frame_hash);
+                                surface_height_px, frame_hash, nonblack_pixels);
         }
     }
     pixman_image_unref(converted);
     g_free(rgba);
 }
 
+static void xbox_display_refresh(DisplayChangeListener *dcl)
+{
+    boxdroid_m5_diag_event(BOXDROID_M5_DIAG_REFRESH_CALLBACK,
+                           qemu_clock_get_ms(QEMU_CLOCK_REALTIME), 0, 0, 0, 0, 0);
+    graphic_hw_update(dcl->con);
+    boxdroid_m5_diag_event(BOXDROID_M5_DIAG_GRAPHIC_HW_UPDATE,
+                           qemu_clock_get_ms(QEMU_CLOCK_REALTIME), 0, 0, 0, 0, 0);
+}
+
 static const DisplayChangeListenerOps xbox_display_ops = {
     .dpy_name = "BoxDroid Android Vulkan",
+    .dpy_refresh = xbox_display_refresh,
     .dpy_gfx_update = xbox_display_update,
 };
 static DisplayChangeListener xbox_display_listener = {
+    .update_interval = GUI_REFRESH_INTERVAL_DEFAULT,
     .ops = &xbox_display_ops,
 };
+
+void boxdroid_m5_diag_event(BoxDroidM5Diagnostic event,
+                            uint64_t a, uint64_t b, uint64_t c,
+                            uint64_t d, uint64_t e, uint64_t f)
+{
+    uint64_t previous;
+
+    if ((unsigned) event >= BOXDROID_M5_DIAG_COUNT) {
+        return;
+    }
+    previous = __atomic_fetch_add(&diagnostic_counts[event], 1, __ATOMIC_RELAXED);
+    if (previous != 0) {
+        return;
+    }
+
+    switch (event) {
+    case BOXDROID_M5_DIAG_REFRESH_CALLBACK:
+        __android_log_print(ANDROID_LOG_INFO, TAG, "M5_REFRESH_FIRST time_ms=%" PRIu64, a);
+        break;
+    case BOXDROID_M5_DIAG_GRAPHIC_HW_UPDATE:
+        __android_log_print(ANDROID_LOG_INFO, TAG, "M5_GRAPHIC_HW_UPDATE_FIRST time_ms=%" PRIu64, a);
+        break;
+    case BOXDROID_M5_DIAG_PCRTC_START:
+        __android_log_print(ANDROID_LOG_INFO, TAG, "M5_PCRTC_START_FIRST value=0x%" PRIx64, a);
+        break;
+    case BOXDROID_M5_DIAG_VGA_CRTC_WRITE:
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+                            "M5_VGA_CRTC_WRITE_FIRST register=0x%" PRIx64 " value=0x%" PRIx64, a, b);
+        break;
+    case BOXDROID_M5_DIAG_PGRAPH_COLOR_DMA:
+    case BOXDROID_M5_DIAG_PGRAPH_SURFACE_FORMAT:
+    case BOXDROID_M5_DIAG_PGRAPH_SURFACE_PITCH:
+    case BOXDROID_M5_DIAG_PGRAPH_COLOR_OFFSET:
+    {
+        const char *name = event == BOXDROID_M5_DIAG_PGRAPH_COLOR_DMA ? "color_dma" :
+                           event == BOXDROID_M5_DIAG_PGRAPH_SURFACE_FORMAT ? "surface_format" :
+                           event == BOXDROID_M5_DIAG_PGRAPH_SURFACE_PITCH ? "surface_pitch" :
+                           "color_offset";
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+                            "M5_PGRAPH_SETUP_FIRST event=%s method=0x%" PRIx64 " value=0x%" PRIx64,
+                            name, a, b);
+        break;
+    }
+    case BOXDROID_M5_DIAG_COLOR_BINDING:
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+                            "M5_COLOR_BINDING_FIRST address=0x%" PRIx64 " size=%" PRIu64
+                            " pitch=%" PRIu64 " width=%" PRIu64 " height=%" PRIu64,
+                            a, b, c, d, e);
+        break;
+    case BOXDROID_M5_DIAG_FRAMEBUFFER_LOOKUP:
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+                            "M5_FRAMEBUFFER_LOOKUP_FIRST address=0x%" PRIx64
+                            " pitch=%" PRIu64 " width=%" PRIu64 " height=%" PRIu64,
+                            a, b, c, d);
+        break;
+    case BOXDROID_M5_DIAG_FRAMEBUFFER_HIT:
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+                            "M5_FRAMEBUFFER_HIT_FIRST address=0x%" PRIx64 " binding=0x%" PRIx64
+                            "+0x%" PRIx64 " pitch=%" PRIu64 " extent=%" PRIu64 "x%" PRIu64,
+                            a, b, c, d, e, f);
+        break;
+    case BOXDROID_M5_DIAG_FRAMEBUFFER_MISS:
+        if (b == UINT64_MAX) {
+            __android_log_print(ANDROID_LOG_WARN, TAG,
+                                "NV2A_SCANOUT_SURFACE_MISSING first=1 address=0x%" PRIx64
+                                " binding=none pitch=%" PRIu64 " extent=%" PRIu64 "x%" PRIu64,
+                                a, d, e, f);
+        } else {
+            __android_log_print(ANDROID_LOG_WARN, TAG,
+                                "NV2A_SCANOUT_SURFACE_MISSING first=1 address=0x%" PRIx64
+                                " binding=0x%" PRIx64 "+0x%" PRIx64
+                                " pitch=%" PRIu64 " extent=%" PRIu64 "x%" PRIu64,
+                                a, b, c, d, e, f);
+        }
+        break;
+    case BOXDROID_M5_DIAG_READBACK_BEGIN:
+    case BOXDROID_M5_DIAG_READBACK_COMPLETE:
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+                            "%s first=1 extent=%" PRIu64 "x%" PRIu64,
+                            event == BOXDROID_M5_DIAG_READBACK_BEGIN ?
+                                "NV2A_SCANOUT_READBACK_BEGIN" :
+                                "NV2A_SCANOUT_READBACK_COMPLETE", a, b);
+        break;
+    case BOXDROID_M5_DIAG_DISPLAY_CALLBACK:
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+                            "M5_DISPLAY_CALLBACK_FIRST rect=%" PRIu64 ",%" PRIu64 ",%" PRIu64 "x%" PRIu64,
+                            a, b, c, d);
+        break;
+    case BOXDROID_M5_DIAG_FRAME_PRESENT:
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+                            "M5_REAL_FRAME_PRESENT_FIRST count=%" PRIu64
+                            " hash=%016" PRIx64 " extent=%" PRIu64 "x%" PRIu64
+                            " nonblack_pixels=%" PRIu64,
+                            a, b, c, d, e);
+        break;
+    case BOXDROID_M5_DIAG_COUNT:
+        break;
+    }
+}
+
+void boxdroid_m5_diag_summary(void)
+{
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "M5_DIAG_SUMMARY refresh=%" PRIu64 " gfx_update=%" PRIu64
+        " display_callback=%" PRIu64 " real_present=%" PRIu64,
+        __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_REFRESH_CALLBACK], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_GRAPHIC_HW_UPDATE], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_DISPLAY_CALLBACK], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_FRAME_PRESENT], __ATOMIC_RELAXED));
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "M5_DIAG_NV2A pcrtc_start=%" PRIu64 " vga_crtc=%" PRIu64
+        " color_dma=%" PRIu64 " format=%" PRIu64 " pitch=%" PRIu64
+        " color_offset=%" PRIu64 " color_binding=%" PRIu64,
+        __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_PCRTC_START], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_VGA_CRTC_WRITE], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_PGRAPH_COLOR_DMA], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_PGRAPH_SURFACE_FORMAT], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_PGRAPH_SURFACE_PITCH], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_PGRAPH_COLOR_OFFSET], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_COLOR_BINDING], __ATOMIC_RELAXED));
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "M5_DIAG_SCANOUT lookup=%" PRIu64 " hit=%" PRIu64 " miss=%" PRIu64
+        " readback_begin=%" PRIu64 " readback_complete=%" PRIu64,
+        __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_FRAMEBUFFER_LOOKUP], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_FRAMEBUFFER_HIT], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_FRAMEBUFFER_MISS], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_READBACK_BEGIN], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_READBACK_COMPLETE], __ATOMIC_RELAXED));
+}
 
 static void log_message(int priority, const char *message)
 {
@@ -281,6 +438,7 @@ Java_org_boxdroid_m5_MainActivity_nativeXboxStop(JNIEnv *env, jobject self)
     (void) env;
     (void) self;
     if (!thread_created) return 0;
+    boxdroid_m5_diag_summary();
     log_message(ANDROID_LOG_INFO, "XBOX_SHUTDOWN_REQUEST");
     bql_lock();
     qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_QMP_QUIT);

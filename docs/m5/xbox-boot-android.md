@@ -3,10 +3,12 @@
 M5 currently reaches **PARTIAL**. The Android ARM64 library initializes the
 official Xemu Xbox machine, accepts the supplied MCPX/BIOS/HDD paths, starts
 i386 guest execution through AArch64 TCG, and initializes Xemu's NV2A Vulkan
-renderer plus the M4 Android Vulkan presenter. The firmware does not initialize
-an NV2A scanout surface on the Retroid, so no Xbox frame or boot checkpoint has
-been demonstrated. The diagnostic now rejects QEMU's placeholder console
-surface instead of presenting it as Xbox output.
+renderer plus the M4 Android Vulkan presenter. A bounded QEMU display refresh
+callback now drives recurring NV2A scanout attempts. The Retroid run reached
+color-surface lookup, Vulkan readback and presenter submission, but the first
+Xbox-derived pixels were entirely black and the captured screen remained
+black. No Xbox boot checkpoint has been demonstrated. The diagnostic rejects
+QEMU's placeholder console surface instead of presenting it as Xbox output.
 
 ## Baseline and boundaries
 
@@ -16,7 +18,8 @@ surface instead of presenting it as Xbox output.
 - Android target: `arm64-v8a`, `aarch64-linux-android`, API 33, Bionic.
 - NDK: `30.0.16248370`; Clang/LLD 21.0.0.
 - Ordered downstream patches: M2, M3, M4, then
-  `0004-m5-android-xbox-headless-core.patch`.
+  `0004-m5-android-xbox-headless-core.patch`, followed by
+  `0005-m5-display-refresh-diagnostics.patch`.
 
 The Xemu changes remain in the downstream patch series. Android lifecycle,
 firmware staging, JNI and Vulkan WSI code live under `native/android/m5` and
@@ -69,33 +72,53 @@ the upstream desktop reservation is 800 MiB per allocation and caused Android
 low-memory termination during renderer startup. This is an Android-only
 downstream change; desktop sizing remains unchanged.
 
-The clean scripted run logged Android surface creation at 01:12:09.918, Xbox
-start at 01:12:09.950 and QEMU initialization return at 01:12:10.658. NV2A
-Vulkan initialization completed its logged stages by 01:12:10.608. During the
-45-second observation the local QEMU `exec` trace recorded two CPU reset events
-and 487,113 executed translation-block entries. It records guest PCs and host
-translation-block addresses without instruction-byte disassembly. This
-demonstrates guest execution from the Xbox reset path under TCG; it does not
-demonstrate firmware boot completion.
+The refresh experiment used the same pinned-source M5 script, supplied local
+files, and 45-second observation window. On the latest run, Xbox machine
+initialization returned successfully. The local QEMU `exec` trace continued to
+show Xbox x86 guest translation/execution under AArch64 TCG; it records guest
+PCs and host translation-block addresses without instruction-byte
+disassembly. This is guest execution evidence, not firmware boot completion.
 
-After a 45-second observation, the captured display was black. The NV2A path
-reported that no scanout surface existed; therefore there were zero confirmed
-NV2A readbacks and zero frames presented from Xbox output. An earlier
-diagnostic version forwarded QEMU's “Guest has not initialized the display
-(yet)” fallback surface; that was identified as non-Xbox output and excluded
-from the result. No dashboard, boot animation or equivalent checkpoint was
-reached. The HDD path was supplied as a QCOW2 IDE disk and QEMU initialization
-accepted the device configuration, but guest IDE reads have not yet been
-confirmed independently. All three device-side image SHA-256 values matched
-their local inputs. The captured Android crash buffer contained no records;
-the diagnostic was force-stopped after collecting output.
+The diagnostic registered `dpy_refresh` with QEMU's existing display listener
+at `GUI_REFRESH_INTERVAL_DEFAULT` (16 ms). Its callback calls
+`graphic_hw_update(dcl->con)`; no polling thread was added. Over the 45-second
+observation it counted 2,379 refresh callbacks and 2,379 calls to
+`graphic_hw_update()`. Guest display programming was observed: 303 PCRTC start
+writes, 7 relevant VGA CRTC writes, PGRAPH color-DMA/format/pitch/color-offset
+method counts of 3/559/451/451, and 12 color surface bindings.
 
-When the Activity is closed, `qemu_main_loop()` returns with status 0, but
-`qemu_cleanup()` stalls in `vm_shutdown()` while waiting for the Xbox vCPU
-threads to pause. `tcg,thread=single` was tested and did not remove that stall.
-The diagnostic process was force-stopped after collecting evidence. This is an
-unresolved Android embedded-runtime lifecycle issue; it is not reported as a
-clean QEMU shutdown. No M5 crash was observed in the captured crash buffer.
+The scanout summary counted 55 framebuffer lookups: 53 misses and 2 hits.
+Both hits reached 640x480 Vulkan readback, and both readbacks completed. The
+BoxDroid display callback and presenter accepted two Xbox-derived frames. The
+first frame log reported `nonblack_pixels=0` over 307,200 pixels (hash
+`c29a7452cec88383`). The device screenshot at
+`build/m5/refresh-test/results-second/screen.png` was fully black apart from
+the Android navigation bar. Thus the missing recurring refresh did suppress
+later scanout attempts, but enabling it did not produce visible Xbox imagery
+in this run. The first `NV2A_SCANOUT_SURFACE_MISSING` marker was the initial
+placeholder lookup at address 0, pitch 0, extent 8x1; the final counters show
+that later lookups then included both hits and misses. The diagnostic emits
+that marker and readback markers once each rather than once per refresh.
+
+This evidence rules out a guest that never writes display state and rules out a
+permanent absence of color surfaces. It also shows that readback reaches the
+BoxDroid presenter. Since the presented source pixels were all black, the next
+diagnosis should focus on why the guest-produced NV2A scanout contents are
+black; it is not yet evidence of a genuine Xbox boot frame. No dashboard, boot
+animation or equivalent checkpoint was reached. The HDD path was supplied as
+a QCOW2 IDE disk and QEMU initialization accepted the device configuration,
+but guest IDE reads have not yet been confirmed independently. All three
+device-side image SHA-256 values matched their local inputs. The captured
+Android crash buffer contained no records.
+
+The earlier M5 run observed `qemu_cleanup()` stalling in `vm_shutdown()` while
+waiting for Xbox vCPU threads to pause; `tcg,thread=single` did not resolve
+that observation. In the two refresh-enabled runs, closing the Activity instead
+produced `XBOX_QEMU_LOOP_RETURN status=0`, `XBOX_STOP_RESULT=0`, and
+`VULKAN_SHUTDOWN_CLEAN`. Shutdown was not modified as part of this experiment.
+The changed behavior has not been isolated or repeated enough to call the
+shutdown path reliably resolved. Both captured Android crash buffers were
+empty.
 
 ## Verified and outstanding
 
@@ -106,10 +129,13 @@ clean QEMU shutdown. No M5 crash was observed in the captured crash buffer.
 | Xbox x86 reset path enters AArch64-hosted TCG | Verified by CPU reset and executed-TB trace records |
 | QCOW2 path accepted in IDE drive configuration | Verified at QEMU initialization; guest reads not confirmed |
 | NV2A Vulkan renderer initialization | Verified |
-| Real NV2A scanout/readback | Not observed |
-| Android Vulkan presentation of Xbox-produced output | Not observed |
+| Recurring display refresh / `graphic_hw_update()` | Verified: 2,379 / 2,379 calls in 45 s |
+| Guest display-register writes and color surface bindings | Verified: PCRTC/VGA/PGRAPH writes; 12 color bindings |
+| NV2A framebuffer lookup/readback | Verified: 2 hits and 2 completed 640x480 readbacks; 53 misses |
+| Android presenter handoff | Verified: 2 Xbox-derived frames accepted; first source frame had 0 nonblack pixels |
+| Visible Xbox-produced image | Not observed; device screenshot was black |
 | Visible Xbox boot checkpoint | Not reached |
-| Clean embedded QEMU shutdown | Blocked in `vm_shutdown()` |
+| Clean embedded QEMU shutdown | Observed in two refresh-enabled runs; earlier stall remains unexplained |
 | Repeated boot to checkpoint | Not applicable until a checkpoint is reached |
 
 M3/M4 regressions must be run from a fresh build root after changing the patch
