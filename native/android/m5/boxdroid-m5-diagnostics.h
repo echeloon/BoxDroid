@@ -38,6 +38,20 @@ typedef enum BoxDroidM5SampleBoundary {
     BOXDROID_M5_SAMPLE_COUNT,
 } BoxDroidM5SampleBoundary;
 
+typedef enum BoxDroidM5BindingEvent {
+    BOXDROID_M5_BINDING_CREATE,
+    BOXDROID_M5_BINDING_REUSE,
+    BOXDROID_M5_BINDING_UPLOAD_PENDING,
+    BOXDROID_M5_BINDING_UPLOAD,
+    BOXDROID_M5_BINDING_DRAW_DIRTY,
+    BOXDROID_M5_BINDING_CLEAR,
+    BOXDROID_M5_BINDING_GUEST_DRAW,
+    BOXDROID_M5_BINDING_GPU_PROBE,
+    BOXDROID_M5_BINDING_STAGING_COMPARE,
+    BOXDROID_M5_BINDING_SCANOUT,
+    BOXDROID_M5_BINDING_EVENT_COUNT,
+} BoxDroidM5BindingEvent;
+
 typedef struct BoxDroidM5BindingInfo {
     uint64_t pcrtc_start;
     uint64_t line_offset;
@@ -50,6 +64,10 @@ typedef struct BoxDroidM5BindingInfo {
     uint64_t height;
     uint64_t color_format;
     uint64_t host_vk_format;
+    uint64_t generation;
+    uint64_t image;
+    uint64_t image_view;
+    uint64_t image_layout;
     int64_t frame_time;
     int64_t draw_time;
     bool draw_dirty;
@@ -65,12 +83,26 @@ void boxdroid_m5_diag_summary(void);
 void boxdroid_m5_diag_binding(const BoxDroidM5BindingInfo *info);
 void boxdroid_m5_diag_late_miss(uint64_t pcrtc_start, uint64_t line_offset,
                                 uint64_t lookup_address,
-                                const BoxDroidM5BindingInfo *nearest);
+                                const BoxDroidM5BindingInfo *nearest,
+                                const BoxDroidM5BindingInfo *binding_32a4000,
+                                const BoxDroidM5BindingInfo *binding_3628000);
 void boxdroid_m5_diag_track_surface(const void *surface);
 bool boxdroid_m5_diag_is_tracked_surface(const void *surface);
 void boxdroid_m5_diag_sample(BoxDroidM5SampleBoundary boundary,
                              const void *data, size_t size,
                              uint64_t nonblack_pixels,
                              const char *copy_status);
+void boxdroid_m5_diag_binding_event(BoxDroidM5BindingEvent event,
+                                    uint64_t base, uint64_t generation,
+                                    const uint64_t values[8]);
+void boxdroid_m5_diag_firmware_event(const char *kind, const char *stage,
+                                    const char *path, int64_t result,
+                                    uint64_t bytes);
+void boxdroid_m5_diag_hdd_open(const char *path, int result,
+                               uint64_t virtual_size);
+void boxdroid_m5_diag_guest_io_start(void);
+void boxdroid_m5_diag_guest_io_stop(void);
+void boxdroid_m5_diag_hdd_io(bool write, const char *path, uint64_t offset,
+                             uint64_t bytes, int result);
 
 #endif

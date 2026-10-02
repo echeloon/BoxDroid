@@ -1,0 +1,524 @@
+diff --git a/hw/xbox/nv2a/pgraph/vk/renderer.h b/hw/xbox/nv2a/pgraph/vk/renderer.h
+--- a/hw/xbox/nv2a/pgraph/vk/renderer.h
++++ b/hw/xbox/nv2a/pgraph/vk/renderer.h
+@@ -148,0 +149,5 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++    uint64_t boxdroid_generation;
++    bool boxdroid_probe_done;
++#endif
++
+@@ -521,0 +527,3 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++void pgraph_vk_boxdroid_probe_surface(NV2AState *d, SurfaceBinding *surface);
++#endif
+@@ -529 +537,2 @@
+-void pgraph_vk_set_surface_dirty(PGRAPHState *pg, bool color, bool zeta);
++void pgraph_vk_set_surface_dirty(PGRAPHState *pg, bool color, bool zeta,
++                                 bool is_clear);
+diff --git a/hw/xbox/nv2a/pgraph/vk/surface.c b/hw/xbox/nv2a/pgraph/vk/surface.c
+--- a/hw/xbox/nv2a/pgraph/vk/surface.c
++++ b/hw/xbox/nv2a/pgraph/vk/surface.c
+@@ -40,0 +41,132 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++#define BOXDROID_M5_PROBE_PATCH_WIDTH 64
++#define BOXDROID_M5_PROBE_PATCH_HEIGHT 64
++
++static uint64_t boxdroid_surface_generation;
++
++static bool boxdroid_m5_target_surface(const SurfaceBinding *surface)
++{
++    return surface->vram_addr == UINT64_C(0x32a4000) ||
++           surface->vram_addr == UINT64_C(0x3628000);
++}
++
++static uint64_t boxdroid_m5_hash(const uint8_t *bytes, size_t length)
++{
++    uint64_t hash = UINT64_C(1469598103934665603);
++    size_t limit = MIN(length, (size_t)(4 * MiB));
++    for (size_t i = 0; i < limit; i++) {
++        hash ^= bytes[i];
++        hash *= UINT64_C(1099511628211);
++    }
++    return hash;
++}
++
++void pgraph_vk_boxdroid_probe_surface(NV2AState *d, SurfaceBinding *surface)
++{
++    PGRAPHState *pg = &d->pgraph;
++    PGRAPHVkState *r = pg->vk_renderer_state;
++    VkBuffer buffer = VK_NULL_HANDLE;
++    VmaAllocation allocation = VK_NULL_HANDLE;
++    VkBufferImageCopy region;
++    uint8_t *mapped = NULL;
++    unsigned int width = surface->width, height = surface->height;
++    const unsigned int count = BOXDROID_M5_PROBE_PATCH_WIDTH *
++                               BOXDROID_M5_PROBE_PATCH_HEIGHT;
++    const unsigned int bytes_per_pixel = surface->host_fmt.host_bytes_per_pixel;
++    const size_t buffer_size = (size_t)count * 4;
++    uint64_t nonzero_samples = 0, nonblack_samples = 0;
++    uint64_t hash = UINT64_C(1469598103934665603);
++    uint64_t values[8] = {0};
++    VmaAllocationCreateInfo alloc_info = {
++        .usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
++        .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT |
++                 VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
++    };
++
++    if (!boxdroid_m5_target_surface(surface) || surface->boxdroid_probe_done ||
++        !surface->color || !surface->image || !surface->width ||
++        !surface->height || !bytes_per_pixel || bytes_per_pixel > 4) {
++        return;
++    }
++    pgraph_apply_scaling_factor(pg, &width, &height);
++    if (width < BOXDROID_M5_PROBE_PATCH_WIDTH ||
++        height < BOXDROID_M5_PROBE_PATCH_HEIGHT) {
++        return;
++    }
++    surface->boxdroid_probe_done = true;
++
++    VkBufferCreateInfo buffer_info = {
++        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
++        .size = buffer_size,
++        .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT,
++        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
++    };
++    VK_CHECK(vmaCreateBuffer(r->allocator, &buffer_info, &alloc_info,
++                             &buffer, &allocation, NULL));
++    region = (VkBufferImageCopy){
++        .imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
++        .imageSubresource.layerCount = 1,
++        .imageOffset = {
++            .x = (width - BOXDROID_M5_PROBE_PATCH_WIDTH) / 2,
++            .y = (height - BOXDROID_M5_PROBE_PATCH_HEIGHT) / 2,
++            .z = 0,
++        },
++        .imageExtent = { BOXDROID_M5_PROBE_PATCH_WIDTH,
++                         BOXDROID_M5_PROBE_PATCH_HEIGHT, 1 },
++    };
++
++    VkCommandBuffer cmd = pgraph_vk_begin_single_time_commands(pg);
++    pgraph_vk_transition_image_layout(pg, cmd, surface->image,
++        surface->host_fmt.vk_format, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
++        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
++    vkCmdCopyImageToBuffer(cmd, surface->image,
++        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, buffer, 1, &region);
++    pgraph_vk_transition_image_layout(pg, cmd, surface->image,
++        surface->host_fmt.vk_format, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
++        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
++    VkBufferMemoryBarrier host_read_barrier = {
++        .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
++        .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
++        .dstAccessMask = VK_ACCESS_HOST_READ_BIT,
++        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++        .buffer = buffer,
++        .size = buffer_size,
++    };
++    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
++                         VK_PIPELINE_STAGE_HOST_BIT, 0, 0, NULL, 1,
++                         &host_read_barrier, 0, NULL);
++    pgraph_vk_end_single_time_commands(pg, cmd);
++
++    VK_CHECK(vmaMapMemory(r->allocator, allocation, (void **)&mapped));
++    vmaInvalidateAllocation(r->allocator, allocation, 0, buffer_size);
++    for (unsigned int i = 0; i < count; i++) {
++        const uint8_t *pixel = mapped + (size_t)i * bytes_per_pixel;
++        bool nonzero = false, nonblack = false;
++        for (unsigned int c = 0; c < bytes_per_pixel; c++) {
++            hash ^= pixel[c];
++            hash *= UINT64_C(1099511628211);
++            nonzero |= pixel[c] != 0;
++            if (c < 3) {
++                nonblack |= pixel[c] != 0;
++            }
++        }
++        nonzero_samples += nonzero;
++        nonblack_samples += nonblack;
++    }
++    vmaUnmapMemory(r->allocator, allocation);
++    vmaDestroyBuffer(r->allocator, buffer, allocation);
++
++    values[0] = BOXDROID_M5_PROBE_PATCH_WIDTH;
++    values[1] = BOXDROID_M5_PROBE_PATCH_HEIGHT;
++    values[2] = count;
++    values[3] = nonblack_samples;
++    values[4] = hash;
++    values[5] = surface->host_fmt.vk_format;
++    values[6] = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
++    values[7] = nonzero_samples;
++    boxdroid_m5_diag_binding_event(BOXDROID_M5_BINDING_GPU_PROBE,
++        surface->vram_addr, surface->boxdroid_generation, values);
++}
++#endif
++
+@@ -186,0 +319,6 @@
++
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++    if (boxdroid_m5_target_surface(surface)) {
++        pgraph_vk_boxdroid_probe_surface(d, surface);
++    }
++#endif
+@@ -466,0 +605,43 @@
++    if (boxdroid_m5_target_surface(surface)) {
++        const unsigned int bytes_per_pixel =
++            surface->host_fmt.host_bytes_per_pixel;
++        uint64_t nonzero_samples = 0, nonblack_samples = 0;
++        uint64_t sample_hash = UINT64_C(1469598103934665603);
++        uint64_t values[8] = {0};
++        unsigned int sample_width = MIN(BOXDROID_M5_PROBE_PATCH_WIDTH,
++                                        scaled_width);
++        unsigned int sample_height = MIN(BOXDROID_M5_PROBE_PATCH_HEIGHT,
++                                         scaled_height);
++        unsigned int start_x = (scaled_width - sample_width) / 2;
++        unsigned int start_y = (scaled_height - sample_height) / 2;
++        for (unsigned int y = 0; y < sample_height; y++) {
++            for (unsigned int x = 0; x < sample_width; x++) {
++                const uint8_t *pixel = (const uint8_t *)mapped_memory_ptr +
++                    ((size_t)(start_y + y) * scaled_width + start_x + x) *
++                        bytes_per_pixel;
++                bool nonzero = false, nonblack = false;
++                for (unsigned int c = 0; c < bytes_per_pixel; c++) {
++                    sample_hash ^= pixel[c];
++                    sample_hash *= UINT64_C(1099511628211);
++                    nonzero |= pixel[c] != 0;
++                    if (c < 3) {
++                        nonblack |= pixel[c] != 0;
++                    }
++                }
++                nonzero_samples += nonzero;
++                nonblack_samples += nonblack;
++            }
++        }
++        values[0] = sample_width;
++        values[1] = sample_height;
++        values[2] = sample_width * sample_height;
++        values[3] = nonblack_samples;
++        values[4] = sample_hash;
++        values[5] = surface->host_fmt.vk_format;
++        values[6] = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
++        values[7] = nonzero_samples;
++        boxdroid_m5_diag_binding_event(BOXDROID_M5_BINDING_STAGING_COMPARE,
++            surface->vram_addr, surface->boxdroid_generation, values);
++    }
++#endif
++#ifdef BOXDROID_M5_XBOX_RUNTIME
+@@ -520,0 +702,7 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++    if (boxdroid_m5_target_surface(surface) && surface->draw_dirty) {
++        uint64_t values[8] = { 1, 0, 3 };
++        boxdroid_m5_diag_binding_event(BOXDROID_M5_BINDING_DRAW_DIRTY,
++            surface->vram_addr, surface->boxdroid_generation, values);
++    }
++#endif
+@@ -1016,0 +1205,7 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++    if (boxdroid_m5_target_surface(surface)) {
++        uint64_t values[8] = { surface->upload_pending, 0, force };
++        boxdroid_m5_diag_binding_event(BOXDROID_M5_BINDING_UPLOAD_PENDING,
++            surface->vram_addr, surface->boxdroid_generation, values);
++    }
++#endif
+@@ -1042,0 +1238,14 @@
++
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++    if (boxdroid_m5_target_surface(surface)) {
++        uint64_t values[8] = {0};
++        size_t hash_bytes = MIN((size_t)surface->pitch * surface->height,
++                                (size_t)(4 * MiB));
++        values[0] = boxdroid_m5_hash(gl_read_buf, hash_bytes);
++        values[1] = hash_bytes;
++        values[2] = surface->fmt.bytes_per_pixel;
++        values[3] = surface->swizzle;
++        boxdroid_m5_diag_binding_event(BOXDROID_M5_BINDING_UPLOAD,
++            surface->vram_addr, surface->boxdroid_generation, values);
++    }
++#endif
+@@ -1558,0 +1768 @@
++                bool old_upload_pending = surface->upload_pending;
+@@ -1559,0 +1770,12 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++                if (boxdroid_m5_target_surface(surface) &&
++                    old_upload_pending != surface->upload_pending) {
++                    uint64_t values[8] = { old_upload_pending,
++                                            surface->upload_pending,
++                                            mem_dirty };
++                    boxdroid_m5_diag_binding_event(
++                        BOXDROID_M5_BINDING_UPLOAD_PENDING,
++                        surface->vram_addr, surface->boxdroid_generation,
++                        values);
++                }
++#endif
+@@ -1572,0 +1795,3 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++            bool image_reused = surface != NULL;
++#endif
+@@ -1580,0 +1806,24 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++            surface->boxdroid_generation = ++boxdroid_surface_generation;
++            surface->boxdroid_probe_done = false;
++            if (boxdroid_m5_target_surface(surface)) {
++                uint64_t values[8] = {
++                    (uint64_t)surface->image,
++                    (uint64_t)surface->image_view,
++                    surface->width,
++                    surface->height,
++                    surface->pitch,
++                    surface->host_fmt.vk_format,
++                    image_reused,
++                    surface->initialized,
++                };
++                boxdroid_m5_diag_binding_event(BOXDROID_M5_BINDING_CREATE,
++                    surface->vram_addr, surface->boxdroid_generation, values);
++                values[0] = 0;
++                values[1] = surface->upload_pending;
++                values[2] = 2;
++                boxdroid_m5_diag_binding_event(
++                    BOXDROID_M5_BINDING_UPLOAD_PENDING,
++                    surface->vram_addr, surface->boxdroid_generation, values);
++            }
++#endif
+@@ -1619,0 +1869,16 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++        if (!should_create && boxdroid_m5_target_surface(surface)) {
++            uint64_t values[8] = {
++                (uint64_t)surface->image,
++                (uint64_t)surface->image_view,
++                surface->width,
++                surface->height,
++                surface->pitch,
++                surface->host_fmt.vk_format,
++                0,
++                surface->initialized,
++            };
++            boxdroid_m5_diag_binding_event(BOXDROID_M5_BINDING_REUSE,
++                surface->vram_addr, surface->boxdroid_generation, values);
++        }
++#endif
+diff --git a/hw/xbox/nv2a/pgraph/vk/draw.c b/hw/xbox/nv2a/pgraph/vk/draw.c
+--- a/hw/xbox/nv2a/pgraph/vk/draw.c
++++ b/hw/xbox/nv2a/pgraph/vk/draw.c
+@@ -23,0 +24,80 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++#include "hw/xbox/nv2a/boxdroid-m5-diagnostics.h"
++
++static uint64_t boxdroid_m5_pack32(uint32_t high, uint32_t low)
++{
++    return ((uint64_t)high << 32) | low;
++}
++
++static void boxdroid_m5_record_guest_draw(PGRAPHState *pg, uint64_t api,
++                                          uint64_t vertex_count,
++                                          uint64_t index_count)
++{
++    PGRAPHVkState *r = pg->vk_renderer_state;
++    SurfaceBinding *surface = r->color_binding;
++    if (!surface || (surface->vram_addr != UINT64_C(0x32a4000) &&
++                     surface->vram_addr != UINT64_C(0x3628000))) {
++        return;
++    }
++
++    uint32_t control_0 = pgraph_reg_r(pg, NV_PGRAPH_CONTROL_0);
++    uint32_t setup = pgraph_reg_r(pg, NV_PGRAPH_SETUPRASTER);
++    uint32_t cull = (setup & NV_PGRAPH_SETUPRASTER_CULLENABLE) ?
++        GET_MASK(setup, NV_PGRAPH_SETUPRASTER_CULLCTRL) : 0;
++    uint32_t depth = !!(control_0 & NV_PGRAPH_CONTROL_0_ZENABLE);
++    uint32_t stencil = !!(pgraph_reg_r(pg, NV_PGRAPH_CONTROL_1) &
++                          NV_PGRAPH_CONTROL_1_STENCIL_TEST_ENABLE);
++    uint32_t depth_write = !!(control_0 & NV_PGRAPH_CONTROL_0_ZWRITEENABLE);
++    uint32_t write_mask = 0;
++    unsigned int x = pg->surface_shape.clip_x;
++    unsigned int y = pg->surface_shape.clip_y;
++    unsigned int width = pg->surface_shape.clip_width;
++    unsigned int height = pg->surface_shape.clip_height;
++    uint64_t values[8] = {0};
++
++    if (control_0 & NV_PGRAPH_CONTROL_0_RED_WRITE_ENABLE) write_mask |= 1;
++    if (control_0 & NV_PGRAPH_CONTROL_0_GREEN_WRITE_ENABLE) write_mask |= 2;
++    if (control_0 & NV_PGRAPH_CONTROL_0_BLUE_WRITE_ENABLE) write_mask |= 4;
++    if (control_0 & NV_PGRAPH_CONTROL_0_ALPHA_WRITE_ENABLE) write_mask |= 8;
++    pgraph_apply_anti_aliasing_factor(pg, &x, &y);
++    pgraph_apply_anti_aliasing_factor(pg, &width, &height);
++    pgraph_apply_scaling_factor(pg, &x, &y);
++    pgraph_apply_scaling_factor(pg, &width, &height);
++
++    values[0] = api;
++    values[1] = pg->primitive_mode;
++    values[2] = vertex_count;
++    values[3] = index_count;
++    values[4] = write_mask;
++    values[5] = boxdroid_m5_pack32(x, y);
++    values[6] = boxdroid_m5_pack32(width, height);
++    values[7] = cull | (depth << 8) | (stencil << 16) | (depth_write << 24);
++    boxdroid_m5_diag_binding_event(BOXDROID_M5_BINDING_GUEST_DRAW,
++        surface->vram_addr, surface->boxdroid_generation, values);
++}
++
++static void boxdroid_m5_record_clear(PGRAPHState *pg, SurfaceBinding *surface,
++                                     uint32_t parameter,
++                                     const VkClearRect *clear_rect,
++                                     const float rgba[4])
++{
++    if (!surface || !surface->color ||
++        (surface->vram_addr != UINT64_C(0x32a4000) &&
++         surface->vram_addr != UINT64_C(0x3628000))) {
++        return;
++    }
++    uint32_t rgba_bits[4];
++    memcpy(rgba_bits, rgba, sizeof(rgba_bits));
++    uint64_t values[8] = {
++        pgraph_reg_r(pg, NV_PGRAPH_COLORCLEARVALUE),
++        rgba_bits[0], rgba_bits[1], rgba_bits[2], rgba_bits[3],
++        boxdroid_m5_pack32(clear_rect->rect.offset.x,
++                           clear_rect->rect.offset.y),
++        boxdroid_m5_pack32(clear_rect->rect.extent.width,
++                           clear_rect->rect.extent.height),
++        parameter & NV097_CLEAR_SURFACE_COLOR,
++    };
++    boxdroid_m5_diag_binding_event(BOXDROID_M5_BINDING_CLEAR,
++        surface->vram_addr, surface->boxdroid_generation, values);
++}
++#endif
+@@ -1536 +1615,0 @@
+-
+@@ -1545 +1624,2 @@
+-    pgraph_vk_set_surface_dirty(pg, color_write, depth_test || stencil_test);
++    pgraph_vk_set_surface_dirty(pg, color_write, depth_test || stencil_test,
++                                false);
+@@ -1726,0 +1807,5 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++            boxdroid_m5_record_clear(pg, r->color_binding, parameter,
++                                     &clear_rect,
++                                     attachments[num_attachments].clearValue.color.float32);
++#endif
+@@ -1730,0 +1816,4 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++            boxdroid_m5_record_clear(pg, r->color_binding, parameter,
++                                     &clear_rect, blend_constants);
++#endif
+@@ -1767 +1856 @@
+-    pgraph_vk_set_surface_dirty(pg, write_color, write_zeta);
++    pgraph_vk_set_surface_dirty(pg, write_color, write_zeta, true);
+@@ -1831 +1920,2 @@
+-void pgraph_vk_set_surface_dirty(PGRAPHState *pg, bool color, bool zeta)
++void pgraph_vk_set_surface_dirty(PGRAPHState *pg, bool color, bool zeta,
++                                 bool is_clear)
+@@ -1844,0 +1935,3 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++        bool old_draw_dirty = r->color_binding->draw_dirty;
++#endif
+@@ -1845,0 +1939,12 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++        if ((r->color_binding->vram_addr == UINT64_C(0x32a4000) ||
++             r->color_binding->vram_addr == UINT64_C(0x3628000)) &&
++            old_draw_dirty != r->color_binding->draw_dirty) {
++            uint64_t values[8] = { old_draw_dirty,
++                                    r->color_binding->draw_dirty,
++                                    is_clear ? 1 : 2 };
++            boxdroid_m5_diag_binding_event(BOXDROID_M5_BINDING_DRAW_DIRTY,
++                r->color_binding->vram_addr,
++                r->color_binding->boxdroid_generation, values);
++        }
++#endif
+@@ -2062,0 +2168,3 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++            boxdroid_m5_record_guest_draw(pg, 0, count, 0);
++#endif
+@@ -2103,0 +2212,4 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++        boxdroid_m5_record_guest_draw(pg, 1, max_element - min_element + 1,
++                                      pg->inline_elements_length);
++#endif
+@@ -2141,0 +2254,3 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++        boxdroid_m5_record_guest_draw(pg, 0, pg->inline_buffer_length, 0);
++#endif
+@@ -2185,0 +2301,3 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++        boxdroid_m5_record_guest_draw(pg, 0, index_count, 0);
++#endif
+diff --git a/hw/xbox/nv2a/pgraph/vk/renderer.c b/hw/xbox/nv2a/pgraph/vk/renderer.c
+--- a/hw/xbox/nv2a/pgraph/vk/renderer.c
++++ b/hw/xbox/nv2a/pgraph/vk/renderer.c
+@@ -237,0 +238 @@
++            BoxDroidM5BindingInfo binding_a = {0}, binding_b = {0};
+@@ -245,0 +247,22 @@
++            QTAILQ_FOREACH(candidate, &pg->vk_renderer_state->surfaces, entry) {
++                if (!candidate->color ||
++                    (candidate->vram_addr != UINT64_C(0x32a4000) &&
++                     candidate->vram_addr != UINT64_C(0x3628000))) {
++                    continue;
++                }
++                BoxDroidM5BindingInfo *target =
++                    candidate->vram_addr == UINT64_C(0x32a4000) ?
++                        &binding_a : &binding_b;
++                target->binding_base = candidate->vram_addr;
++                target->binding_end = candidate->vram_addr + candidate->size;
++                target->pitch = candidate->pitch;
++                target->width = candidate->width;
++                target->height = candidate->height;
++                target->color_format = candidate->shape.color_format;
++                target->generation = candidate->boxdroid_generation;
++                target->image = (uint64_t)candidate->image;
++                target->image_view = (uint64_t)candidate->image_view;
++                target->image_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
++                target->draw_dirty = candidate->draw_dirty;
++                target->upload_pending = candidate->upload_pending;
++            }
+@@ -248 +271,3 @@
+-                                       scanout_address, nearest ? &info : NULL);
++                                       scanout_address, nearest ? &info : NULL,
++                                       binding_a.binding_base ? &binding_a : NULL,
++                                       binding_b.binding_base ? &binding_b : NULL);
+@@ -277,0 +303,4 @@
++        .generation = surface->boxdroid_generation,
++        .image = (uint64_t)surface->image,
++        .image_view = (uint64_t)surface->image_view,
++        .image_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+@@ -285,0 +315,12 @@
++    uint64_t binding_values[8] = {
++        (uint64_t)surface->image,
++        (uint64_t)surface->image_view,
++        surface->width,
++        surface->height,
++        surface->pitch,
++        surface->host_fmt.vk_format,
++        surface->draw_dirty,
++        surface->upload_pending,
++    };
++    boxdroid_m5_diag_binding_event(BOXDROID_M5_BINDING_SCANOUT,
++        surface->vram_addr, surface->boxdroid_generation, binding_values);
+diff --git a/hw/xbox/nv2a/pgraph/vk/blit.c b/hw/xbox/nv2a/pgraph/vk/blit.c
+--- a/hw/xbox/nv2a/pgraph/vk/blit.c
++++ b/hw/xbox/nv2a/pgraph/vk/blit.c
+@@ -27,0 +28,3 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++#include "hw/xbox/nv2a/boxdroid-m5-diagnostics.h"
++#endif
+@@ -165,0 +169,3 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++            bool old_draw_dirty = surf_dest->draw_dirty;
++#endif
+@@ -167 +173,12 @@
+-        }
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++            if (old_draw_dirty && (surf_dest->vram_addr == UINT64_C(0x32a4000) ||
++                                   surf_dest->vram_addr == UINT64_C(0x3628000))) {
++                uint64_t values[8] = { 1, 0, 4 };
++                boxdroid_m5_diag_binding_event(BOXDROID_M5_BINDING_DRAW_DIRTY,
++                    surf_dest->vram_addr, surf_dest->boxdroid_generation, values);
++            }
++#endif
++        }
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++        bool old_upload_pending = surf_dest->upload_pending;
++#endif
+@@ -168,0 +186,9 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++        if (!old_upload_pending &&
++            (surf_dest->vram_addr == UINT64_C(0x32a4000) ||
++             surf_dest->vram_addr == UINT64_C(0x3628000))) {
++            uint64_t values[8] = { 0, 1, 3 };
++            boxdroid_m5_diag_binding_event(BOXDROID_M5_BINDING_UPLOAD_PENDING,
++                surf_dest->vram_addr, surf_dest->boxdroid_generation, values);
++        }
++#endif

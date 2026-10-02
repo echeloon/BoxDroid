@@ -44,6 +44,36 @@ static const void *diagnostic_scanout_surface;
 static bool diagnostic_binding_logged;
 static bool diagnostic_late_miss_logged;
 static bool diagnostic_display_surface_logged;
+static char *runtime_mcpx_path;
+static char *runtime_hdd_path;
+static pthread_mutex_t hdd_io_lock = PTHREAD_MUTEX_INITIALIZER;
+static bool hdd_io_enabled;
+static uint64_t hdd_read_requests, hdd_read_bytes, hdd_read_failures;
+static uint64_t hdd_write_requests, hdd_write_bytes, hdd_write_failures;
+static struct { uint64_t offset, bytes; } hdd_first_reads[8];
+static size_t hdd_first_read_count;
+
+typedef struct BoxDroidM5BindingJournal {
+    uint64_t base;
+    uint64_t generation;
+    uint64_t counts[BOXDROID_M5_BINDING_EVENT_COUNT];
+    uint64_t last_values[BOXDROID_M5_BINDING_EVENT_COUNT][8];
+    BoxDroidM5BindingEvent last_event;
+    uint64_t last_operation[8];
+    BoxDroidM5BindingEvent before_scanout_event;
+    uint64_t before_scanout_operation[8];
+    uint32_t first_logged;
+} BoxDroidM5BindingJournal;
+
+static pthread_mutex_t binding_journal_lock = PTHREAD_MUTEX_INITIALIZER;
+static BoxDroidM5BindingJournal binding_journal[16];
+static size_t binding_journal_count;
+
+static const char *const binding_event_names[BOXDROID_M5_BINDING_EVENT_COUNT] = {
+    "create", "reuse", "upload_pending", "upload", "draw_dirty", "clear",
+    "guest_draw", "gpu_probe", "staging_compare", "scanout",
+};
+static void boxdroid_m5_diag_binding_summary_all(void);
 
 void xemu_queue_notification(const char *message);
 void xemu_queue_error_message(const char *message);
@@ -325,6 +355,7 @@ void boxdroid_m5_diag_summary(void)
         __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_DOWNLOAD_REQUESTED], __ATOMIC_RELAXED),
         __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_DOWNLOAD_SKIPPED], __ATOMIC_RELAXED),
         __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_DOWNLOAD_PERFORMED], __ATOMIC_RELAXED));
+    boxdroid_m5_diag_binding_summary_all();
 }
 
 void boxdroid_m5_diag_binding(const BoxDroidM5BindingInfo *info)
@@ -336,19 +367,24 @@ void boxdroid_m5_diag_binding(const BoxDroidM5BindingInfo *info)
         "M5_SCANOUT_BINDING_FIRST pcrtc=0x%" PRIx64 " line_offset=0x%" PRIx64
         " lookup=0x%" PRIx64 " range=[0x%" PRIx64 ",0x%" PRIx64 ")"
         " delta=0x%" PRIx64 " pitch=%" PRIu64 " extent=%" PRIu64 "x%" PRIu64
-        " format=0x%" PRIx64 " vk_format=%" PRIu64 " draw_dirty=%d"
+        " format=0x%" PRIx64 " vk_format=%" PRIu64
+        " generation=%" PRIu64 " image=0x%" PRIx64 " view=0x%" PRIx64
+        " layout=%" PRIu64 " draw_dirty=%d"
         " upload_pending=%d initialized=%d cleared=%d frame_time=%" PRId64
         " draw_time=%" PRId64,
         info->pcrtc_start, info->line_offset, info->lookup_address,
         info->binding_base, info->binding_end, info->delta,
         info->pitch, info->width, info->height, info->color_format,
-        info->host_vk_format, info->draw_dirty, info->upload_pending,
+        info->host_vk_format, info->generation, info->image, info->image_view,
+        info->image_layout, info->draw_dirty, info->upload_pending,
         info->initialized, info->cleared, info->frame_time, info->draw_time);
 }
 
 void boxdroid_m5_diag_late_miss(uint64_t pcrtc_start, uint64_t line_offset,
                                 uint64_t lookup_address,
-                                const BoxDroidM5BindingInfo *nearest)
+                                const BoxDroidM5BindingInfo *nearest,
+                                const BoxDroidM5BindingInfo *binding_32a4000,
+                                const BoxDroidM5BindingInfo *binding_3628000)
 {
     if (__atomic_exchange_n(&diagnostic_late_miss_logged, true, __ATOMIC_RELAXED)) {
         return;
@@ -366,6 +402,30 @@ void boxdroid_m5_diag_late_miss(uint64_t pcrtc_start, uint64_t line_offset,
             "M5_SCANOUT_LATE_MISS_FIRST pcrtc=0x%" PRIx64 " line_offset=0x%" PRIx64
             " lookup=0x%" PRIx64 " nearest=none",
             pcrtc_start, line_offset, lookup_address);
+    }
+    if (binding_32a4000) {
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_SCANOUT_MISS_BINDING base=0x32a4000 generation=%" PRIu64
+            " range=[0x%" PRIx64 ",0x%" PRIx64 ") pitch=%" PRIu64
+            " extent=%" PRIu64 "x%" PRIu64 " format=0x%" PRIx64
+            " image=0x%" PRIx64 " draw_dirty=%d upload_pending=%d",
+            binding_32a4000->generation, binding_32a4000->binding_base,
+            binding_32a4000->binding_end, binding_32a4000->pitch,
+            binding_32a4000->width, binding_32a4000->height,
+            binding_32a4000->color_format, binding_32a4000->image,
+            binding_32a4000->draw_dirty, binding_32a4000->upload_pending);
+    }
+    if (binding_3628000) {
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_SCANOUT_MISS_BINDING base=0x3628000 generation=%" PRIu64
+            " range=[0x%" PRIx64 ",0x%" PRIx64 ") pitch=%" PRIu64
+            " extent=%" PRIu64 "x%" PRIu64 " format=0x%" PRIx64
+            " image=0x%" PRIx64 " draw_dirty=%d upload_pending=%d",
+            binding_3628000->generation, binding_3628000->binding_base,
+            binding_3628000->binding_end, binding_3628000->pitch,
+            binding_3628000->width, binding_3628000->height,
+            binding_3628000->color_format, binding_3628000->image,
+            binding_3628000->draw_dirty, binding_3628000->upload_pending);
     }
 }
 
@@ -418,6 +478,168 @@ void boxdroid_m5_diag_sample(BoxDroidM5SampleBoundary boundary,
     }
 }
 
+void boxdroid_m5_diag_binding_event(BoxDroidM5BindingEvent event,
+                                    uint64_t base, uint64_t generation,
+                                    const uint64_t values[8])
+{
+    BoxDroidM5BindingJournal *journal = NULL;
+    bool first;
+
+    if ((unsigned) event >= BOXDROID_M5_BINDING_EVENT_COUNT || !values ||
+        (base != UINT64_C(0x32a4000) && base != UINT64_C(0x3628000))) {
+        return;
+    }
+
+    pthread_mutex_lock(&binding_journal_lock);
+    for (size_t i = 0; i < binding_journal_count; ++i) {
+        if (binding_journal[i].base == base &&
+            binding_journal[i].generation == generation) {
+            journal = &binding_journal[i];
+            break;
+        }
+    }
+    if (!journal && binding_journal_count < ARRAY_SIZE(binding_journal)) {
+        journal = &binding_journal[binding_journal_count++];
+        memset(journal, 0, sizeof(*journal));
+        journal->base = base;
+        journal->generation = generation;
+    }
+    if (!journal) {
+        pthread_mutex_unlock(&binding_journal_lock);
+        return;
+    }
+
+    if (event == BOXDROID_M5_BINDING_SCANOUT &&
+        journal->counts[BOXDROID_M5_BINDING_SCANOUT] == 0) {
+        journal->before_scanout_event = journal->last_event;
+        memcpy(journal->before_scanout_operation, journal->last_operation,
+               sizeof(journal->before_scanout_operation));
+    }
+
+    first = !(journal->first_logged & (UINT32_C(1) << event));
+    journal->first_logged |= UINT32_C(1) << event;
+    journal->counts[event]++;
+    memcpy(journal->last_values[event], values, sizeof(journal->last_values[event]));
+
+    if (event != BOXDROID_M5_BINDING_SCANOUT) {
+        journal->last_event = event;
+        memcpy(journal->last_operation, values, sizeof(journal->last_operation));
+    }
+    pthread_mutex_unlock(&binding_journal_lock);
+
+    if (!first || event == BOXDROID_M5_BINDING_SCANOUT) {
+        return;
+    }
+
+    switch (event) {
+    case BOXDROID_M5_BINDING_CREATE:
+    case BOXDROID_M5_BINDING_REUSE:
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_BINDING_%s_FIRST base=0x%" PRIx64 " generation=%" PRIu64
+            " image=0x%" PRIx64 " view=0x%" PRIx64 " extent=%" PRIu64 "x%" PRIu64
+            " pitch=%" PRIu64 " format=%" PRIu64 " image_reused=%" PRIu64
+            " initialized=%" PRIu64,
+            binding_event_names[event], base, generation, values[0], values[1],
+            values[2], values[3], values[4], values[5], values[6], values[7]);
+        break;
+    case BOXDROID_M5_BINDING_UPLOAD_PENDING:
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_BINDING_UPLOAD_PENDING_FIRST base=0x%" PRIx64 " generation=%" PRIu64
+            " old=%" PRIu64 " new=%" PRIu64 " cause=%" PRIu64,
+            base, generation, values[0], values[1], values[2]);
+        break;
+    case BOXDROID_M5_BINDING_UPLOAD:
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_BINDING_UPLOAD_FIRST base=0x%" PRIx64 " generation=%" PRIu64
+            " source_hash=%016" PRIx64 " hashed_bytes=%" PRIu64
+            " bytes_per_pixel=%" PRIu64 " swizzle=%" PRIu64,
+            base, generation, values[0], values[1], values[2], values[3]);
+        break;
+    case BOXDROID_M5_BINDING_DRAW_DIRTY:
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_BINDING_DRAW_DIRTY_FIRST base=0x%" PRIx64 " generation=%" PRIu64
+            " old=%" PRIu64 " new=%" PRIu64 " source=%" PRIu64,
+            base, generation, values[0], values[1], values[2]);
+        break;
+    case BOXDROID_M5_BINDING_CLEAR:
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_BINDING_CLEAR_FIRST base=0x%" PRIx64 " generation=%" PRIu64
+            " raw=0x%08" PRIx64 " rgba_bits=%08" PRIx64 ",%08" PRIx64 ",%08" PRIx64 ",%08" PRIx64
+            " rect=%" PRIu64 ",%" PRIu64 "+%" PRIu64 "x%" PRIu64
+            " channels=0x%" PRIx64,
+            base, generation, values[0], values[1], values[2], values[3], values[4],
+            values[5] >> 32, values[5] & UINT32_MAX, values[6] >> 32,
+            values[6] & UINT32_MAX, values[7]);
+        break;
+    case BOXDROID_M5_BINDING_GUEST_DRAW:
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_BINDING_GUEST_DRAW_FIRST base=0x%" PRIx64 " generation=%" PRIu64
+            " api=%" PRIu64 " primitive=%" PRIu64 " vertices=%" PRIu64
+            " indices=%" PRIu64 " color_mask=0x%" PRIx64
+            " scissor=%" PRIu64 ",%" PRIu64 "+%" PRIu64 "x%" PRIu64
+            " cull=%" PRIu64 " depth=%" PRIu64 " stencil=%" PRIu64
+            " depth_write=%" PRIu64,
+            base, generation, values[0], values[1], values[2], values[3], values[4],
+            values[5] >> 32, values[5] & UINT32_MAX, values[6] >> 32,
+            values[6] & UINT32_MAX, values[7] & 0xff, (values[7] >> 8) & 0xff,
+            (values[7] >> 16) & 0xff, (values[7] >> 24) & 0xff);
+        break;
+    case BOXDROID_M5_BINDING_GPU_PROBE:
+    case BOXDROID_M5_BINDING_STAGING_COMPARE:
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_BINDING_%s_FIRST base=0x%" PRIx64 " generation=%" PRIu64
+            " patch=%" PRIu64 "x%" PRIu64 " samples=%" PRIu64
+            " nonblack=%" PRIu64 " hash=%016" PRIx64
+            " format=%" PRIu64 " layout=%" PRIu64 " nonzero=%" PRIu64,
+            binding_event_names[event], base, generation, values[0], values[1],
+            values[2], values[3], values[4], values[5], values[6], values[7]);
+        break;
+    case BOXDROID_M5_BINDING_SCANOUT:
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_BINDING_SCANOUT_FIRST base=0x%" PRIx64 " generation=%" PRIu64
+            " image=0x%" PRIx64 " view=0x%" PRIx64 " extent=%" PRIu64 "x%" PRIu64
+            " pitch=%" PRIu64 " format=%" PRIu64 " draw_dirty=%" PRIu64
+            " upload_pending=%" PRIu64 " layout=color_attachment_optimal(2)",
+            base, generation, values[0], values[1], values[2], values[3],
+            values[4], values[5], values[6], values[7]);
+        break;
+    case BOXDROID_M5_BINDING_EVENT_COUNT:
+        break;
+    }
+}
+
+static void boxdroid_m5_diag_binding_summary_all(void)
+{
+    pthread_mutex_lock(&binding_journal_lock);
+    for (size_t i = 0; i < binding_journal_count; i++) {
+        const BoxDroidM5BindingJournal *j = &binding_journal[i];
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_BINDING_SUMMARY base=0x%" PRIx64 " generation=%" PRIu64
+            " create=%" PRIu64 " reuse=%" PRIu64 " upload_pending=%" PRIu64
+            " uploads=%" PRIu64 " draw_dirty=%" PRIu64 " clears=%" PRIu64
+            " guest_draws=%" PRIu64 " probes=%" PRIu64
+            " staging_compare=%" PRIu64 " scanout=%" PRIu64
+            " last_upload_hash=%016" PRIx64 " pre_scanout_op=%s"
+            " last_values=%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64,
+            j->base, j->generation,
+            j->counts[BOXDROID_M5_BINDING_CREATE],
+            j->counts[BOXDROID_M5_BINDING_REUSE],
+            j->counts[BOXDROID_M5_BINDING_UPLOAD_PENDING],
+            j->counts[BOXDROID_M5_BINDING_UPLOAD],
+            j->counts[BOXDROID_M5_BINDING_DRAW_DIRTY],
+            j->counts[BOXDROID_M5_BINDING_CLEAR],
+            j->counts[BOXDROID_M5_BINDING_GUEST_DRAW],
+            j->counts[BOXDROID_M5_BINDING_GPU_PROBE],
+            j->counts[BOXDROID_M5_BINDING_STAGING_COMPARE],
+            j->counts[BOXDROID_M5_BINDING_SCANOUT],
+            j->last_values[BOXDROID_M5_BINDING_UPLOAD][0],
+            binding_event_names[j->before_scanout_event],
+            j->before_scanout_operation[0], j->before_scanout_operation[1],
+            j->before_scanout_operation[2], j->before_scanout_operation[3]);
+    }
+    pthread_mutex_unlock(&binding_journal_lock);
+}
+
 static void log_message(int priority, const char *message)
 {
     __android_log_write(priority, TAG, message);
@@ -433,11 +655,95 @@ void xemu_queue_error_message(const char *message)
     __android_log_print(ANDROID_LOG_ERROR, TAG, "XEMU_ERROR %s", message);
 }
 
+void boxdroid_m5_diag_firmware_event(const char *kind, const char *stage,
+                                    const char *path, int64_t result,
+                                    uint64_t bytes)
+{
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "M5_FIRMWARE_%s stage=%s path=%s result=%" PRId64 " bytes=%" PRIu64,
+        kind, stage, path ? path : "(null)", result, bytes);
+}
+
+void boxdroid_m5_diag_hdd_open(const char *path, int result,
+                               uint64_t virtual_size)
+{
+    bool path_match = runtime_hdd_path && path &&
+                      g_str_has_suffix(path, runtime_hdd_path);
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "M5_HDD_QCOW2_OPEN result=%d path=%s expected=%s path_match=%d virtual_size=%" PRIu64,
+        result, path ? path : "(null)", runtime_hdd_path ? runtime_hdd_path : "(unset)",
+        path_match, virtual_size);
+}
+
+void boxdroid_m5_diag_guest_io_start(void)
+{
+    pthread_mutex_lock(&hdd_io_lock);
+    hdd_io_enabled = true;
+    pthread_mutex_unlock(&hdd_io_lock);
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+                        "M5_HDD_GUEST_IO_WINDOW_START path=%s",
+                        runtime_hdd_path ? runtime_hdd_path : "(unset)");
+}
+
+void boxdroid_m5_diag_guest_io_stop(void)
+{
+    pthread_mutex_lock(&hdd_io_lock);
+    hdd_io_enabled = false;
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "M5_HDD_GUEST_IO_SUMMARY path=%s reads=%" PRIu64
+        " read_bytes=%" PRIu64 " read_failures=%" PRIu64
+        " writes=%" PRIu64 " write_bytes=%" PRIu64
+        " write_failures=%" PRIu64 " first_read_count=%zu",
+        runtime_hdd_path ? runtime_hdd_path : "(unset)", hdd_read_requests,
+        hdd_read_bytes, hdd_read_failures, hdd_write_requests, hdd_write_bytes,
+        hdd_write_failures, hdd_first_read_count);
+    for (size_t i = 0; i < hdd_first_read_count; i++) {
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_HDD_GUEST_READ_FIRST index=%zu offset=0x%" PRIx64 " bytes=%" PRIu64,
+            i, hdd_first_reads[i].offset, hdd_first_reads[i].bytes);
+    }
+    pthread_mutex_unlock(&hdd_io_lock);
+}
+
+void boxdroid_m5_diag_hdd_io(bool write, const char *path, uint64_t offset,
+                             uint64_t bytes, int result)
+{
+    bool path_match = runtime_hdd_path && path &&
+                      g_str_has_suffix(path, runtime_hdd_path);
+    pthread_mutex_lock(&hdd_io_lock);
+    if (!hdd_io_enabled || !path_match) {
+        pthread_mutex_unlock(&hdd_io_lock);
+        return;
+    }
+    if (write) {
+        hdd_write_requests++;
+        if (result == 0) hdd_write_bytes += bytes;
+        else hdd_write_failures++;
+    } else {
+        hdd_read_requests++;
+        if (result == 0) hdd_read_bytes += bytes;
+        else hdd_read_failures++;
+        if (hdd_first_read_count < G_N_ELEMENTS(hdd_first_reads)) {
+            size_t index = hdd_first_read_count++;
+            hdd_first_reads[index].offset = offset;
+            hdd_first_reads[index].bytes = bytes;
+            __android_log_print(ANDROID_LOG_INFO, TAG,
+                "M5_HDD_GUEST_READ_FIRST index=%zu offset=0x%" PRIx64
+                " bytes=%" PRIu64 " result=%d", index, offset, bytes, result);
+        }
+    }
+    pthread_mutex_unlock(&hdd_io_lock);
+}
+
 static void *run_xbox(void *unused)
 {
     int status;
     (void) unused;
 
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "M5_QEMU_INPUT_PATHS bios=%s mcpx=%s hdd=%s machine_arg=%s hdd_arg=%s",
+        arguments[4], runtime_mcpx_path, runtime_hdd_path,
+        arguments[2], arguments[6]);
     log_message(ANDROID_LOG_INFO, "XEMU_QEMU_INIT_ENTER");
     qemu_init(g_strv_length(arguments), arguments);
     log_message(ANDROID_LOG_INFO, "XEMU_QEMU_INIT_RETURN");
@@ -459,6 +765,7 @@ static void *run_xbox(void *unused)
     replay_mutex_lock();
     bql_lock();
     log_message(ANDROID_LOG_INFO, "XBOX_MAIN_LOOP_START guest=i386 host=aarch64 tcg=on");
+    boxdroid_m5_diag_guest_io_start();
     status = qemu_main_loop();
     __android_log_print(ANDROID_LOG_INFO, TAG,
                         "XBOX_QEMU_LOOP_RETURN status=%d", status);
@@ -536,6 +843,15 @@ Java_org_boxdroid_m5_MainActivity_nativeXboxStart(JNIEnv *env, jobject self,
     /* Replace placeholders after preserving the Java strings through qemu_init. */
     arguments[2] = g_strdup_printf("xbox,bootrom=%s,kernel-irqchip=off,avpack=scart", mcpx_path);
     arguments[6] = g_strdup_printf("file=%s,if=ide,index=0,media=disk,format=qcow2", hdd_path);
+    g_free(runtime_mcpx_path);
+    g_free(runtime_hdd_path);
+    runtime_mcpx_path = g_strdup(mcpx_path);
+    runtime_hdd_path = g_strdup(hdd_path);
+    pthread_mutex_lock(&hdd_io_lock);
+    hdd_read_requests = hdd_read_bytes = hdd_read_failures = 0;
+    hdd_write_requests = hdd_write_bytes = hdd_write_failures = 0;
+    hdd_first_read_count = 0;
+    pthread_mutex_unlock(&hdd_io_lock);
     g_autofree gchar *app_private_dir = g_path_get_dirname(log_path);
     eeprom_path = g_strdup_printf("%s/m5-eeprom.bin", app_private_dir);
     Error *crypto_error = NULL;
@@ -584,6 +900,7 @@ Java_org_boxdroid_m5_MainActivity_nativeXboxStop(JNIEnv *env, jobject self)
     (void) env;
     (void) self;
     if (!thread_created) return 0;
+    boxdroid_m5_diag_guest_io_stop();
     boxdroid_m5_diag_summary();
     log_message(ANDROID_LOG_INFO, "XBOX_SHUTDOWN_REQUEST");
     bql_lock();
