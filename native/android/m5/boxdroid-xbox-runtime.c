@@ -20,6 +20,12 @@
 #include "hw/xbox/nv2a/boxdroid-m5-diagnostics.h"
 
 #define ARG(value) ((char *)(value))
+#define M5_RAW_FB_BASE UINT64_C(0x3c00000)
+#define M5_RAW_FB_PITCH 2560U
+#define M5_RAW_FB_WIDTH 640U
+#define M5_RAW_FB_HEIGHT 480U
+#define M5_RAW_FB_SIZE ((size_t) M5_RAW_FB_PITCH * M5_RAW_FB_HEIGHT)
+#define M5_FB_WRITE_LOG_CAP 16
 
 extern bool boxdroid_android_present_rgba(const uint8_t *pixels,
                                          uint32_t width, uint32_t height,
@@ -48,19 +54,32 @@ static int64_t m5_last_pgraph_target_time, m5_last_pgraph_extent_time;
 static bool m5_have_pgraph_target, m5_have_pgraph_extent;
 static bool m5_pcrtc_3c_seen;
 static pthread_mutex_t m5_vram_write_lock = PTHREAD_MUTEX_INITIALIZER;
-static uint64_t m5_vram_write_count, m5_vram_write_bytes;
-static uint64_t m5_vram_3c_overlap_bytes, m5_vram_3d_overlap_bytes;
-static uint64_t m5_vram_3c_write_count, m5_vram_3d_write_count;
-static uint64_t m5_vram_read_count, m5_vram_read_bytes;
+static uint64_t m5_fb_write_count, m5_fb_write_bytes;
 static uint64_t m5_vram_write_event_log_count;
-static uint64_t m5_vram_first_write_addr, m5_vram_first_write_size;
-static uint64_t m5_vram_last_write_addr, m5_vram_last_write_size;
-static char m5_vram_first_writer[32], m5_vram_last_writer[32];
-typedef struct BoxDroidM5VramTargetWrites {
-    uint64_t count, bytes, first_addr, first_size, last_addr, last_size;
-    char first_writer[32], last_writer[32];
-} BoxDroidM5VramTargetWrites;
-static BoxDroidM5VramTargetWrites m5_vram_target_writes[2];
+static int64_t m5_fb_first_write_us;
+static char m5_fb_first_writer[32], m5_fb_last_writer[32];
+static uint64_t m5_vram_read_count, m5_vram_read_bytes;
+typedef struct BoxDroidM5FramebufferWrite {
+    uint64_t sequence;
+    int64_t timestamp_us;
+    uint64_t address;
+    uint64_t bytes;
+    uint64_t source;
+    uint64_t guest_pc;
+    uint64_t overlap_bytes;
+    char writer[32];
+} BoxDroidM5FramebufferWrite;
+static BoxDroidM5FramebufferWrite m5_fb_first_writes[M5_FB_WRITE_LOG_CAP];
+static BoxDroidM5FramebufferWrite m5_fb_last_writes[M5_FB_WRITE_LOG_CAP];
+typedef struct BoxDroidM5FramebufferSamples {
+    uint64_t samples, nonzero_samples, rgb_samples;
+    int64_t first_nonzero_us, first_rgb_us, last_sample_us;
+    uint64_t last_nonzero_bytes, last_rgb_pixels;
+} BoxDroidM5FramebufferSamples;
+static BoxDroidM5FramebufferSamples m5_fb_samples[2];
+static pthread_mutex_t m5_fb_sample_lock = PTHREAD_MUTEX_INITIALIZER;
+static int64_t m5_fb_periodic_sample_us;
+static bool m5_fb_first_pcrtc_sampled;
 static uint64_t diagnostic_counts[BOXDROID_M5_DIAG_COUNT];
 static uint64_t diagnostic_sample_counts[BOXDROID_M5_SAMPLE_COUNT];
 static const void *diagnostic_scanout_surface;
@@ -100,8 +119,9 @@ static const char *const binding_event_names[BOXDROID_M5_BINDING_EVENT_COUNT] = 
 };
 static void boxdroid_m5_diag_binding_summary_all(void);
 
-void boxdroid_m5_diag_record(const char *event, uint64_t a, uint64_t b,
-                             uint64_t c, uint64_t d, uint64_t e, uint64_t f)
+uint64_t boxdroid_m5_diag_record(const char *event, uint64_t a, uint64_t b,
+                                uint64_t c, uint64_t d, uint64_t e,
+                                uint64_t f)
 {
     uint64_t sequence = __atomic_add_fetch(&m5_diagnostic_sequence, 1,
                                             __ATOMIC_RELAXED);
@@ -147,7 +167,7 @@ void boxdroid_m5_diag_record(const char *event, uint64_t a, uint64_t b,
     pthread_mutex_unlock(&m5_order_lock);
 
     if (!log_record) {
-        return;
+        return sequence;
     }
     __android_log_print(ANDROID_LOG_INFO, TAG,
         "M5_ORDER seq=%" PRIu64 " mono_us=%" PRId64 " event=%s"
@@ -176,6 +196,7 @@ void boxdroid_m5_diag_record(const char *event, uint64_t a, uint64_t b,
                 extent[2], extent[3]);
         }
     }
+    return sequence;
 }
 
 void boxdroid_m5_diag_vram_sample(const char *boundary, uint64_t start,
@@ -230,14 +251,15 @@ void boxdroid_m5_diag_vram_sample(const char *boundary, uint64_t start,
 }
 
 void boxdroid_m5_diag_vram_write(const char *writer, uint64_t address,
-                                uint64_t bytes, uint64_t source)
+                                uint64_t bytes, uint64_t source,
+                                uint64_t guest_pc)
 {
-    const uint64_t watch_start = UINT64_C(0x3c00000);
-    const uint64_t watch_end = UINT64_C(0x3e00000);
-    const uint64_t window_size = UINT64_C(0x200000);
-    uint64_t end, overlap_start, overlap_end, overlap_bytes;
-    uint64_t overlap_3c = 0, overlap_3d = 0, sequence, write_number;
-    bool first;
+    const uint64_t watch_start = M5_RAW_FB_BASE;
+    const uint64_t watch_end = M5_RAW_FB_BASE + M5_RAW_FB_SIZE;
+    uint64_t end, overlap_start, overlap_end, overlap_bytes, sequence;
+    int64_t timestamp_us;
+    BoxDroidM5FramebufferWrite record;
+    uint64_t write_number;
 
     if (!writer || !bytes || address > UINT64_MAX - bytes) {
         return;
@@ -249,62 +271,49 @@ void boxdroid_m5_diag_vram_write(const char *writer, uint64_t address,
         return;
     }
     overlap_bytes = overlap_end - overlap_start;
-    if (overlap_start < watch_start + window_size) {
-        overlap_3c = MIN(overlap_end, watch_start + window_size) - overlap_start;
-    }
-    if (overlap_end > UINT64_C(0x3d00000)) {
-        overlap_3d = overlap_end - MAX(overlap_start, UINT64_C(0x3d00000));
-    }
+    timestamp_us = g_get_monotonic_time();
+    sequence = __atomic_add_fetch(&m5_diagnostic_sequence, 1,
+                                  __ATOMIC_RELAXED);
+    record = (BoxDroidM5FramebufferWrite) {
+        .sequence = sequence,
+        .timestamp_us = timestamp_us,
+        .address = address,
+        .bytes = bytes,
+        .source = source,
+        .guest_pc = guest_pc,
+        .overlap_bytes = overlap_bytes,
+    };
+    g_strlcpy(record.writer, writer, sizeof(record.writer));
     pthread_mutex_lock(&m5_vram_write_lock);
-    write_number = ++m5_vram_write_count;
-    first = write_number == 1;
-    m5_vram_write_bytes += overlap_bytes;
-    m5_vram_3c_overlap_bytes += overlap_3c;
-    m5_vram_3d_overlap_bytes += overlap_3d;
-    if (overlap_3c) m5_vram_3c_write_count++;
-    if (overlap_3d) m5_vram_3d_write_count++;
-    for (size_t target = 0; target < 2; ++target) {
-        uint64_t overlap = target == 0 ? overlap_3c : overlap_3d;
-        BoxDroidM5VramTargetWrites *stats = &m5_vram_target_writes[target];
-        if (overlap) {
-            if (stats->count++ == 0) {
-                stats->first_addr = address;
-                stats->first_size = bytes;
-                g_strlcpy(stats->first_writer, writer, sizeof(stats->first_writer));
-            }
-            stats->bytes += overlap;
-            stats->last_addr = address;
-            stats->last_size = bytes;
-            g_strlcpy(stats->last_writer, writer, sizeof(stats->last_writer));
-        }
+    write_number = ++m5_fb_write_count;
+    m5_fb_write_bytes += overlap_bytes;
+    if (write_number == 1) {
+        m5_fb_first_write_us = timestamp_us;
+        g_strlcpy(m5_fb_first_writer, writer, sizeof(m5_fb_first_writer));
     }
-    if (first) {
-        m5_vram_first_write_addr = address;
-        m5_vram_first_write_size = bytes;
-        g_strlcpy(m5_vram_first_writer, writer, sizeof(m5_vram_first_writer));
+    g_strlcpy(m5_fb_last_writer, writer, sizeof(m5_fb_last_writer));
+    if (write_number <= M5_FB_WRITE_LOG_CAP) {
+        m5_fb_first_writes[write_number - 1] = record;
     }
-    m5_vram_last_write_addr = address;
-    m5_vram_last_write_size = bytes;
-    g_strlcpy(m5_vram_last_writer, writer, sizeof(m5_vram_last_writer));
+    m5_fb_last_writes[(write_number - 1) % M5_FB_WRITE_LOG_CAP] = record;
     pthread_mutex_unlock(&m5_vram_write_lock);
 
-    sequence = __atomic_load_n(&m5_diagnostic_sequence, __ATOMIC_RELAXED) + 1;
-    boxdroid_m5_diag_record("VRAM_WRITE", address, bytes, source,
-                            overlap_bytes, overlap_3c, overlap_3d);
-    if (first || write_number <= 16) {
+    if (write_number <= M5_FB_WRITE_LOG_CAP) {
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "M5_VRAM_WRITE seq=%" PRIu64 " writer=%s address=0x%" PRIx64
-            " bytes=%" PRIu64 " source=0x%" PRIx64
-            " overlap_3c=%" PRIu64 " overlap_3d=%" PRIu64,
-            sequence, writer, address, bytes, source, overlap_3c, overlap_3d);
+            "M5_FB_WRITE seq=%" PRIu64 " mono_us=%" PRId64
+            " writer=%s address=0x%" PRIx64 " bytes=%" PRIu64
+            " overlap_bytes=%" PRIu64 " source=0x%" PRIx64
+            " guest_pc=0x%" PRIx64 " count=%" PRIu64,
+            sequence, timestamp_us, writer, address, bytes, overlap_bytes,
+            source, guest_pc, write_number);
     }
 }
 
 void boxdroid_m5_diag_vram_read(const char *reader, uint64_t address,
                                uint64_t bytes)
 {
-    const uint64_t watch_start = UINT64_C(0x3c00000);
-    const uint64_t watch_end = UINT64_C(0x3e00000);
+    const uint64_t watch_start = M5_RAW_FB_BASE;
+    const uint64_t watch_end = M5_RAW_FB_BASE + M5_RAW_FB_SIZE;
     uint64_t end, overlap_start, overlap_end, read_number;
     if (!reader || !bytes || address > UINT64_MAX - bytes) {
         return;
@@ -377,6 +386,69 @@ void boxdroid_m5_diag_target_vram_sample(const char *boundary,
             boundary, sequence_event, start, length, nonzero, rgb_nonblack,
             hash);
     }
+}
+
+void boxdroid_m5_diag_framebuffer_sample(const char *boundary,
+                                        uint64_t pcrtc_start,
+                                        const uint8_t *data,
+                                        size_t length)
+{
+    size_t sample_bytes = MIN(length, M5_RAW_FB_SIZE);
+    uint64_t hash = UINT64_C(1469598103934665603);
+    uint64_t nonzero_bytes = 0, rgb_nonblack_pixels = 0;
+    int64_t timestamp_us = g_get_monotonic_time();
+    uint64_t sequence;
+
+    if (!boundary || !data || sample_bytes < M5_RAW_FB_SIZE) {
+        return;
+    }
+    for (size_t i = 0; i < sample_bytes; ++i) {
+        hash ^= data[i];
+        hash *= UINT64_C(1099511628211);
+        nonzero_bytes += data[i] != 0;
+    }
+    for (size_t i = 0; i < sample_bytes; i += 4) {
+        rgb_nonblack_pixels += data[i] || data[i + 1] || data[i + 2];
+    }
+    sequence = boxdroid_m5_diag_record("FRAMEBUFFER_SAMPLE", pcrtc_start,
+        M5_RAW_FB_BASE, M5_RAW_FB_PITCH,
+        ((uint64_t)M5_RAW_FB_WIDTH << 32) | M5_RAW_FB_HEIGHT,
+        nonzero_bytes, rgb_nonblack_pixels);
+
+    if (g_strcmp0(boundary, "raw-vram-pcrtc-entry") == 0 &&
+        __atomic_exchange_n(&m5_fb_first_pcrtc_sampled, true,
+                            __ATOMIC_RELAXED)) {
+        return;
+    }
+    size_t sample_index = g_str_has_prefix(boundary, "raw-vram") ? 0 : 1;
+    BoxDroidM5FramebufferSamples *samples = &m5_fb_samples[sample_index];
+    pthread_mutex_lock(&m5_fb_sample_lock);
+    samples->samples++;
+    if (nonzero_bytes) {
+        if (!samples->first_nonzero_us) {
+            samples->first_nonzero_us = timestamp_us;
+        }
+        samples->nonzero_samples++;
+    }
+    if (rgb_nonblack_pixels) {
+        if (!samples->first_rgb_us) {
+            samples->first_rgb_us = timestamp_us;
+        }
+        samples->rgb_samples++;
+    }
+    samples->last_sample_us = timestamp_us;
+    samples->last_nonzero_bytes = nonzero_bytes;
+    samples->last_rgb_pixels = rgb_nonblack_pixels;
+    pthread_mutex_unlock(&m5_fb_sample_lock);
+
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "M5_FRAMEBUFFER_SAMPLE seq=%" PRIu64 " mono_us=%" PRId64
+        " boundary=%s pcrtc=0x%" PRIx64 " base=0x%" PRIx64
+        " pitch=%u extent=%ux%u bytes=%zu nonzero_bytes=%" PRIu64
+        " rgb_nonblack_pixels=%" PRIu64 " hash=%016" PRIx64,
+        sequence, timestamp_us, boundary, pcrtc_start, M5_RAW_FB_BASE,
+        M5_RAW_FB_PITCH, M5_RAW_FB_WIDTH, M5_RAW_FB_HEIGHT, sample_bytes,
+        nonzero_bytes, rgb_nonblack_pixels, hash);
 }
 
 void xemu_queue_notification(const char *message);
@@ -509,11 +581,32 @@ static void xbox_display_update(DisplayChangeListener *dcl,
 
 static void xbox_display_refresh(DisplayChangeListener *dcl)
 {
+    int64_t now_us;
     boxdroid_m5_diag_event(BOXDROID_M5_DIAG_REFRESH_CALLBACK,
                            qemu_clock_get_ms(QEMU_CLOCK_REALTIME), 0, 0, 0, 0, 0);
     graphic_hw_update(dcl->con);
     boxdroid_m5_diag_event(BOXDROID_M5_DIAG_GRAPHIC_HW_UPDATE,
                            qemu_clock_get_ms(QEMU_CLOCK_REALTIME), 0, 0, 0, 0, 0);
+    now_us = g_get_monotonic_time();
+    if (now_us - m5_fb_periodic_sample_us >= G_USEC_PER_SEC) {
+        m5_fb_periodic_sample_us = now_us;
+        if (g_nv2a) {
+            DisplaySurface *surface = qemu_console_surface(dcl->con);
+            VGADisplayParams params;
+            boxdroid_m5_diag_framebuffer_sample("raw-vram",
+                g_nv2a->pcrtc.start, g_nv2a->vram_ptr + M5_RAW_FB_BASE,
+                M5_RAW_FB_SIZE);
+            g_nv2a->vga.get_params(&g_nv2a->vga, &params);
+            if (surface && surface->image &&
+                (uint64_t)params.start_addr * 4 == M5_RAW_FB_BASE &&
+                surface_stride(surface) * surface_height(surface) >=
+                    (int)M5_RAW_FB_SIZE) {
+                boxdroid_m5_diag_framebuffer_sample("qemu-vga",
+                    g_nv2a->pcrtc.start, surface_data(surface),
+                    (size_t)surface_stride(surface) * surface_height(surface));
+            }
+        }
+    }
 }
 
 static const DisplayChangeListenerOps xbox_display_ops = {
@@ -680,37 +773,74 @@ void boxdroid_m5_diag_summary(void)
         boxdroid_m5_diag_target_vram_sample("45s-stop",
             g_nv2a->vram_ptr, memory_region_size(g_nv2a->vram),
             __atomic_load_n(&m5_diagnostic_sequence, __ATOMIC_RELAXED));
+        boxdroid_m5_diag_framebuffer_sample("raw-vram-stop",
+            g_nv2a->pcrtc.start, g_nv2a->vram_ptr + M5_RAW_FB_BASE,
+            M5_RAW_FB_SIZE);
     }
+    BoxDroidM5FramebufferWrite first_writes[M5_FB_WRITE_LOG_CAP];
+    BoxDroidM5FramebufferWrite last_writes[M5_FB_WRITE_LOG_CAP];
+    BoxDroidM5FramebufferSamples samples[2];
+    uint64_t write_count, write_bytes;
+    int64_t first_write_us;
+    char first_writer[32], last_writer[32];
     pthread_mutex_lock(&m5_vram_write_lock);
-    __android_log_print(ANDROID_LOG_INFO, TAG,
-        "M5_VRAM_ACCESS_SUMMARY reads=%" PRIu64 " read_bytes=%" PRIu64
-        " writes=%" PRIu64 " write_bytes=%" PRIu64
-        " overlap_3c_2m=%" PRIu64 " overlap_3d_2m=%" PRIu64
-        " writes_3c=%" PRIu64 " writes_3d=%" PRIu64
-        " first_writer=%s first_addr=0x%" PRIx64 " first_bytes=%" PRIu64
-        " last_writer=%s last_addr=0x%" PRIx64 " last_bytes=%" PRIu64,
-        m5_vram_read_count, m5_vram_read_bytes,
-        m5_vram_write_count, m5_vram_write_bytes,
-        m5_vram_3c_overlap_bytes, m5_vram_3d_overlap_bytes,
-        m5_vram_3c_write_count, m5_vram_3d_write_count,
-        m5_vram_first_writer[0] ? m5_vram_first_writer : "none",
-        m5_vram_first_write_addr, m5_vram_first_write_size,
-        m5_vram_last_writer[0] ? m5_vram_last_writer : "none",
-        m5_vram_last_write_addr, m5_vram_last_write_size);
+    write_count = m5_fb_write_count;
+    write_bytes = m5_fb_write_bytes;
+    first_write_us = m5_fb_first_write_us;
+    g_strlcpy(first_writer, m5_fb_first_writer, sizeof(first_writer));
+    g_strlcpy(last_writer, m5_fb_last_writer, sizeof(last_writer));
+    memcpy(first_writes, m5_fb_first_writes, sizeof(first_writes));
+    memcpy(last_writes, m5_fb_last_writes, sizeof(last_writes));
     pthread_mutex_unlock(&m5_vram_write_lock);
-    for (size_t target = 0; target < 2; ++target) {
-        const BoxDroidM5VramTargetWrites *stats = &m5_vram_target_writes[target];
+    pthread_mutex_lock(&m5_fb_sample_lock);
+    memcpy(samples, m5_fb_samples, sizeof(samples));
+    pthread_mutex_unlock(&m5_fb_sample_lock);
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "M5_FB_WRITE_SUMMARY range=[0x%" PRIx64 ",0x%" PRIx64 ")"
+        " pitch=%u extent=%ux%u count=%" PRIu64 " overlap_bytes=%" PRIu64
+        " first_writer=%s first_mono_us=%" PRId64 " last_writer=%s",
+        M5_RAW_FB_BASE, M5_RAW_FB_BASE + M5_RAW_FB_SIZE, M5_RAW_FB_PITCH,
+        M5_RAW_FB_WIDTH, M5_RAW_FB_HEIGHT, write_count, write_bytes,
+        first_writer[0] ? first_writer : "none", first_write_us,
+        last_writer[0] ? last_writer : "none");
+    for (size_t i = 0; i < MIN(write_count, M5_FB_WRITE_LOG_CAP); ++i) {
+        const BoxDroidM5FramebufferWrite *event = &first_writes[i];
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "M5_VRAM_TARGET_WRITES target=0x%" PRIx64 " count=%" PRIu64
-            " bytes=%" PRIu64 " first_writer=%s first_addr=0x%" PRIx64
-            " first_size=%" PRIu64 " last_writer=%s last_addr=0x%" PRIx64
-            " last_size=%" PRIu64,
-            target == 0 ? UINT64_C(0x3c00000) : UINT64_C(0x3d00000),
-            stats->count, stats->bytes,
-            stats->first_writer[0] ? stats->first_writer : "none",
-            stats->first_addr, stats->first_size,
-            stats->last_writer[0] ? stats->last_writer : "none",
-            stats->last_addr, stats->last_size);
+            "M5_FB_WRITE_FIRST index=%zu seq=%" PRIu64
+            " mono_us=%" PRId64 " writer=%s address=0x%" PRIx64
+            " bytes=%" PRIu64 " overlap_bytes=%" PRIu64
+            " source=0x%" PRIx64 " guest_pc=0x%" PRIx64,
+            i, event->sequence, event->timestamp_us, event->writer,
+            event->address, event->bytes, event->overlap_bytes,
+            event->source, event->guest_pc);
+    }
+    size_t last_count = MIN(write_count, M5_FB_WRITE_LOG_CAP);
+    size_t last_start = write_count >= M5_FB_WRITE_LOG_CAP ?
+        write_count % M5_FB_WRITE_LOG_CAP : 0;
+    for (size_t i = 0; i < last_count; ++i) {
+        const BoxDroidM5FramebufferWrite *event =
+            &last_writes[(last_start + i) % M5_FB_WRITE_LOG_CAP];
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_FB_WRITE_LAST index=%zu seq=%" PRIu64
+            " mono_us=%" PRId64 " writer=%s address=0x%" PRIx64
+            " bytes=%" PRIu64 " overlap_bytes=%" PRIu64
+            " source=0x%" PRIx64 " guest_pc=0x%" PRIx64,
+            i, event->sequence, event->timestamp_us, event->writer,
+            event->address, event->bytes, event->overlap_bytes,
+            event->source, event->guest_pc);
+    }
+    for (size_t i = 0; i < ARRAY_SIZE(samples); ++i) {
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_FB_SAMPLE_SUMMARY boundary=%s samples=%" PRIu64
+            " nonzero_samples=%" PRIu64 " rgb_samples=%" PRIu64
+            " first_nonzero_mono_us=%" PRId64
+            " first_rgb_mono_us=%" PRId64 " last_mono_us=%" PRId64
+            " last_nonzero_bytes=%" PRIu64 " last_rgb_pixels=%" PRIu64,
+            i == 0 ? "raw-vram" : "qemu-vga", samples[i].samples,
+            samples[i].nonzero_samples, samples[i].rgb_samples,
+            samples[i].first_nonzero_us, samples[i].first_rgb_us,
+            samples[i].last_sample_us, samples[i].last_nonzero_bytes,
+            samples[i].last_rgb_pixels);
     }
     pthread_mutex_lock(&m5_order_lock);
     if (m5_have_pgraph_target) {

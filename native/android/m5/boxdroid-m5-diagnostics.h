@@ -79,20 +79,26 @@ typedef struct BoxDroidM5BindingInfo {
 void boxdroid_m5_diag_event(BoxDroidM5Diagnostic event,
                             uint64_t a, uint64_t b, uint64_t c,
                             uint64_t d, uint64_t e, uint64_t f);
-void boxdroid_m5_diag_record(const char *event, uint64_t a, uint64_t b,
-                             uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+uint64_t boxdroid_m5_diag_record(const char *event, uint64_t a, uint64_t b,
+                                uint64_t c, uint64_t d, uint64_t e,
+                                uint64_t f);
 void boxdroid_m5_diag_vram_sample(const char *boundary, uint64_t start,
                                  uint32_t line_offset, uint32_t pitch,
                                  uint32_t width, uint32_t height, int depth,
                                  const uint8_t *data, size_t length);
 void boxdroid_m5_diag_vram_write(const char *writer, uint64_t address,
-                                uint64_t bytes, uint64_t source);
+                                uint64_t bytes, uint64_t source,
+                                uint64_t guest_pc);
 void boxdroid_m5_diag_vram_read(const char *reader, uint64_t address,
                                uint64_t bytes);
 void boxdroid_m5_diag_target_vram_sample(const char *boundary,
                                         const uint8_t *vram,
                                         uint64_t vram_size,
                                         uint64_t sequence_event);
+void boxdroid_m5_diag_framebuffer_sample(const char *boundary,
+                                        uint64_t pcrtc_start,
+                                        const uint8_t *data,
+                                        size_t length);
 void boxdroid_m5_diag_summary(void);
 void boxdroid_m5_diag_binding(const BoxDroidM5BindingInfo *info);
 void boxdroid_m5_diag_late_miss(uint64_t pcrtc_start, uint64_t line_offset,

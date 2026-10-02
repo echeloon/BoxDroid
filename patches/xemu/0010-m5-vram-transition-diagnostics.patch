@@ -1,18 +1,55 @@
 diff --git a/hw/xbox/nv2a/nv2a.c b/hw/xbox/nv2a/nv2a.c
-index 5f23dd56f5..081e3049a2 100644
+index 1565c05211..e3cd086f6d 100644
 --- a/hw/xbox/nv2a/nv2a.c
 +++ b/hw/xbox/nv2a/nv2a.c
-@@ -35,3 +34,0 @@ static void boxdroid_m5_vram_access_callback(void *opaque, MemoryRegion *mr,
--    if (!write) {
--        return;
--    }
-@@ -40 +37,5 @@ static void boxdroid_m5_vram_access_callback(void *opaque, MemoryRegion *mr,
--        boxdroid_m5_diag_vram_write("guest-cpu", addr - ram_base, len, 0);
-+        if (write) {
-+            boxdroid_m5_diag_vram_write("guest-cpu", addr - ram_base, len, 0);
-+        } else {
-+            boxdroid_m5_diag_vram_read("guest-cpu", addr - ram_base, len);
-+        }
+@@ -23,0 +24,23 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++#include "hw/xbox/nv2a/boxdroid-m5-diagnostics.h"
++#include "hw/core/cpu.h"
++static MemAccessCallback *boxdroid_m5_vram_access;
++
++static void boxdroid_m5_vram_access_callback(void *opaque, MemoryRegion *mr,
++                                             hwaddr addr, hwaddr len,
++                                             bool write)
++{
++    (void)opaque;
++    /* physmem.c passes the callback offset relative to this MemoryRegion. */
++    if (write) {
++        CPUState *cpu = current_cpu;
++        uint64_t guest_pc = cpu && cpu->cc && cpu->cc->get_pc ?
++            cpu->cc->get_pc(cpu) : 0;
++        boxdroid_m5_diag_vram_write(cpu ? "guest-cpu-context" :
++                                    "device-memory-transaction",
++                                    addr, len, 0, guest_pc);
++    } else {
++        boxdroid_m5_diag_vram_read("guest-memory-read", addr, len);
++    }
++}
++#endif
+@@ -237,0 +261,14 @@ static void nv2a_init_memory(NV2AState *d, MemoryRegion *ram)
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++    if (qemu_get_cpu(0) && memory_region_size(d->vram) > UINT64_C(0x3e00000)) {
++        hwaddr ram_base = memory_region_get_ram_addr(d->vram);
++        boxdroid_m5_vram_access = mem_access_callback_insert(
++            qemu_get_cpu(0), d->vram, UINT64_C(0x3c00000),
++            UINT64_C(0x200000), boxdroid_m5_vram_access_callback, d);
++        boxdroid_m5_diag_record("VRAM_CPU_WATCH_REGISTERED",
++            UINT64_C(0x3c00000), UINT64_C(0x3e00000), 0, 0, 0, 0);
++        boxdroid_m5_diag_record("VRAM_MEMORY_REGION_BASE", ram_base,
++            memory_region_size(d->vram), UINT64_C(0x3c00000),
++            UINT64_C(0x3c00000) + UINT64_C(0x12c000), 0, 0);
++    }
++#endif
++
+@@ -373,0 +411,8 @@ static void nv2a_exitfn(PCIDevice *dev)
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++    if (boxdroid_m5_vram_access) {
++        mem_access_callback_remove_by_ref(qemu_get_cpu(0),
++                                          boxdroid_m5_vram_access);
++        boxdroid_m5_vram_access = NULL;
++    }
++#endif
++
 diff --git a/hw/xbox/nv2a/pcrtc.c b/hw/xbox/nv2a/pcrtc.c
 index 51f3f22393..853b64e276 100644
 --- a/hw/xbox/nv2a/pcrtc.c
