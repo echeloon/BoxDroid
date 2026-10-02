@@ -46,6 +46,21 @@ static uint64_t m5_last_pgraph_target[6], m5_last_pgraph_extent[6];
 static uint64_t m5_last_pgraph_target_seq, m5_last_pgraph_extent_seq;
 static int64_t m5_last_pgraph_target_time, m5_last_pgraph_extent_time;
 static bool m5_have_pgraph_target, m5_have_pgraph_extent;
+static bool m5_pcrtc_3c_seen;
+static pthread_mutex_t m5_vram_write_lock = PTHREAD_MUTEX_INITIALIZER;
+static uint64_t m5_vram_write_count, m5_vram_write_bytes;
+static uint64_t m5_vram_3c_overlap_bytes, m5_vram_3d_overlap_bytes;
+static uint64_t m5_vram_3c_write_count, m5_vram_3d_write_count;
+static uint64_t m5_vram_read_count, m5_vram_read_bytes;
+static uint64_t m5_vram_write_event_log_count;
+static uint64_t m5_vram_first_write_addr, m5_vram_first_write_size;
+static uint64_t m5_vram_last_write_addr, m5_vram_last_write_size;
+static char m5_vram_first_writer[32], m5_vram_last_writer[32];
+typedef struct BoxDroidM5VramTargetWrites {
+    uint64_t count, bytes, first_addr, first_size, last_addr, last_size;
+    char first_writer[32], last_writer[32];
+} BoxDroidM5VramTargetWrites;
+static BoxDroidM5VramTargetWrites m5_vram_target_writes[2];
 static uint64_t diagnostic_counts[BOXDROID_M5_DIAG_COUNT];
 static uint64_t diagnostic_sample_counts[BOXDROID_M5_SAMPLE_COUNT];
 static const void *diagnostic_scanout_surface;
@@ -72,6 +87,7 @@ typedef struct BoxDroidM5BindingJournal {
     BoxDroidM5BindingEvent before_scanout_event;
     uint64_t before_scanout_operation[8];
     uint32_t first_logged;
+    uint32_t after_switch_logged;
 } BoxDroidM5BindingJournal;
 
 static pthread_mutex_t binding_journal_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -110,8 +126,15 @@ void boxdroid_m5_diag_record(const char *event, uint64_t a, uint64_t b,
         m5_last_pgraph_extent_time = timestamp;
         m5_have_pgraph_extent = true;
         log_record = m5_pgraph_record_count <= 32;
+    } else if (g_strcmp0(event, "VRAM_WRITE") == 0) {
+        log_record = __atomic_add_fetch(&m5_vram_write_event_log_count, 1,
+                                        __ATOMIC_RELAXED) <= 16;
     } else if (g_str_has_prefix(event, "SURFACE_")) {
         log_record = ++m5_surface_record_count <= 96;
+    }
+    if (g_strcmp0(event, "PCRTC_START") == 0 &&
+        b == UINT64_C(0x3c00000)) {
+        __atomic_store_n(&m5_pcrtc_3c_seen, true, __ATOMIC_RELAXED);
     }
     memcpy(target, m5_last_pgraph_target, sizeof(target));
     memcpy(extent, m5_last_pgraph_extent, sizeof(extent));
@@ -204,6 +227,156 @@ void boxdroid_m5_diag_vram_sample(const char *boundary, uint64_t start,
         boundary, start, line_offset, pitch, width, height, depth,
         bytes_per_pixel, sample_size, length, nonzero_bytes, nonzero_pixels,
         nonblack_pixels, hash);
+}
+
+void boxdroid_m5_diag_vram_write(const char *writer, uint64_t address,
+                                uint64_t bytes, uint64_t source)
+{
+    const uint64_t watch_start = UINT64_C(0x3c00000);
+    const uint64_t watch_end = UINT64_C(0x3e00000);
+    const uint64_t window_size = UINT64_C(0x200000);
+    uint64_t end, overlap_start, overlap_end, overlap_bytes;
+    uint64_t overlap_3c = 0, overlap_3d = 0, sequence, write_number;
+    bool first;
+
+    if (!writer || !bytes || address > UINT64_MAX - bytes) {
+        return;
+    }
+    end = address + bytes;
+    overlap_start = MAX(address, watch_start);
+    overlap_end = MIN(end, watch_end);
+    if (overlap_start >= overlap_end) {
+        return;
+    }
+    overlap_bytes = overlap_end - overlap_start;
+    if (overlap_start < watch_start + window_size) {
+        overlap_3c = MIN(overlap_end, watch_start + window_size) - overlap_start;
+    }
+    if (overlap_end > UINT64_C(0x3d00000)) {
+        overlap_3d = overlap_end - MAX(overlap_start, UINT64_C(0x3d00000));
+    }
+    pthread_mutex_lock(&m5_vram_write_lock);
+    write_number = ++m5_vram_write_count;
+    first = write_number == 1;
+    m5_vram_write_bytes += overlap_bytes;
+    m5_vram_3c_overlap_bytes += overlap_3c;
+    m5_vram_3d_overlap_bytes += overlap_3d;
+    if (overlap_3c) m5_vram_3c_write_count++;
+    if (overlap_3d) m5_vram_3d_write_count++;
+    for (size_t target = 0; target < 2; ++target) {
+        uint64_t overlap = target == 0 ? overlap_3c : overlap_3d;
+        BoxDroidM5VramTargetWrites *stats = &m5_vram_target_writes[target];
+        if (overlap) {
+            if (stats->count++ == 0) {
+                stats->first_addr = address;
+                stats->first_size = bytes;
+                g_strlcpy(stats->first_writer, writer, sizeof(stats->first_writer));
+            }
+            stats->bytes += overlap;
+            stats->last_addr = address;
+            stats->last_size = bytes;
+            g_strlcpy(stats->last_writer, writer, sizeof(stats->last_writer));
+        }
+    }
+    if (first) {
+        m5_vram_first_write_addr = address;
+        m5_vram_first_write_size = bytes;
+        g_strlcpy(m5_vram_first_writer, writer, sizeof(m5_vram_first_writer));
+    }
+    m5_vram_last_write_addr = address;
+    m5_vram_last_write_size = bytes;
+    g_strlcpy(m5_vram_last_writer, writer, sizeof(m5_vram_last_writer));
+    pthread_mutex_unlock(&m5_vram_write_lock);
+
+    sequence = __atomic_load_n(&m5_diagnostic_sequence, __ATOMIC_RELAXED) + 1;
+    boxdroid_m5_diag_record("VRAM_WRITE", address, bytes, source,
+                            overlap_bytes, overlap_3c, overlap_3d);
+    if (first || write_number <= 16) {
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_VRAM_WRITE seq=%" PRIu64 " writer=%s address=0x%" PRIx64
+            " bytes=%" PRIu64 " source=0x%" PRIx64
+            " overlap_3c=%" PRIu64 " overlap_3d=%" PRIu64,
+            sequence, writer, address, bytes, source, overlap_3c, overlap_3d);
+    }
+}
+
+void boxdroid_m5_diag_vram_read(const char *reader, uint64_t address,
+                               uint64_t bytes)
+{
+    const uint64_t watch_start = UINT64_C(0x3c00000);
+    const uint64_t watch_end = UINT64_C(0x3e00000);
+    uint64_t end, overlap_start, overlap_end, read_number;
+    if (!reader || !bytes || address > UINT64_MAX - bytes) {
+        return;
+    }
+    end = address + bytes;
+    overlap_start = MAX(address, watch_start);
+    overlap_end = MIN(end, watch_end);
+    if (overlap_start >= overlap_end) {
+        return;
+    }
+    pthread_mutex_lock(&m5_vram_write_lock);
+    read_number = ++m5_vram_read_count;
+    m5_vram_read_bytes += overlap_end - overlap_start;
+    pthread_mutex_unlock(&m5_vram_write_lock);
+    if (read_number <= 8) {
+        boxdroid_m5_diag_record("VRAM_READ", address, bytes,
+                                overlap_end - overlap_start, 0, 0, 0);
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_VRAM_READ seq=%" PRIu64 " reader=%s address=0x%" PRIx64
+            " bytes=%" PRIu64, __atomic_load_n(&m5_diagnostic_sequence,
+                                                __ATOMIC_RELAXED),
+            reader, address, bytes);
+    }
+}
+
+void boxdroid_m5_diag_target_vram_sample(const char *boundary,
+                                        const uint8_t *vram,
+                                        uint64_t vram_size,
+                                        uint64_t sequence_event)
+{
+    const uint64_t starts[] = { UINT64_C(0x3c00000), UINT64_C(0x3d00000) };
+    if (!vram || !boundary) {
+        return;
+    }
+    if (!sequence_event) {
+        sequence_event = __atomic_load_n(&m5_diagnostic_sequence,
+                                         __ATOMIC_RELAXED);
+    }
+    for (size_t target = 0; target < ARRAY_SIZE(starts); ++target) {
+        uint64_t start = starts[target];
+        size_t length = start < vram_size ?
+            (size_t)MIN(UINT64_C(0x200000), vram_size - start) : 0;
+        uint64_t hash = UINT64_C(1469598103934665603);
+        uint64_t nonzero = 0, rgb_nonblack = 0;
+        if (!length) {
+            continue;
+        }
+        for (size_t i = 0; i < length; ++i) {
+            uint8_t value = vram[start + i];
+            hash ^= value;
+            hash *= UINT64_C(1099511628211);
+            nonzero += value != 0;
+        }
+        /* VGA's observed 32-bit mode is little-endian BGRA; count RGB bytes. */
+        if ((length & 3) == 0) {
+            for (size_t i = 0; i < length; i += 4) {
+                rgb_nonblack += vram[start + i] || vram[start + i + 1] ||
+                                vram[start + i + 2];
+            }
+        }
+        boxdroid_m5_diag_record(target == 0 ? "VRAM_SAMPLE_3C" :
+                                "VRAM_SAMPLE_3D",
+            start, length, nonzero, rgb_nonblack, hash, 0);
+        sequence_event = __atomic_load_n(&m5_diagnostic_sequence,
+                                         __ATOMIC_RELAXED);
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_TARGET_VRAM_SAMPLE event=%s seq=%" PRIu64
+            " target=0x%" PRIx64 " bytes=%zu nonzero_bytes=%" PRIu64
+            " rgb_nonblack_32bpp=%" PRIu64 " hash=%016" PRIx64,
+            boundary, sequence_event, start, length, nonzero, rgb_nonblack,
+            hash);
+    }
 }
 
 void xemu_queue_notification(const char *message);
@@ -503,6 +676,42 @@ void boxdroid_m5_diag_summary(void)
         __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_DOWNLOAD_REQUESTED], __ATOMIC_RELAXED),
         __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_DOWNLOAD_SKIPPED], __ATOMIC_RELAXED),
         __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_DOWNLOAD_PERFORMED], __ATOMIC_RELAXED));
+    if (g_nv2a) {
+        boxdroid_m5_diag_target_vram_sample("45s-stop",
+            g_nv2a->vram_ptr, memory_region_size(g_nv2a->vram),
+            __atomic_load_n(&m5_diagnostic_sequence, __ATOMIC_RELAXED));
+    }
+    pthread_mutex_lock(&m5_vram_write_lock);
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "M5_VRAM_ACCESS_SUMMARY reads=%" PRIu64 " read_bytes=%" PRIu64
+        " writes=%" PRIu64 " write_bytes=%" PRIu64
+        " overlap_3c_2m=%" PRIu64 " overlap_3d_2m=%" PRIu64
+        " writes_3c=%" PRIu64 " writes_3d=%" PRIu64
+        " first_writer=%s first_addr=0x%" PRIx64 " first_bytes=%" PRIu64
+        " last_writer=%s last_addr=0x%" PRIx64 " last_bytes=%" PRIu64,
+        m5_vram_read_count, m5_vram_read_bytes,
+        m5_vram_write_count, m5_vram_write_bytes,
+        m5_vram_3c_overlap_bytes, m5_vram_3d_overlap_bytes,
+        m5_vram_3c_write_count, m5_vram_3d_write_count,
+        m5_vram_first_writer[0] ? m5_vram_first_writer : "none",
+        m5_vram_first_write_addr, m5_vram_first_write_size,
+        m5_vram_last_writer[0] ? m5_vram_last_writer : "none",
+        m5_vram_last_write_addr, m5_vram_last_write_size);
+    pthread_mutex_unlock(&m5_vram_write_lock);
+    for (size_t target = 0; target < 2; ++target) {
+        const BoxDroidM5VramTargetWrites *stats = &m5_vram_target_writes[target];
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_VRAM_TARGET_WRITES target=0x%" PRIx64 " count=%" PRIu64
+            " bytes=%" PRIu64 " first_writer=%s first_addr=0x%" PRIx64
+            " first_size=%" PRIu64 " last_writer=%s last_addr=0x%" PRIx64
+            " last_size=%" PRIu64,
+            target == 0 ? UINT64_C(0x3c00000) : UINT64_C(0x3d00000),
+            stats->count, stats->bytes,
+            stats->first_writer[0] ? stats->first_writer : "none",
+            stats->first_addr, stats->first_size,
+            stats->last_writer[0] ? stats->last_writer : "none",
+            stats->last_addr, stats->last_size);
+    }
     pthread_mutex_lock(&m5_order_lock);
     if (m5_have_pgraph_target) {
         __android_log_print(ANDROID_LOG_INFO, TAG,
@@ -653,10 +862,12 @@ void boxdroid_m5_diag_binding_event(BoxDroidM5BindingEvent event,
                                     const uint64_t values[8])
 {
     BoxDroidM5BindingJournal *journal = NULL;
-    bool first;
+    bool first, order_log = false, after_switch = false;
+    uint64_t event_count = 0;
 
     if ((unsigned) event >= BOXDROID_M5_BINDING_EVENT_COUNT || !values ||
-        (base != UINT64_C(0x32a4000) && base != UINT64_C(0x3628000))) {
+        (base != UINT64_C(0x32a4000) && base != UINT64_C(0x3628000) &&
+         base != UINT64_C(0x3d00000))) {
         return;
     }
 
@@ -689,13 +900,31 @@ void boxdroid_m5_diag_binding_event(BoxDroidM5BindingEvent event,
     first = !(journal->first_logged & (UINT32_C(1) << event));
     journal->first_logged |= UINT32_C(1) << event;
     journal->counts[event]++;
+    event_count = journal->counts[event];
     memcpy(journal->last_values[event], values, sizeof(journal->last_values[event]));
+
+    if (base == UINT64_C(0x3d00000) && event != BOXDROID_M5_BINDING_SCANOUT) {
+        after_switch = __atomic_load_n(&m5_pcrtc_3c_seen, __ATOMIC_RELAXED);
+        if (first || (after_switch &&
+            !(journal->after_switch_logged & (UINT32_C(1) << event)))) {
+            order_log = true;
+            if (after_switch) {
+                journal->after_switch_logged |= (UINT32_C(1) << event);
+            }
+        }
+    }
 
     if (event != BOXDROID_M5_BINDING_SCANOUT) {
         journal->last_event = event;
         memcpy(journal->last_operation, values, sizeof(journal->last_operation));
     }
     pthread_mutex_unlock(&binding_journal_lock);
+
+    if (order_log) {
+        boxdroid_m5_diag_record(after_switch ? "BINDING_3D_AFTER_PCRTC" :
+                                "BINDING_3D_BEFORE_PCRTC",
+            base, generation, event, event_count, values[0], values[1]);
+    }
 
     if (!first || event == BOXDROID_M5_BINDING_SCANOUT) {
         return;

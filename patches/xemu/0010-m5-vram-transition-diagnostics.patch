@@ -1,0 +1,74 @@
+diff --git a/hw/xbox/nv2a/nv2a.c b/hw/xbox/nv2a/nv2a.c
+index 5f23dd56f5..081e3049a2 100644
+--- a/hw/xbox/nv2a/nv2a.c
++++ b/hw/xbox/nv2a/nv2a.c
+@@ -35,3 +34,0 @@ static void boxdroid_m5_vram_access_callback(void *opaque, MemoryRegion *mr,
+-    if (!write) {
+-        return;
+-    }
+@@ -40 +37,5 @@ static void boxdroid_m5_vram_access_callback(void *opaque, MemoryRegion *mr,
+-        boxdroid_m5_diag_vram_write("guest-cpu", addr - ram_base, len, 0);
++        if (write) {
++            boxdroid_m5_diag_vram_write("guest-cpu", addr - ram_base, len, 0);
++        } else {
++            boxdroid_m5_diag_vram_read("guest-cpu", addr - ram_base, len);
++        }
+diff --git a/hw/xbox/nv2a/pcrtc.c b/hw/xbox/nv2a/pcrtc.c
+index 51f3f22393..853b64e276 100644
+--- a/hw/xbox/nv2a/pcrtc.c
++++ b/hw/xbox/nv2a/pcrtc.c
+@@ -78,0 +79,4 @@ void pcrtc_write(void *opaque, hwaddr addr, uint64_t val, unsigned int size)
++        if (val == UINT64_C(0x3c00000)) {
++            boxdroid_m5_diag_target_vram_sample("before-pcrtc-3c-switch",
++                d->vram_ptr, memory_region_size(d->vram), 0);
++        }
+@@ -86,0 +91,6 @@ void pcrtc_write(void *opaque, hwaddr addr, uint64_t val, unsigned int size)
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++        if (val == UINT64_C(0x3c00000)) {
++            boxdroid_m5_diag_target_vram_sample("after-pcrtc-3c-switch",
++                d->vram_ptr, memory_region_size(d->vram), 0);
++        }
++#endif
+diff --git a/hw/xbox/nv2a/pgraph/vk/blit.c b/hw/xbox/nv2a/pgraph/vk/blit.c
+index 23105132dc..8a47603654 100644
+--- a/hw/xbox/nv2a/pgraph/vk/blit.c
++++ b/hw/xbox/nv2a/pgraph/vk/blit.c
+@@ -247,0 +248,5 @@ void pgraph_vk_image_blit(NV2AState *d)
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++    boxdroid_m5_diag_vram_write("pgraph-blit",
++        dest_addr + dest_offset, clipped_dest_size,
++        source_addr + source_offset);
++#endif
+diff --git a/hw/xbox/nv2a/pgraph/vk/draw.c b/hw/xbox/nv2a/pgraph/vk/draw.c
+index 8d1890179b..7206f0647d 100644
+--- a/hw/xbox/nv2a/pgraph/vk/draw.c
++++ b/hw/xbox/nv2a/pgraph/vk/draw.c
+@@ -39 +39,2 @@ static void boxdroid_m5_record_guest_draw(PGRAPHState *pg, uint64_t api,
+-                     surface->vram_addr != UINT64_C(0x3628000))) {
++                     surface->vram_addr != UINT64_C(0x3628000) &&
++                     surface->vram_addr != UINT64_C(0x3d00000))) {
+@@ -86 +87,2 @@ static void boxdroid_m5_record_clear(PGRAPHState *pg, SurfaceBinding *surface,
+-         surface->vram_addr != UINT64_C(0x3628000))) {
++         surface->vram_addr != UINT64_C(0x3628000) &&
++         surface->vram_addr != UINT64_C(0x3d00000))) {
+@@ -1941 +1943,2 @@ void pgraph_vk_set_surface_dirty(PGRAPHState *pg, bool color, bool zeta,
+-             r->color_binding->vram_addr == UINT64_C(0x3628000)) &&
++             r->color_binding->vram_addr == UINT64_C(0x3628000) ||
++             r->color_binding->vram_addr == UINT64_C(0x3d00000)) &&
+diff --git a/hw/xbox/nv2a/pgraph/vk/surface.c b/hw/xbox/nv2a/pgraph/vk/surface.c
+index e94c3586b4..f1ffe56342 100644
+--- a/hw/xbox/nv2a/pgraph/vk/surface.c
++++ b/hw/xbox/nv2a/pgraph/vk/surface.c
+@@ -50 +50,2 @@ static bool boxdroid_m5_target_surface(const SurfaceBinding *surface)
+-           surface->vram_addr == UINT64_C(0x3628000);
++           surface->vram_addr == UINT64_C(0x3628000) ||
++           surface->vram_addr == UINT64_C(0x3d00000);
+@@ -702,0 +704,8 @@ static void download_surface(NV2AState *d, SurfaceBinding *surface, bool force)
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++    if (boxdroid_m5_target_surface(surface)) {
++        boxdroid_m5_diag_vram_write("vk-surface-download",
++            surface->vram_addr, surface->pitch * surface->height,
++            (uint64_t)(uintptr_t)surface->image);
++    }
++#endif
++
