@@ -18,6 +18,7 @@
 #include "hw/xbox/nv2a/nv2a.h"
 #include "hw/xbox/nv2a/nv2a_int.h"
 #include "hw/xbox/nv2a/boxdroid-m5-diagnostics.h"
+#include "target/i386/cpu.h"
 
 #define ARG(value) ((char *)(value))
 #define M5_RAW_FB_BASE UINT64_C(0x3c00000)
@@ -27,6 +28,9 @@
 #define M5_RAW_FB_SIZE ((size_t) M5_RAW_FB_PITCH * M5_RAW_FB_HEIGHT)
 #define M5_FB_WRITE_LOG_CAP 16
 #define M5_VALUE_LOG_CAP 64
+#define M5_PROGRESS_PC_SLOTS 4096
+#define M5_PROGRESS_TB_SLOTS 2048
+#define M5_PROGRESS_DEVICE_SLOTS 64
 
 extern bool boxdroid_android_present_rgba(const uint8_t *pixels,
                                          uint32_t width, uint32_t height,
@@ -115,6 +119,28 @@ static uint64_t hdd_read_requests, hdd_read_bytes, hdd_read_failures;
 static uint64_t hdd_write_requests, hdd_write_bytes, hdd_write_failures;
 static struct { uint64_t offset, bytes; } hdd_first_reads[8];
 static size_t hdd_first_read_count;
+static int64_t m5_progress_last_change_us;
+static int64_t m5_progress_started_us;
+static int64_t m5_progress_ended_us;
+static int64_t m5_progress_last_sample_us;
+static uint64_t m5_progress_probe_ticks;
+static bool m5_progress_first_tb_logged;
+static uint64_t m5_progress_tb_count, m5_progress_guest_insns;
+static uint64_t m5_progress_unique_pcs, m5_progress_pc_collisions;
+static uint64_t m5_progress_unique_tbs, m5_progress_tb_collisions;
+static uint64_t m5_progress_halt_exits, m5_progress_other_exits;
+static uint64_t m5_progress_interrupt_samples;
+static uint64_t m5_progress_device_reads, m5_progress_device_writes;
+static uint64_t m5_progress_device_overflow;
+static struct { uint64_t pc, count; bool used; }
+    m5_progress_pcs[M5_PROGRESS_PC_SLOTS];
+static struct { uintptr_t id; bool used; }
+    m5_progress_tbs[M5_PROGRESS_TB_SLOTS];
+static struct {
+    char name[48];
+    uint64_t offset, reads, writes, last_value, last_pc;
+    bool used;
+} m5_progress_devices[M5_PROGRESS_DEVICE_SLOTS];
 
 typedef struct BoxDroidM5BindingJournal {
     uint64_t base;
@@ -406,6 +432,10 @@ void boxdroid_m5_diag_cpu_store_value(uint64_t address, size_t size,
             m5_value_first_after[m5_value_first_after_count++] = record;
         }
         if (after_nonzero) {
+            if (record.change) {
+                __atomic_store_n(&m5_progress_last_change_us, pre_store_us,
+                                 __ATOMIC_RELAXED);
+            }
             if (!m5_value_first_nonzero_us) {
                 m5_value_first_nonzero_us = pre_store_us;
             }
@@ -417,6 +447,212 @@ void boxdroid_m5_diag_cpu_store_value(uint64_t address, size_t size,
         }
     }
     pthread_mutex_unlock(&m5_vram_write_lock);
+}
+
+/* M5-only, single-vCPU window: start after the last changing white pixel has
+ * been quiet for one second, then profile five seconds without per-TB logs. */
+void boxdroid_m5_diag_tb_exec(CPUState *cpu, uint64_t pc,
+                              uintptr_t tb_id, uint16_t guest_insns)
+{
+    int64_t last_change = __atomic_load_n(&m5_progress_last_change_us,
+                                           __ATOMIC_RELAXED);
+    int64_t now;
+    size_t slot;
+
+    if (!m5_progress_first_tb_logged) {
+        m5_progress_first_tb_logged = true;
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_TCG_TB_EXEC_FIRST pc=0x%" PRIx64 " guest_insns=%u",
+            pc, guest_insns);
+    }
+
+    if (!last_change || m5_progress_ended_us) {
+        return;
+    }
+    if (!m5_progress_started_us) {
+        if (++m5_progress_probe_ticks % 1024) {
+            return;
+        }
+        now = g_get_monotonic_time();
+        if (now - last_change < G_USEC_PER_SEC) {
+            return;
+        }
+        m5_progress_started_us = now;
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_PROGRESS_START mono_us=%" PRId64 " last_change_us=%" PRId64
+            " quiet_us=%" PRId64 " pc=0x%" PRIx64,
+            now, last_change, now - last_change, pc);
+    }
+
+    m5_progress_tb_count++;
+    m5_progress_guest_insns += guest_insns;
+    slot = (pc ^ (pc >> 12)) & (M5_PROGRESS_PC_SLOTS - 1);
+    if (!m5_progress_pcs[slot].used) {
+        m5_progress_pcs[slot].used = true;
+        m5_progress_pcs[slot].pc = pc;
+        m5_progress_unique_pcs++;
+    }
+    if (m5_progress_pcs[slot].pc == pc) {
+        m5_progress_pcs[slot].count++;
+    } else {
+        m5_progress_pc_collisions++;
+    }
+    slot = ((tb_id >> 4) ^ (tb_id >> 15)) & (M5_PROGRESS_TB_SLOTS - 1);
+    if (!m5_progress_tbs[slot].used) {
+        m5_progress_tbs[slot].used = true;
+        m5_progress_tbs[slot].id = tb_id;
+        m5_progress_unique_tbs++;
+    } else if (m5_progress_tbs[slot].id != tb_id) {
+        m5_progress_tb_collisions++;
+    }
+    m5_progress_interrupt_samples += cpu->interrupt_request != 0;
+
+    if (m5_progress_tb_count % 16384 == 0) {
+        now = g_get_monotonic_time();
+        if (now - m5_progress_started_us >= 5 * G_USEC_PER_SEC) {
+            m5_progress_ended_us = now;
+        }
+    }
+    if (m5_progress_tb_count == 1 ||
+        (m5_progress_tb_count % 262144 == 0 && !m5_progress_ended_us &&
+         (now = g_get_monotonic_time()) - m5_progress_last_sample_us >=
+             G_USEC_PER_SEC)) {
+        const CPUX86State *env = &X86_CPU(cpu)->env;
+        uint8_t queue_bytes[4] = { 0 }, flag_bytes[4] = { 0 };
+        int queue_status = cpu_memory_rw_debug(cpu,
+            (vaddr)env->regs[R_EBP], queue_bytes, sizeof(queue_bytes), 0);
+        int flag_status = cpu_memory_rw_debug(cpu,
+            (vaddr)env->regs[R_EBX] + 0x2c,
+            flag_bytes, sizeof(flag_bytes), 0);
+        uint32_t queue_word = (uint32_t)queue_bytes[0] |
+            ((uint32_t)queue_bytes[1] << 8) |
+            ((uint32_t)queue_bytes[2] << 16) |
+            ((uint32_t)queue_bytes[3] << 24);
+        uint32_t flag_word = (uint32_t)flag_bytes[0] |
+            ((uint32_t)flag_bytes[1] << 8) |
+            ((uint32_t)flag_bytes[2] << 16) |
+            ((uint32_t)flag_bytes[3] << 24);
+        m5_progress_last_sample_us = g_get_monotonic_time();
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_PROGRESS_SAMPLE mono_us=%" PRId64 " tb=%" PRIu64
+            " pc=0x%" PRIx64 " eax=0x%" PRIx64 " ecx=0x%" PRIx64
+            " edx=0x%" PRIx64 " ebx=0x%" PRIx64 " ebp=0x%" PRIx64
+            " queue_word=0x%x queue_status=%d flag_word=0x%x"
+            " flag_status=%d halted=%d interrupts=0x%x",
+            g_get_monotonic_time(), m5_progress_tb_count, pc,
+            (uint64_t)env->regs[R_EAX], (uint64_t)env->regs[R_ECX],
+            (uint64_t)env->regs[R_EDX], (uint64_t)env->regs[R_EBX],
+            (uint64_t)env->regs[R_EBP], queue_word, queue_status,
+            flag_word, flag_status, cpu->halted,
+            cpu->interrupt_request);
+    }
+}
+
+void boxdroid_m5_diag_cpu_exit(int result, bool halted, uint32_t interrupts)
+{
+    if (!m5_progress_started_us || m5_progress_ended_us) {
+        return;
+    }
+    m5_progress_halt_exits += halted;
+    m5_progress_other_exits += !halted;
+    m5_progress_interrupt_samples += interrupts != 0;
+    if (m5_progress_halt_exits + m5_progress_other_exits <= 8) {
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_PROGRESS_CPU_EXIT result=%d halted=%d interrupts=0x%x",
+            result, halted, interrupts);
+    }
+}
+
+void boxdroid_m5_diag_device_access(bool write, const char *region,
+                                    uint64_t offset, unsigned size,
+                                    uint64_t value, int result,
+                                    CPUState *cpu)
+{
+    uint64_t pc;
+    size_t i;
+
+    if (!m5_progress_started_us || m5_progress_ended_us || !cpu) {
+        return;
+    }
+    pc = cpu->cc->get_pc ? cpu->cc->get_pc(cpu) : 0;
+    if (write) m5_progress_device_writes++;
+    else m5_progress_device_reads++;
+    for (i = 0; i < M5_PROGRESS_DEVICE_SLOTS; ++i) {
+        if (!m5_progress_devices[i].used ||
+            (m5_progress_devices[i].offset == offset &&
+             strcmp(m5_progress_devices[i].name, region) == 0)) {
+            break;
+        }
+    }
+    if (i < M5_PROGRESS_DEVICE_SLOTS) {
+        if (!m5_progress_devices[i].used) {
+            m5_progress_devices[i].used = true;
+            g_strlcpy(m5_progress_devices[i].name, region,
+                      sizeof(m5_progress_devices[i].name));
+            m5_progress_devices[i].offset = offset;
+        }
+        m5_progress_devices[i].reads += !write;
+        m5_progress_devices[i].writes += write;
+        m5_progress_devices[i].last_value = value;
+        m5_progress_devices[i].last_pc = pc;
+    } else {
+        m5_progress_device_overflow++;
+    }
+    if (m5_progress_device_reads + m5_progress_device_writes <= 16) {
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_PROGRESS_DEVICE %s region=%s offset=0x%" PRIx64
+            " size=%u value=0x%" PRIx64 " result=%d pc=0x%" PRIx64,
+            write ? "write" : "read", region, offset, size, value,
+            result, pc);
+    }
+}
+
+void boxdroid_m5_diag_progress_summary(void)
+{
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "M5_PROGRESS_SUMMARY last_change_us=%" PRId64
+        " start_us=%" PRId64 " end_us=%" PRId64
+        " tb=%" PRIu64 " guest_insns=%" PRIu64
+        " unique_pc_slots=%" PRIu64 " pc_collisions=%" PRIu64
+        " unique_tb_slots=%" PRIu64 " tb_collisions=%" PRIu64
+        " halt_exits=%" PRIu64 " other_exits=%" PRIu64
+        " interrupt_samples=%" PRIu64 " device_reads=%" PRIu64
+        " device_writes=%" PRIu64 " device_overflow=%" PRIu64,
+        m5_progress_last_change_us, m5_progress_started_us,
+        m5_progress_ended_us, m5_progress_tb_count,
+        m5_progress_guest_insns, m5_progress_unique_pcs,
+        m5_progress_pc_collisions, m5_progress_unique_tbs,
+        m5_progress_tb_collisions, m5_progress_halt_exits,
+        m5_progress_other_exits, m5_progress_interrupt_samples,
+        m5_progress_device_reads, m5_progress_device_writes,
+        m5_progress_device_overflow);
+    for (unsigned rank = 0; rank < 8; ++rank) {
+        size_t best = M5_PROGRESS_PC_SLOTS;
+        for (size_t i = 0; i < M5_PROGRESS_PC_SLOTS; ++i) {
+            if (!m5_progress_pcs[i].used || !m5_progress_pcs[i].count) continue;
+            if (best == M5_PROGRESS_PC_SLOTS ||
+                m5_progress_pcs[i].count > m5_progress_pcs[best].count) {
+                best = i;
+            }
+        }
+        if (best == M5_PROGRESS_PC_SLOTS) break;
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_PROGRESS_TOP_PC rank=%u pc=0x%" PRIx64 " tb=%" PRIu64,
+            rank + 1, m5_progress_pcs[best].pc,
+            m5_progress_pcs[best].count);
+        m5_progress_pcs[best].count = 0;
+    }
+    for (size_t i = 0; i < M5_PROGRESS_DEVICE_SLOTS; ++i) {
+        if (!m5_progress_devices[i].used) continue;
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_PROGRESS_DEVICE_SUMMARY region=%s offset=0x%" PRIx64
+            " reads=%" PRIu64 " writes=%" PRIu64
+            " last_value=0x%" PRIx64 " last_pc=0x%" PRIx64,
+            m5_progress_devices[i].name, m5_progress_devices[i].offset,
+            m5_progress_devices[i].reads, m5_progress_devices[i].writes,
+            m5_progress_devices[i].last_value,
+            m5_progress_devices[i].last_pc);
+    }
 }
 
 void boxdroid_m5_diag_vram_read(const char *reader, uint64_t address,
@@ -597,6 +833,20 @@ void boxdroid_m5_diag_framebuffer_sample(const char *boundary,
             boundary, min_x, min_y, max_x, max_y, active_rows,
             white_rgb_pixels, alpha_only_pixels,
             packed16_nonzero, packed24_nonzero);
+        if (g_strcmp0(boundary, "raw-vram-stop") == 0) {
+            /* Seven scanlines of the observed 5x7 text band, once per run. */
+            for (unsigned y = 25; y <= 31; ++y) {
+                char row[257];
+                for (unsigned x = 25; x <= 280; ++x) {
+                    size_t i = (size_t)y * M5_RAW_FB_PITCH + x * 4;
+                    row[x - 25] = data[i] || data[i + 1] || data[i + 2] ?
+                        '#' : '.';
+                }
+                row[256] = '\0';
+                __android_log_print(ANDROID_LOG_INFO, TAG,
+                    "M5_TEXT_BAND y=%u x=25..280 %s", y, row);
+            }
+        }
     }
 }
 
@@ -1605,9 +1855,11 @@ Java_org_boxdroid_m5_MainActivity_nativeXboxStart(JNIEnv *env, jobject self,
     arguments[19] = ARG("-D");
     arguments[20] = (char *) log_path;
     arguments[21] = ARG("-d");
-    arguments[22] = ARG("guest_errors,cpu_reset,exec");
+    arguments[22] = ARG("guest_errors,cpu_reset,exec,in_asm");
     arguments[23] = ARG("-dfilter");
-    arguments[24] = ARG("0x0..0x03ffffff,0x80000000..0x83ffffff,0xa0000000..0xa3ffffff,0xfff00000..0xffffffff");
+    /* Capture only the reset vector and the observed late polling range.
+     * The M5 TCG hook suppresses per-execution logs for that polling range. */
+    arguments[24] = ARG("0x8001b000..0x8001b080,0xfffffff0..0xffffffff");
     arguments[25] = ARG("-device");
     arguments[26] = NULL;
     arguments[27] = ARG("-m");
@@ -1685,6 +1937,7 @@ Java_org_boxdroid_m5_MainActivity_nativeXboxStop(JNIEnv *env, jobject self)
     bql_unlock();
     log_message(ANDROID_LOG_INFO, "XBOX_SHUTDOWN_REQUEST_QUEUED");
     pthread_join(qemu_thread, NULL);
+    boxdroid_m5_diag_progress_summary();
     thread_created = false;
     return loop_status;
 }

@@ -5,6 +5,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+struct CPUState;
+
 typedef enum BoxDroidM5Diagnostic {
     BOXDROID_M5_DIAG_REFRESH_CALLBACK,
     BOXDROID_M5_DIAG_GRAPHIC_HW_UPDATE,
@@ -129,5 +131,14 @@ void boxdroid_m5_diag_guest_io_start(void);
 void boxdroid_m5_diag_guest_io_stop(void);
 void boxdroid_m5_diag_hdd_io(bool write, const char *path, uint64_t offset,
                              uint64_t bytes, int result);
+void boxdroid_m5_diag_tb_exec(struct CPUState *cpu, uint64_t pc,
+                              uintptr_t tb_id, uint16_t guest_insns);
+void boxdroid_m5_diag_cpu_exit(int result, bool halted,
+                               uint32_t interrupts);
+void boxdroid_m5_diag_device_access(bool write, const char *region,
+                                    uint64_t offset, unsigned size,
+                                    uint64_t value, int result,
+                                    struct CPUState *cpu);
+void boxdroid_m5_diag_progress_summary(void);
 
 #endif

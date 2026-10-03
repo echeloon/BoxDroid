@@ -161,13 +161,13 @@ clean Vulkan shutdown. M5 remains PARTIAL.
 | Android `libboxdroid.so` load and Xbox machine initialization | Verified |
 | MCPX/BIOS paths and sizes; image copies hash-verified on device | Verified |
 | Xbox x86 reset path enters AArch64-hosted TCG | Verified by CPU reset and executed-TB trace records |
-| QCOW2 path accepted in IDE drive configuration | Verified at QEMU initialization; guest reads not confirmed |
+| QCOW2 path and guest I/O | Verified: 8 GiB virtual size, 30 guest reads / 250,368 bytes, and one 512-byte guest write in the latest run |
 | NV2A Vulkan renderer initialization | Verified |
 | Recurring display refresh / `graphic_hw_update()` | Verified: 2,379 / 2,379 calls in 45 s |
 | Guest display-register writes and color surface bindings | Verified: PCRTC/VGA/PGRAPH writes; 12 color bindings |
 | NV2A framebuffer lookup/readback | Verified: 2 hits; 1 GPU download performed, 1 subsequent hit skipped it; 51 misses |
 | Android presenter handoff | Verified: 2 Xbox-path frames accepted; sampled source had 0 nonblack pixels |
-| Visible Xbox-produced image | Not observed; device screenshot was black |
+| Guest-produced VGA pixels | 452 white pixels form a firmware text prompt in raw VRAM and QEMU's VGA DisplaySurface; this raw VGA path is not yet presented by Android |
 | Visible Xbox boot checkpoint | Not reached |
 | Clean embedded QEMU shutdown | Observed in two refresh-enabled runs; earlier stall remains unexplained |
 | Repeated boot to checkpoint | Not applicable until a checkpoint is reached |
@@ -175,3 +175,41 @@ clean Vulkan shutdown. M5 remains PARTIAL.
 M3/M4 regressions must be run from a fresh build root after changing the patch
 series. M5 is not accepted until real guest-produced NV2A frames are presented
 and a genuine boot checkpoint is visible on the Retroid.
+
+## Guest progress after the VGA text band
+
+The next 45-second Retroid diagnostic built from the pinned Xemu commit and
+ordered patches through `0013-m5-guest-progress-diagnostics.patch`. The M5-only
+QEMU hook starts a five-second TB sample after framebuffer-changing writes
+have been quiet for one second. It records bounded PC, halt, interrupt, and
+device-access summaries. The app also samples the two words tested by the
+repeating guest loop once per second and records seven scanlines of the
+guest-produced text band. The QEMU log filter keeps only the reset vector and
+the small loop range; generated logs remain under the ignored build root.
+
+The final changing framebuffer write occurred at monotonic time
+`73132441750` microseconds. The sample began one second later and counted
+100,712,448 TB entries across 62 recorded guest PCs and approximately 70
+TB identities (one hash collision). PCs `0x8001b030` and `0x8001b02f`
+accounted for 50,343,235 and 50,343,229 entries. No HLT exit occurred.
+PIC interrupt acknowledgement and periodic PMC, PFIFO, PVIDEO, PCRTC, and VGA
+accesses continued; the two hot PCs made no recorded device access directly.
+
+At each one-second sample, `EBX=0x80035bdc`, `EBP=0x80035c2c`, the word at
+`[EBP]` equaled `EBP`, and the word at `[EBX+0x2c]` was zero. The narrow guest
+instruction capture shows an interrupt-enabled loop that checks those two
+words, consistent with an empty work queue and unset wake flag. The 452 white
+pixels decode as the guest firmware message **“Please insert an Xbox disc...”**.
+M5 currently supplies an empty IDE CD-ROM (`file=`) and the supplied QCOW2 HDD.
+These observations establish the immediate stall: the guest is waiting for
+boot work or disc media, while continuing to service interrupts. They do not
+establish why the supplied HDD did not lead to a dashboard. No change to
+firmware inputs, Xbox machine configuration, scanout, or presenter is justified
+by this result alone. The smallest follow-up is a read-only check of the HDD's
+boot contents and the selected BIOS boot policy, with a desktop Xemu comparison
+only if those inputs do not explain the prompt.
+
+The raw framebuffer and QEMU VGA DisplaySurface still matched at 452 pixels
+and hash `1238a865d7d67563` at shutdown. The device screenshot remained
+black because M5 has no Android raw VGA presentation path. This diagnostic
+does not establish a visible boot checkpoint, and M5 remains PARTIAL.
