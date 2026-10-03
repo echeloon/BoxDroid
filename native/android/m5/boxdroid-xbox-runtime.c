@@ -111,6 +111,14 @@ static bool diagnostic_binding_logged;
 static bool diagnostic_late_miss_logged;
 static bool diagnostic_display_surface_logged;
 static bool diagnostic_vga_surface_logged;
+static bool diagnostic_nv2a_hit_logged;
+static bool diagnostic_nv2a_miss_logged;
+static bool diagnostic_vga_fallback_logged;
+static bool diagnostic_vga_fallback_rejected_logged;
+static bool diagnostic_vga_fallback_result_logged;
+static bool diagnostic_vga_fallback_success_logged;
+static bool diagnostic_vga_fallback_nonblack_logged;
+static bool diagnostic_vga_fallback_nonblack_success_logged;
 static char *runtime_mcpx_path;
 static char *runtime_hdd_path;
 static pthread_mutex_t hdd_io_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -865,10 +873,17 @@ static void xbox_display_update(DisplayChangeListener *dcl,
 {
     DisplaySurface *surface = qemu_console_surface(dcl->con);
     int surface_width_px, surface_height_px, stride;
+    size_t display_surface_bytes;
+    uintptr_t surface_data_address, vram_begin, vram_end;
+    bool direct_vram, nv2a_surface, vga_fallback = false;
+    uint64_t vga_framebuffer_start = 0;
+    uint32_t vga_pitch = 0;
+    int vga_bpp = 0;
     uint8_t *rgba;
     pixman_image_t *converted;
     uint64_t frame_hash = UINT64_C(1469598103934665603);
     uint64_t nonblack_pixels = 0;
+    uint64_t fallback_nonblack_pixels = 0;
     (void) x;
     (void) y;
     (void) width;
@@ -886,6 +901,12 @@ static void xbox_display_update(DisplayChangeListener *dcl,
     if (surface_width_px <= 0 || surface_height_px <= 0) {
         return;
     }
+    display_surface_bytes = (size_t) stride * surface_height_px;
+    surface_data_address = (uintptr_t) surface_data(surface);
+    vram_begin = g_nv2a ? (uintptr_t) g_nv2a->vram_ptr : 0;
+    vram_end = g_nv2a ? vram_begin + memory_region_size(g_nv2a->vram) : 0;
+    direct_vram = g_nv2a && surface_data_address >= vram_begin &&
+                  surface_data_address < vram_end;
     if (g_nv2a && g_nv2a->pcrtc.start == UINT64_C(0x3c00000) &&
         !__atomic_exchange_n(&diagnostic_vga_surface_logged, true,
                              __ATOMIC_RELAXED)) {
@@ -901,20 +922,104 @@ static void xbox_display_update(DisplayChangeListener *dcl,
         boxdroid_m5_diag_vram_sample("qemu-vga-display-surface",
             framebuffer_start, params.line_offset, stride, surface_width_px,
             surface_height_px, surface_depth, surface_data(surface),
-            (size_t)stride * surface_height_px);
+            display_surface_bytes);
     }
     /* Flush the current NV2A Vulkan scanout surface into shared Xbox VRAM.
      * With HAVE_EXTERNAL_MEMORY=0 this is Xemu's CPU-visible download path. */
-    if (nv2a_get_framebuffer_surface() < 0) {
+    nv2a_surface = nv2a_get_framebuffer_surface() >= 0;
+    if (!nv2a_surface) {
         nv2a_release_framebuffer_surface();
-        return;
+        if (!__atomic_exchange_n(&diagnostic_nv2a_miss_logged, true,
+                                 __ATOMIC_RELAXED)) {
+            __android_log_print(ANDROID_LOG_INFO, TAG,
+                "M5_DISPLAY_NV2A_PATH=MISS pcrtc=0x%" PRIx64
+                " surface=%dx%d pitch=%d format=0x%x",
+                g_nv2a ? g_nv2a->pcrtc.start : UINT64_C(0),
+                surface_width_px, surface_height_px, stride,
+                surface_format(surface));
+        }
+
+        /* M5-only bridge for the already-verified direct VGA framebuffer.
+         * Keep this intentionally narrow: the active PCRTC address, VGA
+         * start/pitch/depth, DisplaySurface geometry/format, and backing
+         * pointer must all identify the proven 640x480x32 scanout. */
+        if (g_nv2a && g_nv2a->pcrtc.start == M5_RAW_FB_BASE) {
+            VGADisplayParams params;
+            uint64_t vram_size = memory_region_size(g_nv2a->vram);
+            uintptr_t expected_data = vram_begin + M5_RAW_FB_BASE;
+            uint64_t required_bytes = M5_RAW_FB_SIZE;
+            const uint8_t *source = surface_data(surface);
+            bool range_valid;
+
+            g_nv2a->vga.get_params(&g_nv2a->vga, &params);
+            vga_framebuffer_start = (uint64_t) params.start_addr * 4;
+            vga_pitch = params.line_offset;
+            vga_bpp = g_nv2a->vga.get_bpp(&g_nv2a->vga);
+            range_valid = M5_RAW_FB_BASE <= vram_size &&
+                          required_bytes <= vram_size - M5_RAW_FB_BASE;
+
+            if (source && direct_vram && range_valid &&
+                vga_framebuffer_start == g_nv2a->pcrtc.start &&
+                vga_framebuffer_start == M5_RAW_FB_BASE &&
+                vga_pitch == M5_RAW_FB_PITCH && stride == (int) vga_pitch &&
+                surface_width_px == (int) M5_RAW_FB_WIDTH &&
+                surface_height_px == (int) M5_RAW_FB_HEIGHT &&
+                vga_bpp == 32 &&
+                PIXMAN_FORMAT_BPP(surface_format(surface)) == 32 &&
+                surface_format(surface) == PIXMAN_x8r8g8b8 &&
+                display_surface_bytes == required_bytes &&
+                surface_data_address == expected_data) {
+                bool log_selection = !__atomic_exchange_n(
+                    &diagnostic_vga_fallback_logged, true,
+                    __ATOMIC_RELAXED);
+                if (log_selection) {
+                    for (uint32_t row = 0; row < M5_RAW_FB_HEIGHT; ++row) {
+                        const uint32_t *pixels = (const uint32_t *)
+                            (source + (size_t) row * stride);
+                        for (uint32_t col = 0; col < M5_RAW_FB_WIDTH; ++col) {
+                            if (pixels[col] & UINT32_C(0x00ffffff)) {
+                                fallback_nonblack_pixels++;
+                            }
+                        }
+                    }
+                    __android_log_print(ANDROID_LOG_INFO, TAG,
+                        "M5_DISPLAY_VGA_FALLBACK=SELECTED"
+                        " source=%dx%d pitch=%d depth=%d format=0x%x"
+                        " pcrtc=0x%" PRIx64 " vga_start=0x%" PRIx64
+                        " backing=direct_vram nonblack_pixels=%" PRIu64,
+                        surface_width_px, surface_height_px, stride, vga_bpp,
+                        surface_format(surface), g_nv2a->pcrtc.start,
+                        vga_framebuffer_start, fallback_nonblack_pixels);
+                }
+                vga_fallback = true;
+            } else if (!__atomic_exchange_n(
+                           &diagnostic_vga_fallback_rejected_logged, true,
+                           __ATOMIC_RELAXED)) {
+                __android_log_print(ANDROID_LOG_WARN, TAG,
+                    "M5_DISPLAY_VGA_FALLBACK=REJECTED"
+                    " source=%dx%d pitch=%d depth=%d format=0x%x"
+                    " pcrtc=0x%" PRIx64 " vga_start=0x%" PRIx64
+                    " vga_pitch=%u direct_vram=%d range_valid=%d"
+                    " data_matches_vram=%d",
+                    surface_width_px, surface_height_px, stride, vga_bpp,
+                    surface_format(surface), g_nv2a->pcrtc.start,
+                    vga_framebuffer_start, vga_pitch, direct_vram,
+                    range_valid,
+                    surface_data_address == expected_data);
+            }
+        }
+        if (!vga_fallback) {
+            return;
+        }
+    } else if (!__atomic_exchange_n(&diagnostic_nv2a_hit_logged, true,
+                                    __ATOMIC_RELAXED)) {
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_DISPLAY_NV2A_PATH=HIT pcrtc=0x%" PRIx64
+            " surface=%dx%d pitch=%d format=0x%x",
+            g_nv2a ? g_nv2a->pcrtc.start : UINT64_C(0),
+            surface_width_px, surface_height_px, stride,
+            surface_format(surface));
     }
-    size_t display_surface_bytes = (size_t) stride * surface_height_px;
-    uintptr_t surface_data_address = (uintptr_t) surface_data(surface);
-    uintptr_t vram_begin = g_nv2a ? (uintptr_t) g_nv2a->vram_ptr : 0;
-    uintptr_t vram_end = g_nv2a ? vram_begin + memory_region_size(g_nv2a->vram) : 0;
-    bool direct_vram = g_nv2a && surface_data_address >= vram_begin &&
-                       surface_data_address < vram_end;
     if (!__atomic_exchange_n(&diagnostic_display_surface_logged, true, __ATOMIC_RELAXED)) {
         __android_log_print(ANDROID_LOG_INFO, TAG,
                             "M5_DISPLAY_SURFACE_FIRST format=0x%x stride=%d extent=%dx%d"
@@ -939,13 +1044,17 @@ static void xbox_display_update(DisplayChangeListener *dcl,
                                           (uint32_t *) rgba, stride);
     if (!converted) {
         g_free(rgba);
-        nv2a_release_framebuffer_surface();
+        if (nv2a_surface) {
+            nv2a_release_framebuffer_surface();
+        }
         return;
     }
     pixman_image_composite32(PIXMAN_OP_SRC, surface->image, NULL, converted,
                              0, 0, 0, 0, 0, 0,
                              surface_width_px, surface_height_px);
-    nv2a_release_framebuffer_surface();
+    if (nv2a_surface) {
+        nv2a_release_framebuffer_surface();
+    }
     for (size_t i = 0; i < (size_t) stride * surface_height_px; ++i) {
         frame_hash ^= rgba[i];
         frame_hash *= UINT64_C(1099511628211);
@@ -958,8 +1067,50 @@ static void xbox_display_update(DisplayChangeListener *dcl,
     boxdroid_m5_diag_sample(BOXDROID_M5_SAMPLE_PIXMAN_RGBA, rgba,
                             (size_t) stride * surface_height_px,
                             nonblack_pixels, "after-pixman-copy");
-    if (boxdroid_android_present_rgba(rgba, surface_width_px,
-                                      surface_height_px, stride)) {
+    bool presented = boxdroid_android_present_rgba(rgba, surface_width_px,
+                                                   surface_height_px, stride);
+    if (vga_fallback &&
+        !__atomic_exchange_n(&diagnostic_vga_fallback_result_logged, true,
+                             __ATOMIC_RELAXED)) {
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_DISPLAY_VGA_FALLBACK_PRESENT present_called=1"
+            " vk_present_succeeded=%d source=%dx%d nonblack_pixels=%" PRIu64
+            " rgba_hash=%016" PRIx64,
+            presented, surface_width_px, surface_height_px,
+            nonblack_pixels, frame_hash);
+    }
+    if (vga_fallback && presented &&
+        !__atomic_exchange_n(&diagnostic_vga_fallback_success_logged, true,
+                             __ATOMIC_RELAXED)) {
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_DISPLAY_VGA_FALLBACK_FIRST_SUCCESS frame=%" PRIu64
+            " source=%dx%d nonblack_pixels=%" PRIu64
+            " rgba_hash=%016" PRIx64,
+            guest_frame_count + 1, surface_width_px, surface_height_px,
+            nonblack_pixels, frame_hash);
+    }
+    if (vga_fallback && nonblack_pixels > 0 &&
+        !__atomic_exchange_n(&diagnostic_vga_fallback_nonblack_logged, true,
+                             __ATOMIC_RELAXED)) {
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_DISPLAY_VGA_FALLBACK_NONBLACK presenter_called=1"
+            " vk_present_succeeded=%d source=%dx%d"
+            " nonblack_pixels=%" PRIu64 " rgba_hash=%016" PRIx64,
+            presented, surface_width_px, surface_height_px,
+            nonblack_pixels, frame_hash);
+    }
+    if (vga_fallback && nonblack_pixels > 0 && presented &&
+        !__atomic_exchange_n(
+            &diagnostic_vga_fallback_nonblack_success_logged, true,
+            __ATOMIC_RELAXED)) {
+        __android_log_print(ANDROID_LOG_INFO, TAG,
+            "M5_DISPLAY_VGA_FALLBACK_NONBLACK_PRESENTED frame=%" PRIu64
+            " source=%dx%d nonblack_pixels=%" PRIu64
+            " rgba_hash=%016" PRIx64,
+            guest_frame_count + 1, surface_width_px, surface_height_px,
+            nonblack_pixels, frame_hash);
+    }
+    if (presented) {
         guest_frame_count++;
         boxdroid_m5_diag_event(BOXDROID_M5_DIAG_FRAME_PRESENT,
                                guest_frame_count, frame_hash,
