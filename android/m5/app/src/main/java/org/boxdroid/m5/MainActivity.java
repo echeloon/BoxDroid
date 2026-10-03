@@ -1,8 +1,12 @@
 package org.boxdroid.m5;
 
 import android.app.Activity;
+import android.content.res.Configuration;
+import android.graphics.Rect;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Display;
+import android.view.Gravity;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -40,6 +44,7 @@ public final class MainActivity extends Activity {
         getWindow().getDecorView().setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
                 View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+        logDisplayGeometry("ACTIVITY_CREATE", 0, 0, 0, 0);
         FrameLayout root = new FrameLayout(this);
         TextView status = new TextView(this);
         status.setText("BoxDroid M5 Xbox boot diagnostic\nWaiting for Android surface…");
@@ -52,6 +57,23 @@ public final class MainActivity extends Activity {
         root.addView(surfaceView, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         setContentView(root);
+        root.post(() -> {
+            int areaWidth = root.getWidth();
+            int areaHeight = root.getHeight();
+            if (areaWidth <= 0 || areaHeight <= 0) return;
+            int viewWidth = areaWidth;
+            int viewHeight = areaHeight;
+            if ((long) areaWidth * 9 > (long) areaHeight * 16) {
+                viewWidth = areaHeight * 16 / 9;
+            } else {
+                viewHeight = areaWidth * 9 / 16;
+            }
+            FrameLayout.LayoutParams surfaceParams = new FrameLayout.LayoutParams(
+                    viewWidth, viewHeight, Gravity.CENTER);
+            surfaceView.setLayoutParams(surfaceParams);
+            Log.i(TAG, "ANDROID_PRESENTATION_VIEW area=" + areaWidth + "x" + areaHeight
+                    + " fitted=" + viewWidth + "x" + viewHeight + " aspect=16:9");
+        });
         File directory = new File(getExternalFilesDir(null), "m5");
         Log.i(TAG, "M5_PATHS directory=" + directory.getAbsolutePath());
         surfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
@@ -62,6 +84,11 @@ public final class MainActivity extends Activity {
             }
 
             @Override public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+                Rect frame = holder.getSurfaceFrame();
+                logDisplayGeometry("SURFACE_CHANGED", width, height,
+                        surfaceView.getWidth(), surfaceView.getHeight());
+                Log.i(TAG, "ANDROID_SURFACE_FRAME rect=" + frame.flattenToString()
+                        + " format=" + format + " valid=" + holder.getSurface().isValid());
                 if (created) {
                     NATIVE.execute(() -> {
                         if (!nativeM4SurfaceChanged(width, height)) Log.e(TAG, "VULKAN_RESIZE_FAIL");
@@ -89,6 +116,22 @@ public final class MainActivity extends Activity {
                 });
             }
         });
+    }
+
+    private void logDisplayGeometry(String event, int surfaceWidth, int surfaceHeight,
+                                    int viewWidth, int viewHeight) {
+        Display display = getWindowManager().getDefaultDisplay();
+        Display.Mode mode = display.getMode();
+        int orientation = getResources().getConfiguration().orientation;
+        String orientationName = orientation == Configuration.ORIENTATION_LANDSCAPE
+                ? "LANDSCAPE" : orientation == Configuration.ORIENTATION_PORTRAIT
+                ? "PORTRAIT" : "UNDEFINED";
+        Log.i(TAG, "ANDROID_GEOMETRY event=" + event + " display_rotation="
+                + display.getRotation() + " config_orientation=" + orientationName
+                + " requested_orientation=" + getRequestedOrientation()
+                + " mode=" + mode.getPhysicalWidth() + "x" + mode.getPhysicalHeight()
+                + " holder=" + surfaceWidth + "x" + surfaceHeight
+                + " surfaceView=" + viewWidth + "x" + viewHeight);
     }
 
     private void startXbox(File directory) {

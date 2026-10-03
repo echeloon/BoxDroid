@@ -134,7 +134,16 @@ done
 pid="$("${ADB[@]}" shell pidof "$PACKAGE" | tr -d '\r')"
 [[ "$pid" =~ ^[0-9]+$ ]] || die "diagnostic process did not start"
 echo "pid=$pid" > "$RESULTS/process.txt"
-sleep "$OBSERVE_SECS"
+SECONDS=0
+for capture_second in 20 25 35; do
+    (( capture_second < OBSERVE_SECS )) || continue
+    delay=$((capture_second - SECONDS))
+    (( delay > 0 )) && sleep "$delay"
+    "${ADB[@]}" exec-out screencap -p > "$RESULTS/screen-${capture_second}s.png"
+    echo "capture_second=$capture_second file=screen-${capture_second}s.png" | tee -a "$RESULTS/captures.txt"
+done
+remaining=$((OBSERVE_SECS - SECONDS))
+(( remaining > 0 )) && sleep "$remaining"
 "${ADB[@]}" exec-out screencap -p > "$RESULTS/screen.png"
 "${ADB[@]}" shell input keyevent KEYCODE_BACK > "$RESULTS/stop-trigger.txt" 2>&1 || true
 sleep 2

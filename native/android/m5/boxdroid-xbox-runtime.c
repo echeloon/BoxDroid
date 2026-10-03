@@ -119,6 +119,17 @@ static bool diagnostic_vga_fallback_result_logged;
 static bool diagnostic_vga_fallback_success_logged;
 static bool diagnostic_vga_fallback_nonblack_logged;
 static bool diagnostic_vga_fallback_nonblack_success_logged;
+static uint64_t m5_vga_fallback_callbacks;
+static uint64_t m5_vga_fallback_black_frames;
+static uint64_t m5_vga_fallback_nonblack_frames;
+static uint64_t m5_vga_fallback_present_successes;
+static uint64_t m5_vga_fallback_present_failures;
+static uint64_t m5_vga_fallback_last_hash;
+static uint64_t m5_vga_fallback_last_nonblack_pixels;
+static uint64_t m5_vga_fallback_first_nonblack_hash;
+static int64_t m5_vga_fallback_first_nonblack_us;
+static int64_t m5_vga_fallback_last_nonblack_us;
+static uint64_t m5_vga_fallback_logged_content_changes;
 static char *runtime_mcpx_path;
 static char *runtime_hdd_path;
 static pthread_mutex_t hdd_io_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -884,6 +895,10 @@ static void xbox_display_update(DisplayChangeListener *dcl,
     uint64_t frame_hash = UINT64_C(1469598103934665603);
     uint64_t nonblack_pixels = 0;
     uint64_t fallback_nonblack_pixels = 0;
+    uint64_t fallback_sequence = 0;
+    bool log_fallback_frame_state = false;
+    bool fallback_was_nonblack = false;
+    bool fallback_content_changed = false;
     (void) x;
     (void) y;
     (void) width;
@@ -1067,8 +1082,69 @@ static void xbox_display_update(DisplayChangeListener *dcl,
     boxdroid_m5_diag_sample(BOXDROID_M5_SAMPLE_PIXMAN_RGBA, rgba,
                             (size_t) stride * surface_height_px,
                             nonblack_pixels, "after-pixman-copy");
+    if (vga_fallback) {
+        uint64_t previous_hash = __atomic_load_n(&m5_vga_fallback_last_hash,
+                                                  __ATOMIC_RELAXED);
+        uint64_t previous_pixels = __atomic_load_n(
+            &m5_vga_fallback_last_nonblack_pixels, __ATOMIC_RELAXED);
+        int64_t now_us = g_get_monotonic_time();
+        fallback_sequence = __atomic_add_fetch(&m5_vga_fallback_callbacks, 1,
+                                                __ATOMIC_RELAXED);
+        fallback_was_nonblack = previous_pixels != 0;
+        fallback_content_changed = frame_hash != previous_hash;
+        if (nonblack_pixels) {
+            __atomic_add_fetch(&m5_vga_fallback_nonblack_frames, 1,
+                               __ATOMIC_RELAXED);
+            int64_t expected = 0;
+            if (__atomic_compare_exchange_n(&m5_vga_fallback_first_nonblack_us,
+                                            &expected, now_us, false,
+                                            __ATOMIC_RELAXED,
+                                            __ATOMIC_RELAXED)) {
+                __atomic_store_n(&m5_vga_fallback_first_nonblack_hash,
+                                 frame_hash, __ATOMIC_RELAXED);
+            }
+            __atomic_store_n(&m5_vga_fallback_last_nonblack_us, now_us,
+                             __ATOMIC_RELAXED);
+        } else {
+            __atomic_add_fetch(&m5_vga_fallback_black_frames, 1,
+                               __ATOMIC_RELAXED);
+        }
+        log_fallback_frame_state = fallback_sequence == 1 ||
+            (nonblack_pixels && !fallback_was_nonblack) ||
+            (!nonblack_pixels && fallback_was_nonblack) ||
+            (frame_hash != previous_hash &&
+             m5_vga_fallback_logged_content_changes < 8);
+        if (frame_hash != previous_hash && fallback_sequence > 1 &&
+            m5_vga_fallback_logged_content_changes < 8) {
+            m5_vga_fallback_logged_content_changes++;
+        }
+        __atomic_store_n(&m5_vga_fallback_last_hash, frame_hash,
+                         __ATOMIC_RELAXED);
+        __atomic_store_n(&m5_vga_fallback_last_nonblack_pixels,
+                         nonblack_pixels, __ATOMIC_RELAXED);
+    }
     bool presented = boxdroid_android_present_rgba(rgba, surface_width_px,
                                                    surface_height_px, stride);
+    if (vga_fallback) {
+        if (presented) {
+            __atomic_add_fetch(&m5_vga_fallback_present_successes, 1,
+                               __ATOMIC_RELAXED);
+        } else {
+            __atomic_add_fetch(&m5_vga_fallback_present_failures, 1,
+                               __ATOMIC_RELAXED);
+        }
+        if (log_fallback_frame_state) {
+            __android_log_print(ANDROID_LOG_INFO, TAG,
+                "M5_VGA_FRAME seq=%" PRIu64 " mono_us=%" PRId64
+                " state=%s nonblack_pixels=%" PRIu64
+                " hash=%016" PRIx64 " content_changed=%d"
+                " presented=%d guest_frame=%" PRIu64,
+                fallback_sequence, g_get_monotonic_time(),
+                nonblack_pixels ? "NONBLACK" : "BLACK", nonblack_pixels,
+                frame_hash, fallback_content_changed,
+                presented, guest_frame_count + (presented ? 1 : 0));
+        }
+    }
     if (vga_fallback &&
         !__atomic_exchange_n(&diagnostic_vga_fallback_result_logged, true,
                              __ATOMIC_RELAXED)) {
@@ -1384,6 +1460,22 @@ void boxdroid_m5_diag_summary(void)
         __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_GRAPHIC_HW_UPDATE], __ATOMIC_RELAXED),
         __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_DISPLAY_CALLBACK], __ATOMIC_RELAXED),
         __atomic_load_n(&diagnostic_counts[BOXDROID_M5_DIAG_FRAME_PRESENT], __ATOMIC_RELAXED));
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "M5_VGA_FALLBACK_SUMMARY callbacks=%" PRIu64 " black=%" PRIu64
+        " nonblack=%" PRIu64 " presents_ok=%" PRIu64 " presents_failed=%" PRIu64
+        " first_nonblack_us=%" PRId64 " first_nonblack_hash=%016" PRIx64
+        " last_nonblack_us=%" PRId64 " last_hash=%016" PRIx64
+        " last_nonblack_pixels=%" PRIu64,
+        __atomic_load_n(&m5_vga_fallback_callbacks, __ATOMIC_RELAXED),
+        __atomic_load_n(&m5_vga_fallback_black_frames, __ATOMIC_RELAXED),
+        __atomic_load_n(&m5_vga_fallback_nonblack_frames, __ATOMIC_RELAXED),
+        __atomic_load_n(&m5_vga_fallback_present_successes, __ATOMIC_RELAXED),
+        __atomic_load_n(&m5_vga_fallback_present_failures, __ATOMIC_RELAXED),
+        __atomic_load_n(&m5_vga_fallback_first_nonblack_us, __ATOMIC_RELAXED),
+        __atomic_load_n(&m5_vga_fallback_first_nonblack_hash, __ATOMIC_RELAXED),
+        __atomic_load_n(&m5_vga_fallback_last_nonblack_us, __ATOMIC_RELAXED),
+        __atomic_load_n(&m5_vga_fallback_last_hash, __ATOMIC_RELAXED),
+        __atomic_load_n(&m5_vga_fallback_last_nonblack_pixels, __ATOMIC_RELAXED));
     __android_log_print(ANDROID_LOG_INFO, TAG,
         "M5_DIAG_NV2A pcrtc_start=%" PRIu64 " vga_crtc=%" PRIu64
         " color_dma=%" PRIu64 " format=%" PRIu64 " pitch=%" PRIu64

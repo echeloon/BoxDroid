@@ -85,6 +85,13 @@ struct Presenter {
     VkExtent2D extent{};
     uint32_t requestedWidth = 0;
     uint32_t requestedHeight = 0;
+    uint32_t nativeWindowWidth = 0;
+    uint32_t nativeWindowHeight = 0;
+    uint32_t surfaceCurrentExtentWidth = 0;
+    uint32_t surfaceCurrentExtentHeight = 0;
+    uint32_t surfaceCurrentTransform = 0;
+    uint32_t surfaceSupportedTransforms = 0;
+    uint32_t swapchainPreTransform = 0;
     uint32_t surfaceCreates = 0;
     uint32_t surfaceDestroys = 0;
     uint32_t swapchainCreates = 0;
@@ -95,6 +102,7 @@ struct Presenter {
     uint32_t failedPresents = 0;
     uint32_t outOfDate = 0;
     uint32_t suboptimal = 0;
+    bool suboptimalLogged = false;
     uint32_t surfaceLost = 0;
     uint32_t frameBeforeRecreate = 0;
     uint32_t frameAfterRecreate = 0;
@@ -104,6 +112,7 @@ struct Presenter {
     uint32_t surfaceMaxImageCount = 0;
     VkImageUsageFlags surfaceUsageFlags = 0;
     uint32_t generation = 0;
+    bool frameGeometryLogged = false;
     std::string gpuName;
     std::string lastError;
 } p;
@@ -160,6 +169,12 @@ void log(int priority, const std::string &message) {
     __android_log_write(priority, kTag, message.c_str());
 }
 
+std::string hexValue(uint32_t value) {
+    std::ostringstream stream;
+    stream << "0x" << std::hex << value;
+    return stream.str();
+}
+
 const char *resultName(VkResult r) {
     switch (r) {
     case VK_SUCCESS: return "VK_SUCCESS";
@@ -175,11 +190,20 @@ const char *resultName(VkResult r) {
     }
 }
 
+void noteSuboptimal(const char *operation) {
+    ++p.suboptimal;
+    if (!p.suboptimalLogged) {
+        p.suboptimalLogged = true;
+        log(ANDROID_LOG_WARN, std::string(operation) +
+            "=VK_SUBOPTIMAL_KHR; retaining valid swapchain until resize/out-of-date");
+    }
+}
+
 bool check(VkResult r, const char *operation) {
     log(r == VK_SUCCESS || r == VK_SUBOPTIMAL_KHR ? ANDROID_LOG_INFO : ANDROID_LOG_ERROR,
         std::string(operation) + "=" + resultName(r) + " (" + std::to_string(r) + ")");
     if (r == VK_ERROR_OUT_OF_DATE_KHR) ++p.outOfDate;
-    if (r == VK_SUBOPTIMAL_KHR) ++p.suboptimal;
+    if (r == VK_SUBOPTIMAL_KHR) noteSuboptimal(operation);
     if (r == VK_ERROR_SURFACE_LOST_KHR) ++p.surfaceLost;
     if (r != VK_SUCCESS) p.lastError = std::string(operation) + ":" + resultName(r);
     return r == VK_SUCCESS;
@@ -288,7 +312,10 @@ bool resizeSurface(uint32_t width, uint32_t height) {
     destroySwapchain();
     p.requestedWidth = width;
     p.requestedHeight = height;
-    log(ANDROID_LOG_INFO, "SURFACE_RESIZE extent=" + std::to_string(width) + "x" + std::to_string(height));
+    p.nativeWindowWidth = static_cast<uint32_t>(std::max(ANativeWindow_getWidth(p.window), 0));
+    p.nativeWindowHeight = static_cast<uint32_t>(std::max(ANativeWindow_getHeight(p.window), 0));
+    log(ANDROID_LOG_INFO, "SURFACE_RESIZE requested=" + std::to_string(width) + "x" + std::to_string(height) +
+        " native_window=" + std::to_string(p.nativeWindowWidth) + "x" + std::to_string(p.nativeWindowHeight));
     return createSwapchain();
 }
 
@@ -339,7 +366,12 @@ bool createSurface(JNIEnv *env, jobject javaSurface, uint32_t width, uint32_t he
     }
     p.requestedWidth = std::max(width, 1u);
     p.requestedHeight = std::max(height, 1u);
+    p.nativeWindowWidth = static_cast<uint32_t>(std::max(ANativeWindow_getWidth(p.window), 0));
+    p.nativeWindowHeight = static_cast<uint32_t>(std::max(ANativeWindow_getHeight(p.window), 0));
     p.generation = generation;
+    log(ANDROID_LOG_INFO, "ANDROID_NATIVE_WINDOW requested=" + std::to_string(width) + "x" + std::to_string(height) +
+        " native=" + std::to_string(p.nativeWindowWidth) + "x" + std::to_string(p.nativeWindowHeight) +
+        " format=" + std::to_string(ANativeWindow_getFormat(p.window)));
     VkAndroidSurfaceCreateInfoKHR sci{VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR};
     sci.window = p.window;
     if (!check(vkCreateAndroidSurfaceKHR(p.instance, &sci, nullptr, &p.surface), "vkCreateAndroidSurfaceKHR")) return false;
@@ -438,6 +470,13 @@ bool createSwapchain() {
     p.extent = caps.currentExtent.width != UINT32_MAX ? caps.currentExtent : VkExtent2D{
         std::clamp(p.requestedWidth, caps.minImageExtent.width, caps.maxImageExtent.width),
         std::clamp(p.requestedHeight, caps.minImageExtent.height, caps.maxImageExtent.height)};
+    p.surfaceCurrentExtentWidth = caps.currentExtent.width;
+    p.surfaceCurrentExtentHeight = caps.currentExtent.height;
+    p.surfaceCurrentTransform = static_cast<uint32_t>(caps.currentTransform);
+    p.surfaceSupportedTransforms = static_cast<uint32_t>(caps.supportedTransforms);
+    p.swapchainPreTransform =
+        (caps.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) ?
+        VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR : caps.currentTransform;
     if (!(caps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT)) {
         p.lastError = "surface does not support transfer-destination swapchain images";
         log(ANDROID_LOG_ERROR, p.lastError);
@@ -453,7 +492,15 @@ bool createSwapchain() {
         VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR : (1u << __builtin_ctz(caps.supportedCompositeAlpha));
     log(ANDROID_LOG_INFO, "SURFACE_CAPS min_images=" + std::to_string(caps.minImageCount) +
         " max_images=" + std::to_string(caps.maxImageCount) + " usage=" + std::to_string(caps.supportedUsageFlags) +
-        " formats=" + std::to_string(formatCount) + " present_modes=" + std::to_string(modeCount));
+        " formats=" + std::to_string(formatCount) + " present_modes=" + std::to_string(modeCount) +
+        " min_extent=" + std::to_string(caps.minImageExtent.width) + "x" + std::to_string(caps.minImageExtent.height) +
+        " max_extent=" + std::to_string(caps.maxImageExtent.width) + "x" + std::to_string(caps.maxImageExtent.height) +
+        " current_extent=" + std::to_string(caps.currentExtent.width) + "x" + std::to_string(caps.currentExtent.height) +
+        " current_transform=" + hexValue(static_cast<uint32_t>(caps.currentTransform)) +
+        " supported_transforms=" + hexValue(static_cast<uint32_t>(caps.supportedTransforms)) +
+        " chosen_pre_transform=" + hexValue(p.swapchainPreTransform) +
+        " transform_policy=" + ((p.swapchainPreTransform == VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) ?
+            "identity_unrotated_source" : "current_surface_transform"));
     VkSwapchainCreateInfoKHR ci{VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
     ci.surface = p.surface;
     ci.minImageCount = imageCount;
@@ -463,7 +510,7 @@ bool createSwapchain() {
     ci.imageArrayLayers = 1;
     ci.imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     ci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    ci.preTransform = caps.currentTransform;
+    ci.preTransform = static_cast<VkSurfaceTransformFlagBitsKHR>(p.swapchainPreTransform);
     ci.compositeAlpha = static_cast<VkCompositeAlphaFlagBitsKHR>(alpha);
     ci.presentMode = p.presentMode;
     ci.clipped = VK_TRUE;
@@ -488,6 +535,12 @@ bool createSwapchain() {
     if (!check(vkCreateSemaphore(p.device, &sem, nullptr, &p.rendered), "vkCreateSemaphore(render)")) return false;
     log(ANDROID_LOG_INFO, "SWAPCHAIN_CREATE count=" + std::to_string(p.swapchainCreates) +
         " extent=" + std::to_string(p.extent.width) + "x" + std::to_string(p.extent.height) +
+        " requested=" + std::to_string(p.requestedWidth) + "x" + std::to_string(p.requestedHeight) +
+        " native_window=" + std::to_string(p.nativeWindowWidth) + "x" + std::to_string(p.nativeWindowHeight) +
+        " current_extent=" + std::to_string(p.surfaceCurrentExtentWidth) + "x" + std::to_string(p.surfaceCurrentExtentHeight) +
+        " current_transform=" + hexValue(p.surfaceCurrentTransform) +
+        " supported_transforms=" + hexValue(p.surfaceSupportedTransforms) +
+        " pre_transform=" + hexValue(p.swapchainPreTransform) +
         " format=" + std::to_string(p.format) + " color_space=" + std::to_string(p.colorSpace) +
         " present_mode=FIFO requested_images=" + std::to_string(imageCount) + " actual_images=" + std::to_string(actual));
     return true;
@@ -534,13 +587,37 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
         p.lastError = resultName(r);
         return recoverLostSurface() && allowRetry ? presentFrame(false, pixels, sourceWidth, sourceHeight, sourceStride) : false;
     }
-    if (r == VK_SUBOPTIMAL_KHR) ++p.suboptimal;
+    if (r == VK_SUBOPTIMAL_KHR) noteSuboptimal("vkAcquireNextImageKHR");
     else if (r != VK_SUCCESS) { ++p.failedPresents; check(r, "vkAcquireNextImageKHR"); return false; }
     ++p.acquires;
 
     VkBuffer stagingBuffer = VK_NULL_HANDLE;
     VkDeviceMemory stagingMemory = VK_NULL_HANDLE;
     if (pixels && sourceWidth && sourceHeight && sourceStride >= sourceWidth * 4) {
+        uint32_t destinationWidth = p.extent.width;
+        uint32_t destinationHeight = p.extent.height;
+        uint32_t destinationX = 0;
+        uint32_t destinationY = 0;
+        if (static_cast<uint64_t>(p.extent.width) * sourceHeight >
+            static_cast<uint64_t>(p.extent.height) * sourceWidth) {
+            destinationWidth = std::max(1u, static_cast<uint32_t>(
+                (static_cast<uint64_t>(sourceWidth) * p.extent.height) / sourceHeight));
+            destinationX = (p.extent.width - destinationWidth) / 2;
+        } else {
+            destinationHeight = std::max(1u, static_cast<uint32_t>(
+                (static_cast<uint64_t>(sourceHeight) * p.extent.width) / sourceWidth));
+            destinationY = (p.extent.height - destinationHeight) / 2;
+        }
+        if (!p.frameGeometryLogged) {
+            p.frameGeometryLogged = true;
+            log(ANDROID_LOG_INFO, "FRAME_UPLOAD_GEOMETRY source=" + std::to_string(sourceWidth) + "x" +
+                std::to_string(sourceHeight) + " stride=" + std::to_string(sourceStride) +
+                " swapchain=" + std::to_string(p.extent.width) + "x" + std::to_string(p.extent.height) +
+                " destination=" + std::to_string(destinationWidth) + "x" +
+                std::to_string(destinationHeight) + "+" + std::to_string(destinationX) + "+" +
+                std::to_string(destinationY) + " aspect_fit=1 pre_transform=" +
+                hexValue(p.swapchainPreTransform));
+        }
         VkBufferCreateInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
         bufferInfo.size = static_cast<VkDeviceSize>(p.extent.width) * p.extent.height * 4;
         bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
@@ -585,12 +662,16 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
             return false;
         }
         auto *dst = static_cast<uint8_t *>(mapped);
-        for (uint32_t y = 0; y < p.extent.height; ++y) {
-            const uint32_t sy = std::min(sourceHeight - 1, static_cast<uint32_t>((static_cast<uint64_t>(y) * sourceHeight) / p.extent.height));
-            for (uint32_t x = 0; x < p.extent.width; ++x) {
-                const uint32_t sx = std::min(sourceWidth - 1, static_cast<uint32_t>((static_cast<uint64_t>(x) * sourceWidth) / p.extent.width));
+        const size_t destinationBytes = static_cast<size_t>(p.extent.width) * p.extent.height * 4;
+        std::memset(dst, 0, destinationBytes);
+        for (size_t i = 0; i < destinationBytes / 4; ++i) dst[i * 4 + 3] = 255;
+        for (uint32_t y = 0; y < destinationHeight; ++y) {
+            const uint32_t sy = std::min(sourceHeight - 1, static_cast<uint32_t>((static_cast<uint64_t>(y) * sourceHeight) / destinationHeight));
+            for (uint32_t x = 0; x < destinationWidth; ++x) {
+                const uint32_t sx = std::min(sourceWidth - 1, static_cast<uint32_t>((static_cast<uint64_t>(x) * sourceWidth) / destinationWidth));
                 const uint8_t *src = pixels + sy * sourceStride + sx * 4;
-                uint8_t *pixel = dst + (static_cast<size_t>(y) * p.extent.width + x) * 4;
+                uint8_t *pixel = dst + (static_cast<size_t>(destinationY + y) * p.extent.width +
+                                        destinationX + x) * 4;
                 if (p.format == VK_FORMAT_B8G8R8A8_UNORM) {
                     pixel[0] = src[2]; pixel[1] = src[1]; pixel[2] = src[0]; pixel[3] = src[3];
                 } else {
@@ -648,7 +729,6 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
     present.pSwapchains = &p.swapchain;
     present.pImageIndices = &index;
     r = vkQueuePresentKHR(p.queue, &present);
-    const bool recreate = r == VK_SUBOPTIMAL_KHR;
     if (r == VK_ERROR_OUT_OF_DATE_KHR) ++p.outOfDate;
     else if (r == VK_ERROR_SURFACE_LOST_KHR) {
         ++p.surfaceLost;
@@ -656,7 +736,9 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
         vkQueueWaitIdle(p.queue);
         return recoverLostSurface() && allowRetry ? presentFrame(false, pixels, sourceWidth, sourceHeight, sourceStride) : false;
     }
-    else if (recreate) ++p.suboptimal;
+    else if (r == VK_SUBOPTIMAL_KHR) {
+        noteSuboptimal("vkQueuePresentKHR");
+    }
     else if (r != VK_SUCCESS) { ++p.failedPresents; check(r, "vkQueuePresentKHR"); return false; }
     if (!check(vkQueueWaitIdle(p.queue), "vkQueueWaitIdle")) { ++p.failedPresents; return false; }
     if (stagingBuffer) {
@@ -672,7 +754,6 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
     ++p.presents;
     if (p.generation == 1) ++p.frameBeforeRecreate; else ++p.frameAfterRecreate;
     if ((p.presents % 30) == 0) log(ANDROID_LOG_INFO, "FRAME presented=" + std::to_string(p.presents) + " generation=" + std::to_string(p.generation));
-    if (recreate) { destroySwapchain(); return createSwapchain(); }
     return true;
 }
 
@@ -692,7 +773,14 @@ std::string diagnostics() {
     s << "{\"status\":\"" << (pass ? "PASS" : "FAIL") << "\",\"gpu\":\"" << p.gpuName
       << "\",\"queue_family\":" << p.queueFamily << ",\"format\":" << p.format
       << ",\"color_space\":" << p.colorSpace << ",\"present_mode\":\"FIFO\",\"extent\":["
-      << p.extent.width << ',' << p.extent.height << "],\"surface_min_image_count\":" << p.surfaceMinImageCount
+      << p.extent.width << ',' << p.extent.height << "],\"requested_extent\":["
+      << p.requestedWidth << ',' << p.requestedHeight << "],\"native_window\":["
+      << p.nativeWindowWidth << ',' << p.nativeWindowHeight << "],\"current_extent\":["
+      << p.surfaceCurrentExtentWidth << ',' << p.surfaceCurrentExtentHeight
+      << "],\"current_transform\":" << p.surfaceCurrentTransform
+      << ",\"supported_transforms\":" << p.surfaceSupportedTransforms
+      << ",\"pre_transform\":" << p.swapchainPreTransform
+      << ",\"surface_min_image_count\":" << p.surfaceMinImageCount
       << ",\"surface_max_image_count\":" << p.surfaceMaxImageCount << ",\"surface_usage_flags\":" << p.surfaceUsageFlags
       << ",\"requested_image_count\":" << p.requestedImageCount << ",\"actual_image_count\":" << p.actualImageCount
       << ",\"surface_formats\":[";
