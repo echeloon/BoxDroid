@@ -1,41 +1,138 @@
-# M5: Android Xbox boot bring-up
+# M5: Android Xbox boot presentation
 
-M5 currently reaches **PARTIAL**. The Android ARM64 library initializes the
-official Xemu Xbox machine, accepts the supplied MCPX/BIOS/HDD paths, starts
-i386 guest execution through AArch64 TCG, and initializes Xemu's NV2A Vulkan
-renderer plus the M4 Android Vulkan presenter. A bounded QEMU display refresh
-callback now drives recurring NV2A scanout attempts. The Retroid run reached
-color-surface lookup, Vulkan readback and presenter submission, but the first
-Xbox-derived pixels were entirely black and the captured screen remained
-black. No Xbox boot checkpoint has been demonstrated. The diagnostic rejects
-QEMU's placeholder console surface instead of presenting it as Xbox output.
+## Status
 
-## Baseline and boundaries
+**PASS** — M5's genuine Xbox boot checkpoint was reproduced on two fresh
+Retroid Pocket 5 launches. Both showed the green boot animation, Xbox logo,
+and dashboard prompt, in landscape, with successful Vulkan presentation and
+clean shutdown.
 
-- BoxDroid base: M4 commit `54dd29e5a00bbfc8a41baacdad9e4c2d56d5f3f6`.
-- Xemu source: official `https://github.com/xemu-project/xemu.git`, pinned at
-  `478b4f496102379c7eaa7f3ec10e714a703c4300`.
-- Android target: `arm64-v8a`, `aarch64-linux-android`, API 33, Bionic.
-- NDK: `30.0.16248370`; Clang/LLD 21.0.0.
-- Ordered downstream patches: M2, M3, M4, then
-  `0004-m5-android-xbox-headless-core.patch`, followed by
-  `0005-m5-display-refresh-diagnostics.patch` and
-  `0006-m5-scanout-black-localization.patch`.
+## Goal and boundaries
 
-The Xemu changes remain in the downstream patch series. Android lifecycle,
-firmware staging, JNI and Vulkan WSI code live under `native/android/m5` and
-`android/m5`. The diagnostic has no UI beyond a surface and status text. It
-does not bundle firmware or stage it into Gradle assets.
+M5 proves that the official Xemu Xbox machine can execute the supplied boot
+path on Android ARM64 and present genuine guest-produced Xbox visuals through
+the Android Vulkan display path. It is a boot and presentation milestone; it
+does not establish game compatibility, complete controller or audio support,
+retail dashboard support, final 720p guest rendering, performance targets,
+broad Android device compatibility, or production readiness.
+
+The source baseline is the official
+[`xemu-project/xemu`](https://github.com/xemu-project/xemu) repository, pinned
+at `478b4f496102379c7eaa7f3ec10e714a703c4300`. The Android target is
+`arm64-v8a` / `aarch64-linux-android`, API 33, Bionic, built with NDK
+`30.0.16248370` and Clang/LLD 21.0.0. Downstream patches `0001` through `0014`
+apply in order to that pinned source. The resulting `libboxdroid.so` is
+ELF64/AArch64; the Android build introduces no desktop OpenGL or libpcap
+dependency.
+
+MCPX, BIOS, HDD, and matching EEPROM are user-provided files. The M5 script
+stages the MCPX, BIOS, and HDD under app-scoped device storage, verifies their
+device copies, and opens them locally on the Retroid. Firmware is not part of
+the repository or APK.
+
+## Final result and boot path
+
+On the physical Retroid Pocket 5 (Android 13/API 33, Snapdragon 865, Adreno
+650), both fresh launches showed this sequence:
+
+1. Green Xbox boot animation.
+2. Xbox logo.
+3. HDD dashboard prompt: **“Please insert an Xbox disc...”**
+
+The guest executes `C:\xboxdash.xbe` from the HDD. Its prompt is dashboard
+output, not evidence of a failed HDD boot. Pre-dashboard visuals are rendered
+by the NV2A Vulkan path. The existing VGA/direct-VRAM fallback continues to
+present the dashboard. The 640×480 guest image remains 4:3 and aspect-fitted
+on the Android presentation surface; the display is correctly oriented in
+landscape. The prompt remained stable after it appeared.
+
+## Root cause
+
+The Vulkan renderer already produced the genuine animation and logo in the
+NV2A render target at `0x32a4000`. Earlier probes sampled only the center of
+the image, a mostly black region, and therefore mischaracterized the full
+target. Bounded full-frame measurements found 0 nonblack pixels after draw 1,
+306,241 after draw 64, and 32,050 after draws 128 and 200.
+
+The Android/desktop divergence was recurring accelerated scanout acquisition.
+M5 initially relied on QEMU CPU-VRAM dirty tracking through
+`dpy_gfx_update()`. Vulkan rendering did not keep that CPU dirty bitmap active,
+so after initial display updates the scanout downloads and Android presentation
+stopped even while the Vulkan target continued to contain valid Xbox frames.
+Desktop Xemu requests accelerated scanout independently from its render loop.
+
+## Final fix
+
+The existing M5 QEMU refresh callback now acquires and releases accelerated
+scanout before calling `graphic_hw_update()`. The scanout download marks VGA
+memory dirty, allowing the normal QEMU display callback, Pixman conversion,
+and Android presenter to receive frames. While waiting for PFIFO/scanout work,
+the callback temporarily releases the QEMU Big QEMU Lock (BQL), then reacquires
+it. This avoids the demonstrated lock cycle in which scanout waited for PFIFO
+while PFIFO notification/context interrupt delivery required the BQL.
+
+No polling thread was added. No synthetic or prerecorded frames were used,
+and no shader workaround or alternate framebuffer path was used for the boot
+animation. The existing VGA/direct-VRAM dashboard fallback remains intact.
+
+## Physical validation
+
+Both runs were fresh Android processes on the Retroid. Counts are successful
+acquire / submit / present operations.
+
+| Result | Fresh launch 1 | Fresh launch 2 |
+| --- | ---: | ---: |
+| Process ID | 22670 | 23154 |
+| Acquire / submit / present | 329 / 329 / 329 | 333 / 333 / 333 |
+| Failed presents | 0 | 0 |
+| Green boot animation visible | Yes | Yes |
+| Xbox logo visible | Yes | Yes |
+| Dashboard prompt visible | Yes | Yes |
+| Clean shutdown | Yes | Yes |
+| Crash-buffer size | 0 bytes | 0 bytes |
+
+Captures at 25, 30, 35, and 40 seconds were byte-identical within each run,
+confirming that the dashboard prompt remained stable after appearing. Android
+presentation preserves the guest's 4:3 aspect ratio and landscape orientation.
+
+## Regression checks
+
+- A clean Android build from the pinned Xemu baseline and ordered patches
+  `0001`–`0014` succeeded.
+- `libboxdroid.so` was verified as ELF64/AArch64.
+- M3 real TCG execution and clean shutdown passed before and after M4
+  regression validation.
+- M4 surface/presentation regression passed all five fresh launches, including
+  the required surface recreation checks.
+- No desktop OpenGL or libpcap dependency was introduced.
+
+The M5 script still reports `PARTIAL_VISUAL_REVIEW_REQUIRED` after capturing
+the run because it does not automatically certify the visual sequence. Manual
+review of the two physical-device runs confirmed all three genuine boot
+stages. That review resolves the previous status and satisfies M5's visual
+checkpoint requirement.
+
+## Diagnostic history
+
+- Initial framebuffer sampling found 452 white pixels, which decoded as
+  **“Please insert an Xbox disc...”**. Subsequent HDD inspection and guest
+  execution evidence proved that `C:\xboxdash.xbe` was running.
+- A bounded VGA/direct-VRAM bridge made the dashboard prompt visible on
+  Android. Landscape presentation and swapchain stability were then validated.
+- Desktop Xemu with the same inputs showed the green animation and Xbox logo.
+  Android NV2A lookup found the active `0x32a4000` surface, while early
+  center-only GPU probes misleadingly appeared black.
+- Full-frame Vulkan measurements proved the genuine boot visuals were already
+  in that target. The remaining blocker was the stopped recurring accelerated
+  scanout acquisition; the refresh callback fix restored the full sequence.
 
 ## Reproduce the device run
 
-On the supported macOS host, provide readable local files explicitly. The
-script checks the BIOS/MCPX sizes and QCOW2 header, prints host SHA-256 values,
-builds the pinned source plus patch series, installs the diagnostic, stages
-copies under the app's package-scoped Android files directory, verifies the
-device hashes, launches the Xbox machine and captures a screenshot and logs.
-The source files are opened read-only by the script and are not copied into the
-repository or APK.
+On the supported macOS host, provide readable local firmware and HDD files.
+The script validates the inputs, builds the pinned Xemu source plus the
+ordered downstream patches, installs the diagnostic app, stages and verifies
+device copies, launches the Xbox machine, and saves logs and visual evidence
+under the ignored `build/m5/repro/results/` directory.
 
 ```sh
 export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
@@ -50,166 +147,31 @@ export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-t
   --hdd /path/to/your/xbox_hdd.qcow2
 ```
 
-Set `ANDROID_SERIAL` if more than one ADB device is connected. Build output,
-firmware verification, device logs, QEMU execution trace and screenshot are
-written below the ignored `build/m5/repro/results/` directory. The script exits
-with status 2 after a successful diagnostic run when no NV2A scanout was
-observed; that is a measured incomplete boot, not a successful M5 checkpoint.
+Set `ANDROID_SERIAL` if multiple ADB devices are connected. The script's
+`PARTIAL_VISUAL_REVIEW_REQUIRED` result requires review of the captured visual
+checkpoints; it is not an automatic rejection of the technically validated
+boot result. The Android copies are staged under
+`/sdcard/Android/data/org.boxdroid.m5/files/m5/`. Do not put firmware in the
+repository, app assets, or release packages.
 
-The Android copy path is
-`/sdcard/Android/data/org.boxdroid.m5/files/m5/`. It is app-scoped external
-storage used only for this bring-up. To remove the staged test data, uninstall
-the diagnostic app or remove that app-specific directory. Do not copy those
-files into BoxDroid source, assets or release packages.
+## M5 exit criteria
 
-## Current Retroid evidence
+**PASS.** On the physical Retroid Pocket 5, the Xbox machine executed the
+user-provided boot path, produced genuine pre-dashboard NV2A-rendered visuals,
+and presented the green animation, Xbox logo, and dashboard prompt. The HDD
+dashboard boot succeeded, Android presentation worked end to end, and the
+prompt remained stable. Two fresh launches reproduced the sequence with zero
+failed presents, clean shutdowns, and empty crash buffers.
 
-Physical device: Retroid Pocket 5, Android 13/API 33, Snapdragon 865, Adreno
-650. The tested native library is ELF64/AArch64. The Android Vulkan surface and
-swapchain are initialized by the M4 presenter; Xemu's NV2A Vulkan stages reach
-buffer, surface, shader, pipeline, texture, compute and display initialization.
-The Android build caps each NV2A compute scratch allocation at 64 MiB because
-the upstream desktop reservation is 800 MiB per allocation and caused Android
-low-memory termination during renderer startup. This is an Android-only
-downstream change; desktop sizing remains unchanged.
+The earlier `PARTIAL_VISUAL_REVIEW_REQUIRED` state is resolved by manual
+visual review confirming the complete sequence across both fresh launches.
 
-The refresh experiment used the same pinned-source M5 script, supplied local
-files, and 45-second observation window. On the latest run, Xbox machine
-initialization returned successfully. The local QEMU `exec` trace continued to
-show Xbox x86 guest translation/execution under AArch64 TCG; it records guest
-PCs and host translation-block addresses without instruction-byte
-disassembly. This is guest execution evidence, not firmware boot completion.
+## Known limitations and next milestone
 
-The diagnostic registered `dpy_refresh` with QEMU's existing display listener
-at `GUI_REFRESH_INTERVAL_DEFAULT` (16 ms). Its callback calls
-`graphic_hw_update(dcl->con)`; no polling thread was added. Over the 45-second
-observation it counted 2,379 refresh callbacks and 2,379 calls to
-`graphic_hw_update()`. Guest display programming was observed: 303 PCRTC start
-writes, 7 relevant VGA CRTC writes, PGRAPH color-DMA/format/pitch/color-offset
-method counts of 3/559/451/451, and 12 color surface bindings.
+M5 PASS does not claim game compatibility; complete controller or audio
+support; retail dashboard support; final 720p guest rendering; final
+performance targets; broad Android device compatibility; or production
+readiness. Those remain outside M5.
 
-The scanout summary counted 55 framebuffer lookups: 53 misses and 2 hits.
-Both hits reached 640x480 Vulkan readback, and both readbacks completed. The
-BoxDroid display callback and presenter accepted two Xbox-derived frames. The
-first frame log reported `nonblack_pixels=0` over 307,200 pixels (hash
-`c29a7452cec88383`). The device screenshot at
-`build/m5/refresh-test/results-second/screen.png` was fully black apart from
-the Android navigation bar. Thus the missing recurring refresh did suppress
-later scanout attempts, but enabling it did not produce visible Xbox imagery
-in this run. The first `NV2A_SCANOUT_SURFACE_MISSING` marker was the initial
-placeholder lookup at address 0, pitch 0, extent 8x1; the final counters show
-that later lookups then included both hits and misses. The diagnostic emits
-that marker and readback markers once each rather than once per refresh.
-
-This evidence rules out a guest that never writes display state and rules out a
-permanent absence of color surfaces. It also shows that readback reaches the
-BoxDroid presenter. Since the presented source pixels were all black, the next
-diagnosis should focus on why the guest-produced NV2A scanout contents are
-black; it is not yet evidence of a genuine Xbox boot frame. No dashboard, boot
-animation or equivalent checkpoint was reached. The HDD path was supplied as
-a QCOW2 IDE disk and QEMU initialization accepted the device configuration,
-but guest IDE reads have not yet been confirmed independently. All three
-device-side image SHA-256 values matched their local inputs. The captured
-Android crash buffer contained no records.
-
-The earlier M5 run observed `qemu_cleanup()` stalling in `vm_shutdown()` while
-waiting for Xbox vCPU threads to pause; `tcg,thread=single` did not resolve
-that observation. In the two refresh-enabled runs, closing the Activity instead
-produced `XBOX_QEMU_LOOP_RETURN status=0`, `XBOX_STOP_RESULT=0`, and
-`VULKAN_SHUTDOWN_CLEAN`. Shutdown was not modified as part of this experiment.
-The changed behavior has not been isolated or repeated enough to call the
-shutdown path reliably resolved. Both captured Android crash buffers were
-empty.
-
-## Bounded scanout black localization
-
-The follow-up Retroid run used the same script and 45-second observation window.
-It sampled at most 4 MiB once at each pixel-data boundary and did not change
-surface selection, Vulkan synchronization, or presenter behavior. Results:
-
-| Boundary | Evidence |
-| --- | --- |
-| Selected NV2A binding | PCRTC `0x32a4000`, line offset `0xa00`, lookup `0x32a4a00`; binding `[0x32a4000,0x33d0000)`, delta `0xa00`, pitch 2560, 640×480, format `0x8` / VkFormat 44; `draw_dirty=1`, `upload_pending=0`, `initialized=1`, `cleared=0`, frame time 1, draw time 4 |
-| Download decision | 2 waits; 1 dirty/requested, 1 skipped, 1 actual GPU download after command completion and mapped-memory invalidation |
-| Vulkan staging readback | 1,228,800 sampled bytes; 0 nonzero bytes; hash `f3ee4d06bf3e0383` |
-| Xbox VRAM after copy | 1,228,800 sampled bytes; 0 nonzero bytes; hash `f3ee4d06bf3e0383` |
-| QEMU DisplaySurface before pixman | 1,228,800 sampled bytes; 0 nonzero bytes; hash `f3ee4d06bf3e0383`; format `0x20020888`, stride 2560, 640×480, flags 0, direct VRAM backing |
-| BoxDroid RGBA after pixman | 1,228,800 sampled bytes; 307,200 nonzero bytes from alpha; 0 nonblack pixels; hash `c29a7452cec88383` |
-| Presenter input | Same RGBA buffer passed directly to the presenter; no separate sample was needed |
-
-The first sampled boundary, Vulkan staging, was already all zero. The matching
-VRAM and DisplaySurface hashes show that the subsequent CPU copy and direct VGA
-surface path preserved those bytes; pixman only supplied opaque alpha. Thus
-there is no proven nonblack pixel boundary. This localizes the black image to
-the selected GPU surface contents or the GPU-to-staging result, before the
-VRAM/VGA/pixman/presenter handoff. The available evidence does not distinguish
-black guest rendering from selecting a surface whose contents do not contain
-the guest image.
-
-After a successful lookup, one bounded later miss recorded PCRTC `0x3c00000`,
-line offset `0xa00`, lookup `0x3c00a00`. The nearest active color binding was
-`[0x3628000,0x3880000)`, pitch 5120, 1280×480, format `0x8`; it did not cover
-the lookup address. During this run the summary counted 53 lookups, 2 hits and
-51 misses. The device screenshot remained black and no boot checkpoint was
-reached. The crash buffer was empty; the diagnostic closed with status 0 and
-clean Vulkan shutdown. M5 remains PARTIAL.
-
-## Verified and outstanding
-
-| M5 item | Current result |
-| --- | --- |
-| Android `libboxdroid.so` load and Xbox machine initialization | Verified |
-| MCPX/BIOS paths and sizes; image copies hash-verified on device | Verified |
-| Xbox x86 reset path enters AArch64-hosted TCG | Verified by CPU reset and executed-TB trace records |
-| QCOW2 path and guest I/O | Verified: 8 GiB virtual size, 30 guest reads / 250,368 bytes, and one 512-byte guest write in the latest run |
-| NV2A Vulkan renderer initialization | Verified |
-| Recurring display refresh / `graphic_hw_update()` | Verified: 2,379 / 2,379 calls in 45 s |
-| Guest display-register writes and color surface bindings | Verified: PCRTC/VGA/PGRAPH writes; 12 color bindings |
-| NV2A framebuffer lookup/readback | Verified: 2 hits; 1 GPU download performed, 1 subsequent hit skipped it; 51 misses |
-| Android presenter handoff | Verified: 2 Xbox-path frames accepted; sampled source had 0 nonblack pixels |
-| Guest-produced VGA pixels | 452 white pixels form a firmware text prompt in raw VRAM and QEMU's VGA DisplaySurface; this raw VGA path is not yet presented by Android |
-| Visible Xbox boot checkpoint | Not reached |
-| Clean embedded QEMU shutdown | Observed in two refresh-enabled runs; earlier stall remains unexplained |
-| Repeated boot to checkpoint | Not applicable until a checkpoint is reached |
-
-M3/M4 regressions must be run from a fresh build root after changing the patch
-series. M5 is not accepted until real guest-produced NV2A frames are presented
-and a genuine boot checkpoint is visible on the Retroid.
-
-## Guest progress after the VGA text band
-
-The next 45-second Retroid diagnostic built from the pinned Xemu commit and
-ordered patches through `0013-m5-guest-progress-diagnostics.patch`. The M5-only
-QEMU hook starts a five-second TB sample after framebuffer-changing writes
-have been quiet for one second. It records bounded PC, halt, interrupt, and
-device-access summaries. The app also samples the two words tested by the
-repeating guest loop once per second and records seven scanlines of the
-guest-produced text band. The QEMU log filter keeps only the reset vector and
-the small loop range; generated logs remain under the ignored build root.
-
-The final changing framebuffer write occurred at monotonic time
-`73132441750` microseconds. The sample began one second later and counted
-100,712,448 TB entries across 62 recorded guest PCs and approximately 70
-TB identities (one hash collision). PCs `0x8001b030` and `0x8001b02f`
-accounted for 50,343,235 and 50,343,229 entries. No HLT exit occurred.
-PIC interrupt acknowledgement and periodic PMC, PFIFO, PVIDEO, PCRTC, and VGA
-accesses continued; the two hot PCs made no recorded device access directly.
-
-At each one-second sample, `EBX=0x80035bdc`, `EBP=0x80035c2c`, the word at
-`[EBP]` equaled `EBP`, and the word at `[EBX+0x2c]` was zero. The narrow guest
-instruction capture shows an interrupt-enabled loop that checks those two
-words, consistent with an empty work queue and unset wake flag. The 452 white
-pixels decode as the guest firmware message **“Please insert an Xbox disc...”**.
-M5 currently supplies an empty IDE CD-ROM (`file=`) and the supplied QCOW2 HDD.
-These observations establish the immediate stall: the guest is waiting for
-boot work or disc media, while continuing to service interrupts. They do not
-establish why the supplied HDD did not lead to a dashboard. No change to
-firmware inputs, Xbox machine configuration, scanout, or presenter is justified
-by this result alone. The smallest follow-up is a read-only check of the HDD's
-boot contents and the selected BIOS boot policy, with a desktop Xemu comparison
-only if those inputs do not explain the prompt.
-
-The raw framebuffer and QEMU VGA DisplaySurface still matched at 452 pixels
-and hash `1238a865d7d67563` at shutdown. The device screenshot remained
-black because M5 has no Android raw VGA presentation path. This diagnostic
-does not establish a visible boot checkpoint, and M5 remains PARTIAL.
+The next roadmap milestone is **M6**. It has not been started as part of this
+M5 documentation update.
