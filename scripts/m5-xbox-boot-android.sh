@@ -5,8 +5,9 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PIN=478b4f496102379c7eaa7f3ec10e714a703c4300
 API=33
 ABI=arm64-v8a
-PACKAGE=org.boxdroid.m5
-ACTIVITY="$PACKAGE/.MainActivity"
+PACKAGE="${BOXDROID_M5_PACKAGE:-org.boxdroid.m5}"
+ACTIVITY="${BOXDROID_M5_ACTIVITY:-$PACKAGE/.MainActivity}"
+ANDROID_PROJECT="${BOXDROID_M5_ANDROID_PROJECT:-$ROOT/android/m5}"
 WORK_ROOT="${BOXDROID_M5_WORK_ROOT:-$ROOT/build/m5/repro}"
 CORE_ROOT="$WORK_ROOT/core"
 BUILD="$CORE_ROOT/android-arm64"
@@ -83,6 +84,9 @@ else
     ADB=(adb -s "$serial")
 fi
 "${ADB[@]}" get-state | grep -qx device || die "ADB device is not ready"
+if [[ -n "${BOXDROID_M5_COMPANION_PACKAGE_TO_STOP:-}" ]]; then
+    "${ADB[@]}" shell am force-stop "$BOXDROID_M5_COMPANION_PACKAGE_TO_STOP"
+fi
 
 mkdir -p "$RESULTS"
 for entry in "bios:$BIOS" "mcpx:$MCPX" "hdd:$HDD"; do
@@ -111,9 +115,14 @@ grep -q 'Class:.*ELF64' "$RESULTS/libboxdroid-readelf.txt" || die "library is no
 grep -q 'Machine:.*AArch64' "$RESULTS/libboxdroid-readelf.txt" || die "library is not AArch64"
 grep -q 'Java_org_boxdroid_m5_MainActivity_nativeXboxStart' "$RESULTS/libboxdroid-readelf.txt" || die "Xbox JNI start symbol is missing"
 
-"$ROOT/android/m5/gradlew" --no-daemon -p "$ROOT/android/m5" \
+"$ROOT/android/m5/gradlew" --no-daemon -p "$ANDROID_PROJECT" \
     -Pm5BuildRoot="$BUILD" assembleDebug | tee "$RESULTS/gradle.log"
-APK="$ROOT/android/m5/app/build/outputs/apk/debug/app-debug.apk"
+APK_BUILD="$ANDROID_PROJECT/app/build/outputs/apk/debug/app-debug.apk"
+APK="${BOXDROID_M5_APK:-$APK_BUILD}"
+if [[ "$APK" != "$APK_BUILD" ]]; then
+    mkdir -p "$(dirname "$APK")"
+    cp "$APK_BUILD" "$APK"
+fi
 [[ -s "$APK" ]] || die "APK missing after Gradle build"
 "${ADB[@]}" install -r "$APK" | tee "$RESULTS/install.txt"
 
@@ -161,8 +170,8 @@ wait "$screenrecord_pid" || true
 [[ -s "$RESULTS/boot-video.mp4" ]] || die "boot video capture is missing or empty"
 "${ADB[@]}" shell rm -f "$VIDEO_DEVICE"
 "${ADB[@]}" shell input keyevent KEYCODE_BACK > "$RESULTS/stop-trigger.txt" 2>&1 || true
-sleep 2
-"${ADB[@]}" logcat -d -s BoxDroidM5:I BoxDroidM4:I '*:S' > "$RESULTS/logcat.txt"
+sleep "${BOXDROID_M5_STOP_WAIT_SECS:-2}"
+"${ADB[@]}" logcat -d -s BoxDroidM5:I BoxDroidM4:I BoxDroidM52:I '*:S' > "$RESULTS/logcat.txt"
 "${ADB[@]}" logcat -b crash -d > "$RESULTS/crash-buffer.txt"
 "${ADB[@]}" exec-out run-as "$PACKAGE" cat files/m5-qemu.log > "$RESULTS/qemu-exec-trace.log" 2>/dev/null || true
 "${ADB[@]}" shell am force-stop "$PACKAGE"

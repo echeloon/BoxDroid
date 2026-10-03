@@ -1,0 +1,41 @@
+plugins {
+    id 'com.android.application'
+}
+
+def m5BuildRoot = providers.gradleProperty('m5BuildRoot').orNull
+if (m5BuildRoot == null) {
+    throw new GradleException('Pass -Pm5BuildRoot=<BoxDroid Android native build directory>')
+}
+
+android {
+    namespace 'org.boxdroid.m5'
+    compileSdk 36
+    buildToolsVersion '36.0.0'
+    ndkVersion '30.0.16248370'
+
+    defaultConfig {
+        applicationId 'org.boxdroid.m52'
+        minSdk 26
+        targetSdk 33
+        versionCode 1
+        versionName '0.5.2'
+        ndk { abiFilters 'arm64-v8a' }
+    }
+
+    sourceSets {
+        main {
+            // The diagnostic activity and JNI class remain shared with M5.
+            java.srcDirs += [file('../../m5/app/src/main/java')]
+            jniLibs.srcDirs = ["${m5BuildRoot}/jniLibs"]
+            assets.srcDirs = ["${m5BuildRoot}/assets"]
+        }
+    }
+
+    buildTypes {
+        debug {
+            debuggable true
+            jniDebuggable true
+        }
+        release { minifyEnabled false }
+    }
+}

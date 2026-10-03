@@ -17,7 +17,7 @@ import java.io.File;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public final class MainActivity extends Activity {
+public class MainActivity extends Activity {
     private static final String TAG = "BoxDroidM5";
     private static final ExecutorService NATIVE = Executors.newSingleThreadExecutor();
     private boolean surfaceReady;

@@ -7,6 +7,7 @@
 #include <vulkan/vulkan_android.h>
 
 #include <algorithm>
+#include <atomic>
 #include <array>
 #include <cstdint>
 #include <cstring>
@@ -51,6 +52,7 @@ AspectFit aspectFit(uint32_t sourceWidth, uint32_t sourceHeight,
 // Surface callbacks and QEMU frame delivery run on different native threads.
 // Serialize presenter resources so a resize cannot tear down an active upload.
 std::mutex presenterLock;
+std::atomic<uint32_t> overlayPresentedFrames{0};
 
 struct Presenter {
     void *loader = nullptr;
@@ -830,6 +832,7 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
         return createSwapchain() && allowRetry ? presentFrame(false, pixels, sourceWidth, sourceHeight, sourceStride) : false;
     }
     ++p.presents;
+    overlayPresentedFrames.store(p.presents, std::memory_order_relaxed);
     if (p.generation == 1) ++p.frameBeforeRecreate; else ++p.frameAfterRecreate;
     if ((p.presents % 30) == 0) log(ANDROID_LOG_INFO, "FRAME presented=" + std::to_string(p.presents) + " generation=" + std::to_string(p.generation));
     return true;
@@ -893,6 +896,7 @@ extern "C" JNIEXPORT jboolean JNICALL Java_org_boxdroid_m5_MainActivity_nativeM4
 extern "C" JNIEXPORT void JNICALL Java_org_boxdroid_m5_MainActivity_nativeM4SurfaceDestroyed(JNIEnv *, jobject);
 extern "C" JNIEXPORT jstring JNICALL Java_org_boxdroid_m5_MainActivity_nativeM4Diagnostics(JNIEnv *, jobject);
 extern "C" JNIEXPORT void JNICALL Java_org_boxdroid_m5_MainActivity_nativeM4Shutdown(JNIEnv *, jobject);
+extern "C" JNIEXPORT jlong JNICALL Java_org_boxdroid_m5_OverlayActivity_nativeM52PresentedFrames(JNIEnv *, jobject);
 
 extern "C" bool boxdroid_android_present_rgba(const uint8_t *, uint32_t,
                                                 uint32_t, uint32_t);
@@ -946,6 +950,13 @@ Java_org_boxdroid_m5_MainActivity_nativeM4Diagnostics(JNIEnv *env, jobject) {
     const std::string result = diagnostics();
     log(ANDROID_LOG_INFO, "M4_DIAGNOSTICS=" + result);
     return env->NewStringUTF(result.c_str());
+}
+
+// Read only the completed-present counter for the Android performance view.
+// Guest execution, NV2A rendering, and scanout never depend on this query.
+extern "C" JNIEXPORT jlong JNICALL
+Java_org_boxdroid_m5_OverlayActivity_nativeM52PresentedFrames(JNIEnv *, jobject) {
+    return static_cast<jlong>(overlayPresentedFrames.load(std::memory_order_relaxed));
 }
 
 extern "C" JNIEXPORT void JNICALL
