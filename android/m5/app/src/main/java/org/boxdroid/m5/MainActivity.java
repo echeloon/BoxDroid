@@ -104,6 +104,7 @@ public final class MainActivity extends Activity {
                         return;
                     }
                     surfaceReady = true;
+                    Log.i(TAG, "M5_VIDEO_PRESENTER_READY surface_generation=1");
                     startXbox(directory);
                 });
             }

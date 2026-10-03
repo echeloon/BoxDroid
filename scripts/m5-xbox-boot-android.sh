@@ -57,7 +57,7 @@ PY
 
 [[ "$(git -C "$ROOT" branch --show-current)" == android-port ]] || die "must run on android-port"
 [[ "$(git -C "$ROOT/upstream/xemu" rev-parse HEAD)" == "$PIN" ]] || die "upstream/xemu is not pinned at $PIN"
-for patch in 0001-m2-android-arm64-cross-build.patch 0002-m3-generic-headless-target.patch 0003-m4-android-vulkan-presentation.patch 0004-m5-android-xbox-headless-core.patch 0005-m5-display-refresh-diagnostics.patch 0006-m5-scanout-black-localization.patch 0007-m5-vulkan-image-content-diagnostics.patch 0008-m5-firmware-storage-provenance.patch 0009-m5-vga-raw-vram-diagnostics.patch 0010-m5-vram-transition-diagnostics.patch 0011-m5-framebuffer-writer-diagnostics.patch 0012-m5-cpu-framebuffer-value-diagnostics.patch 0013-m5-guest-progress-diagnostics.patch; do
+for patch in 0001-m2-android-arm64-cross-build.patch 0002-m3-generic-headless-target.patch 0003-m4-android-vulkan-presentation.patch 0004-m5-android-xbox-headless-core.patch 0005-m5-display-refresh-diagnostics.patch 0006-m5-scanout-black-localization.patch 0007-m5-vulkan-image-content-diagnostics.patch 0008-m5-firmware-storage-provenance.patch 0009-m5-vga-raw-vram-diagnostics.patch 0010-m5-vram-transition-diagnostics.patch 0011-m5-framebuffer-writer-diagnostics.patch 0012-m5-cpu-framebuffer-value-diagnostics.patch 0013-m5-guest-progress-diagnostics.patch 0014-m5-nv2a-vulkan-output-diagnostics.patch; do
     grep -qx "$patch" "$ROOT/patches/xemu/series" || die "patch series is missing $patch"
 done
 
@@ -130,12 +130,22 @@ done
 
 "${ADB[@]}" shell am force-stop "$PACKAGE"
 "${ADB[@]}" logcat -c
+VIDEO_DEVICE=/sdcard/Movies/boxdroid-m5-boot.mp4
+"${ADB[@]}" shell mkdir -p /sdcard/Movies
+"${ADB[@]}" shell rm -f "$VIDEO_DEVICE"
+"${ADB[@]}" shell screenrecord --size 1280x720 --bit-rate 2000000 \
+    --time-limit "$OBSERVE_SECS" "$VIDEO_DEVICE" \
+    > "$RESULTS/screenrecord.txt" 2>&1 &
+screenrecord_pid=$!
+sleep 0.3
 "${ADB[@]}" shell am start -W -n "$ACTIVITY" | tee "$RESULTS/launch.txt"
 pid="$("${ADB[@]}" shell pidof "$PACKAGE" | tr -d '\r')"
 [[ "$pid" =~ ^[0-9]+$ ]] || die "diagnostic process did not start"
 echo "pid=$pid" > "$RESULTS/process.txt"
 SECONDS=0
-for capture_second in 20 25 35; do
+# Sample the early firmware video window densely enough to catch short boot
+# visuals, then retain the established dashboard/stability checkpoints.
+for capture_second in 1 2 3 4 5 6 8 10 12 15 18 20 22 25 30 35 40; do
     (( capture_second < OBSERVE_SECS )) || continue
     delay=$((capture_second - SECONDS))
     (( delay > 0 )) && sleep "$delay"
@@ -145,6 +155,11 @@ done
 remaining=$((OBSERVE_SECS - SECONDS))
 (( remaining > 0 )) && sleep "$remaining"
 "${ADB[@]}" exec-out screencap -p > "$RESULTS/screen.png"
+wait "$screenrecord_pid" || true
+"${ADB[@]}" pull "$VIDEO_DEVICE" "$RESULTS/boot-video.mp4" \
+    | tee "$RESULTS/screenrecord-pull.txt"
+[[ -s "$RESULTS/boot-video.mp4" ]] || die "boot video capture is missing or empty"
+"${ADB[@]}" shell rm -f "$VIDEO_DEVICE"
 "${ADB[@]}" shell input keyevent KEYCODE_BACK > "$RESULTS/stop-trigger.txt" 2>&1 || true
 sleep 2
 "${ADB[@]}" logcat -d -s BoxDroidM5:I BoxDroidM4:I '*:S' > "$RESULTS/logcat.txt"
