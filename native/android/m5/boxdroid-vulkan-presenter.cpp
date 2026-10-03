@@ -7,15 +7,50 @@
 #include <vulkan/vulkan_android.h>
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <cstring>
 #include <dlfcn.h>
+#include <mutex>
 #include <sstream>
 #include <string>
 #include <vector>
 
 namespace {
 constexpr char kTag[] = "BoxDroidM4";
+
+struct AspectFit {
+    uint32_t width = 0;
+    uint32_t height = 0;
+    uint32_t x = 0;
+    uint32_t y = 0;
+    double scale = 0;
+};
+
+AspectFit aspectFit(uint32_t sourceWidth, uint32_t sourceHeight,
+                    uint32_t surfaceWidth, uint32_t surfaceHeight) {
+    AspectFit fit;
+    if (!sourceWidth || !sourceHeight || !surfaceWidth || !surfaceHeight) return fit;
+    fit.scale = std::min(static_cast<double>(surfaceWidth) / sourceWidth,
+                         static_cast<double>(surfaceHeight) / sourceHeight);
+    if (static_cast<uint64_t>(surfaceWidth) * sourceHeight >
+        static_cast<uint64_t>(surfaceHeight) * sourceWidth) {
+        fit.height = surfaceHeight;
+        fit.width = std::max(1u, static_cast<uint32_t>(
+            (static_cast<uint64_t>(sourceWidth) * surfaceHeight) / sourceHeight));
+    } else {
+        fit.width = surfaceWidth;
+        fit.height = std::max(1u, static_cast<uint32_t>(
+            (static_cast<uint64_t>(sourceHeight) * surfaceWidth) / sourceWidth));
+    }
+    fit.x = (surfaceWidth - fit.width) / 2;
+    fit.y = (surfaceHeight - fit.height) / 2;
+    return fit;
+}
+
+// Surface callbacks and QEMU frame delivery run on different native threads.
+// Serialize presenter resources so a resize cannot tear down an active upload.
+std::mutex presenterLock;
 
 struct Presenter {
     void *loader = nullptr;
@@ -112,7 +147,14 @@ struct Presenter {
     uint32_t surfaceMaxImageCount = 0;
     VkImageUsageFlags surfaceUsageFlags = 0;
     uint32_t generation = 0;
-    bool frameGeometryLogged = false;
+    bool frameGeometryValid = false;
+    std::array<uint32_t, 9> frameGeometryKey{};
+    AspectFit frameFit{};
+    uint32_t geometryChanges = 0;
+    std::vector<uint8_t> lastFrame;
+    uint32_t lastSourceWidth = 0;
+    uint32_t lastSourceHeight = 0;
+    uint32_t lastSourceStride = 0;
     std::string gpuName;
     std::string lastError;
 } p;
@@ -303,12 +345,28 @@ bool hasDeviceExtension(VkPhysicalDevice device, const char *name) {
 
 bool createSwapchain();
 void destroySwapchain();
+bool presentFrame(bool allowRetry, const uint8_t *pixels,
+                  uint32_t sourceWidth, uint32_t sourceHeight, uint32_t sourceStride);
 
-bool resizeSurface(uint32_t width, uint32_t height) {
+bool redrawLastFrame() {
+    if (p.lastFrame.empty()) return true;
+    // A static dashboard may not generate another QEMU dirty update after resize.
+    // Repaint the owned copy of the last guest frame through the same presenter.
+    const bool ok = presentFrame(true, p.lastFrame.data(), p.lastSourceWidth,
+                                 p.lastSourceHeight, p.lastSourceStride);
+    log(ok ? ANDROID_LOG_INFO : ANDROID_LOG_ERROR,
+        std::string("FRAME_REFIT_REDRAW result=") + (ok ? "PASS" : "FAIL"));
+    return ok;
+}
+
+bool resizeSurface(uint32_t width, uint32_t height, bool redraw = true) {
     if (!p.surface || !p.device) return false;
     width = std::max(width, 1u);
     height = std::max(height, 1u);
-    if (width == p.requestedWidth && height == p.requestedHeight) return true;
+    const uint32_t nativeWidth = static_cast<uint32_t>(std::max(ANativeWindow_getWidth(p.window), 0));
+    const uint32_t nativeHeight = static_cast<uint32_t>(std::max(ANativeWindow_getHeight(p.window), 0));
+    if (width == p.requestedWidth && height == p.requestedHeight &&
+        nativeWidth == p.nativeWindowWidth && nativeHeight == p.nativeWindowHeight) return true;
     destroySwapchain();
     p.requestedWidth = width;
     p.requestedHeight = height;
@@ -316,7 +374,7 @@ bool resizeSurface(uint32_t width, uint32_t height) {
     p.nativeWindowHeight = static_cast<uint32_t>(std::max(ANativeWindow_getHeight(p.window), 0));
     log(ANDROID_LOG_INFO, "SURFACE_RESIZE requested=" + std::to_string(width) + "x" + std::to_string(height) +
         " native_window=" + std::to_string(p.nativeWindowWidth) + "x" + std::to_string(p.nativeWindowHeight));
-    return createSwapchain();
+    return createSwapchain() && (!redraw || redrawLastFrame());
 }
 
 bool createInstance() {
@@ -425,10 +483,11 @@ bool createSurface(JNIEnv *env, jobject javaSurface, uint32_t width, uint32_t he
         if (!loadDeviceFunctions()) return false;
         vkGetDeviceQueue(p.device, p.queueFamily, 0, &p.queue);
     }
-    return createSwapchain();
+    return createSwapchain() && redrawLastFrame();
 }
 
 void destroySwapchain() {
+    p.frameGeometryValid = false;
     if (p.device) vkDeviceWaitIdle(p.device);
     if (p.acquired) { vkDestroySemaphore(p.device, p.acquired, nullptr); p.acquired = VK_NULL_HANDLE; }
     if (p.rendered) { vkDestroySemaphore(p.device, p.rendered, nullptr); p.rendered = VK_NULL_HANDLE; }
@@ -443,6 +502,8 @@ void destroySwapchain() {
 }
 
 bool createSwapchain() {
+    p.nativeWindowWidth = static_cast<uint32_t>(std::max(ANativeWindow_getWidth(p.window), 0));
+    p.nativeWindowHeight = static_cast<uint32_t>(std::max(ANativeWindow_getHeight(p.window), 0));
     VkSurfaceCapabilitiesKHR caps{};
     if (!check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(p.gpu, p.surface, &caps), "vkGetPhysicalDeviceSurfaceCapabilitiesKHR")) return false;
     uint32_t formatCount = 0;
@@ -467,7 +528,11 @@ bool createSwapchain() {
     p.presentMode = VK_PRESENT_MODE_FIFO_KHR;
     p.format = selected.format;
     p.colorSpace = selected.colorSpace;
-    p.extent = caps.currentExtent.width != UINT32_MAX ? caps.currentExtent : VkExtent2D{
+    // Android permits imageExtent to differ from currentExtent. During a view
+    // resize currentExtent can still describe the previous swapchain buffers.
+    // Follow the latest SurfaceHolder size, clamped to the advertised limits,
+    // so Android does not stretch an old-aspect buffer onto the new surface.
+    p.extent = VkExtent2D{
         std::clamp(p.requestedWidth, caps.minImageExtent.width, caps.maxImageExtent.width),
         std::clamp(p.requestedHeight, caps.minImageExtent.height, caps.maxImageExtent.height)};
     p.surfaceCurrentExtentWidth = caps.currentExtent.width;
@@ -515,6 +580,10 @@ bool createSwapchain() {
     ci.presentMode = p.presentMode;
     ci.clipped = VK_TRUE;
     if (!check(vkCreateSwapchainKHR(p.device, &ci, nullptr, &p.swapchain), "vkCreateSwapchainKHR")) return false;
+    // Swapchain creation configures the window's buffer dimensions. Cache the
+    // resulting values so that change detection does not chase old dimensions.
+    p.nativeWindowWidth = static_cast<uint32_t>(std::max(ANativeWindow_getWidth(p.window), 0));
+    p.nativeWindowHeight = static_cast<uint32_t>(std::max(ANativeWindow_getHeight(p.window), 0));
     ++p.swapchainCreates;
     uint32_t actual = 0;
     if (!check(vkGetSwapchainImagesKHR(p.device, p.swapchain, &actual, nullptr), "vkGetSwapchainImagesKHR(count)")) return false;
@@ -574,6 +643,12 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
                   uint32_t sourceWidth = 0, uint32_t sourceHeight = 0,
                   uint32_t sourceStride = 0) {
     if (!p.swapchain || !p.device) return false;
+    // A native window can change before its queued Java resize callback runs.
+    // Refresh only when its dimensions change; SUBOPTIMAL alone stays nonfatal.
+    if (static_cast<uint32_t>(std::max(ANativeWindow_getWidth(p.window), 0)) != p.nativeWindowWidth ||
+        static_cast<uint32_t>(std::max(ANativeWindow_getHeight(p.window), 0)) != p.nativeWindowHeight) {
+        if (!resizeSurface(p.requestedWidth, p.requestedHeight, false)) return false;
+    }
     uint32_t index = 0;
     VkResult r = vkAcquireNextImageKHR(p.device, p.swapchain, UINT64_MAX, p.acquired, VK_NULL_HANDLE, &index);
     if (r == VK_ERROR_OUT_OF_DATE_KHR) {
@@ -594,25 +669,28 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
     VkBuffer stagingBuffer = VK_NULL_HANDLE;
     VkDeviceMemory stagingMemory = VK_NULL_HANDLE;
     if (pixels && sourceWidth && sourceHeight && sourceStride >= sourceWidth * 4) {
-        uint32_t destinationWidth = p.extent.width;
-        uint32_t destinationHeight = p.extent.height;
-        uint32_t destinationX = 0;
-        uint32_t destinationY = 0;
-        if (static_cast<uint64_t>(p.extent.width) * sourceHeight >
-            static_cast<uint64_t>(p.extent.height) * sourceWidth) {
-            destinationWidth = std::max(1u, static_cast<uint32_t>(
-                (static_cast<uint64_t>(sourceWidth) * p.extent.height) / sourceHeight));
-            destinationX = (p.extent.width - destinationWidth) / 2;
-        } else {
-            destinationHeight = std::max(1u, static_cast<uint32_t>(
-                (static_cast<uint64_t>(sourceHeight) * p.extent.width) / sourceWidth));
-            destinationY = (p.extent.height - destinationHeight) / 2;
-        }
-        if (!p.frameGeometryLogged) {
-            p.frameGeometryLogged = true;
-            log(ANDROID_LOG_INFO, "FRAME_UPLOAD_GEOMETRY source=" + std::to_string(sourceWidth) + "x" +
+        const AspectFit fit = aspectFit(sourceWidth, sourceHeight, p.extent.width, p.extent.height);
+        const uint32_t destinationWidth = fit.width;
+        const uint32_t destinationHeight = fit.height;
+        const uint32_t destinationX = fit.x;
+        const uint32_t destinationY = fit.y;
+        const std::array<uint32_t, 9> geometry = {sourceWidth, sourceHeight, sourceStride,
+            p.requestedWidth, p.requestedHeight, p.nativeWindowWidth, p.nativeWindowHeight,
+            p.extent.width, p.extent.height};
+        if (!p.frameGeometryValid || geometry != p.frameGeometryKey) {
+            p.frameGeometryValid = true;
+            p.frameGeometryKey = geometry;
+            p.frameFit = fit;
+            ++p.geometryChanges;
+            // Geometry events only, with a fixed cap for this diagnostic harness.
+            if (p.geometryChanges <= 32) log(ANDROID_LOG_INFO,
+                "FRAME_UPLOAD_GEOMETRY change=" + std::to_string(p.geometryChanges) +
+                " source=" + std::to_string(sourceWidth) + "x" +
                 std::to_string(sourceHeight) + " stride=" + std::to_string(sourceStride) +
+                " surface=" + std::to_string(p.requestedWidth) + "x" + std::to_string(p.requestedHeight) +
+                " native_window=" + std::to_string(p.nativeWindowWidth) + "x" + std::to_string(p.nativeWindowHeight) +
                 " swapchain=" + std::to_string(p.extent.width) + "x" + std::to_string(p.extent.height) +
+                " scale=" + std::to_string(fit.scale) +
                 " destination=" + std::to_string(destinationWidth) + "x" +
                 std::to_string(destinationHeight) + "+" + std::to_string(destinationX) + "+" +
                 std::to_string(destinationY) + " aspect_fit=1 pre_transform=" +
@@ -800,6 +878,10 @@ std::string diagnostics() {
       << ",\"failed_presents\":" << p.failedPresents << ",\"frame_before_recreation\":" << p.frameBeforeRecreate
       << ",\"frame_after_recreation\":" << p.frameAfterRecreate << ",\"out_of_date\":" << p.outOfDate
       << ",\"suboptimal\":" << p.suboptimal << ",\"surface_lost\":" << p.surfaceLost
+      << ",\"source_extent\":[" << p.frameGeometryKey[0] << ',' << p.frameGeometryKey[1]
+      << "],\"fit_scale\":" << p.frameFit.scale << ",\"destination_rect\":["
+      << p.frameFit.x << ',' << p.frameFit.y << ',' << p.frameFit.width << ',' << p.frameFit.height
+      << "],\"geometry_changes\":" << p.geometryChanges
       << ",\"last_error\":\"" << p.lastError << "\"}";
     return s.str();
 }
@@ -819,11 +901,19 @@ extern "C" bool boxdroid_android_present_rgba(const uint8_t *pixels,
                                                 uint32_t width,
                                                 uint32_t height,
                                                 uint32_t stride) {
-    return presentFrame(true, pixels, width, height, stride);
+    std::lock_guard<std::mutex> guard(presenterLock);
+    if (!pixels || !width || !height || static_cast<uint64_t>(stride) <
+        static_cast<uint64_t>(width) * 4) return false;
+    p.lastFrame.assign(pixels, pixels + static_cast<size_t>(stride) * height);
+    p.lastSourceWidth = width;
+    p.lastSourceHeight = height;
+    p.lastSourceStride = stride;
+    return presentFrame(true, p.lastFrame.data(), width, height, stride);
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_org_boxdroid_m5_MainActivity_nativeM4SurfaceCreated(JNIEnv *env, jobject, jobject surface, jint width, jint height, jint generation) {
+    std::lock_guard<std::mutex> guard(presenterLock);
     const bool ok = createSurface(env, surface, static_cast<uint32_t>(std::max(width, 1)),
         static_cast<uint32_t>(std::max(height, 1)), static_cast<uint32_t>(generation));
     log(ok ? ANDROID_LOG_INFO : ANDROID_LOG_ERROR, std::string("M4_SURFACE_CREATED result=") + (ok ? "PASS" : "FAIL") + " generation=" + std::to_string(generation));
@@ -832,6 +922,7 @@ Java_org_boxdroid_m5_MainActivity_nativeM4SurfaceCreated(JNIEnv *env, jobject, j
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_org_boxdroid_m5_MainActivity_nativeM4SurfaceChanged(JNIEnv *, jobject, jint width, jint height) {
+    std::lock_guard<std::mutex> guard(presenterLock);
     const bool ok = resizeSurface(static_cast<uint32_t>(std::max(width, 1)), static_cast<uint32_t>(std::max(height, 1)));
     log(ok ? ANDROID_LOG_INFO : ANDROID_LOG_ERROR, std::string("M4_SURFACE_CHANGED result=") + (ok ? "PASS" : "FAIL"));
     return ok ? JNI_TRUE : JNI_FALSE;
@@ -839,16 +930,19 @@ Java_org_boxdroid_m5_MainActivity_nativeM4SurfaceChanged(JNIEnv *, jobject, jint
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_org_boxdroid_m5_MainActivity_nativeM4PresentFrame(JNIEnv *, jobject) {
+    std::lock_guard<std::mutex> guard(presenterLock);
     return presentFrame() ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_boxdroid_m5_MainActivity_nativeM4SurfaceDestroyed(JNIEnv *, jobject) {
+    std::lock_guard<std::mutex> guard(presenterLock);
     destroySurface();
 }
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_org_boxdroid_m5_MainActivity_nativeM4Diagnostics(JNIEnv *env, jobject) {
+    std::lock_guard<std::mutex> guard(presenterLock);
     const std::string result = diagnostics();
     log(ANDROID_LOG_INFO, "M4_DIAGNOSTICS=" + result);
     return env->NewStringUTF(result.c_str());
@@ -856,6 +950,7 @@ Java_org_boxdroid_m5_MainActivity_nativeM4Diagnostics(JNIEnv *env, jobject) {
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_boxdroid_m5_MainActivity_nativeM4Shutdown(JNIEnv *, jobject) {
+    std::lock_guard<std::mutex> guard(presenterLock);
     destroySurface();
     if (p.device) {
         vkDeviceWaitIdle(p.device);
@@ -869,5 +964,7 @@ Java_org_boxdroid_m5_MainActivity_nativeM4Shutdown(JNIEnv *, jobject) {
     }
     p.gpu = VK_NULL_HANDLE;
     p.queueFamily = UINT32_MAX;
+    p.lastFrame.clear();
+    p.lastSourceWidth = p.lastSourceHeight = p.lastSourceStride = 0;
     log(ANDROID_LOG_INFO, "VULKAN_SHUTDOWN_CLEAN instance=destroyed device=destroyed");
 }

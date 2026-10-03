@@ -2,17 +2,16 @@ package org.boxdroid.m5;
 
 import android.app.Activity;
 import android.content.res.Configuration;
+import android.graphics.Color;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Display;
-import android.view.Gravity;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.widget.FrameLayout;
-import android.widget.TextView;
 
 import java.io.File;
 import java.util.concurrent.ExecutorService;
@@ -41,43 +40,22 @@ public final class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
-        getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+        configurePresentationWindow();
         logDisplayGeometry("ACTIVITY_CREATE", 0, 0, 0, 0);
         FrameLayout root = new FrameLayout(this);
-        TextView status = new TextView(this);
-        status.setText("BoxDroid M5 Xbox boot diagnostic\nWaiting for Android surface…");
-        status.setPadding(24, 24, 24, 24);
-        root.addView(status);
+        root.setBackgroundColor(Color.BLACK);
         SurfaceView surfaceView = new SurfaceView(this);
-        // Keep the diagnostic swapchain moderate while Android scales its
-        // buffers to the physical display. Xbox scanout is only 640x480.
-        surfaceView.getHolder().setFixedSize(1280, 720);
+        // Let Android size the surface buffers to the actual available view.
+        // Guest aspect fitting belongs to the native presenter, not this view.
+        surfaceView.getHolder().setSizeFromLayout();
         root.addView(surfaceView, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         setContentView(root);
-        root.post(() -> {
-            int areaWidth = root.getWidth();
-            int areaHeight = root.getHeight();
-            if (areaWidth <= 0 || areaHeight <= 0) return;
-            int viewWidth = areaWidth;
-            int viewHeight = areaHeight;
-            if ((long) areaWidth * 9 > (long) areaHeight * 16) {
-                viewWidth = areaHeight * 16 / 9;
-            } else {
-                viewHeight = areaWidth * 9 / 16;
-            }
-            FrameLayout.LayoutParams surfaceParams = new FrameLayout.LayoutParams(
-                    viewWidth, viewHeight, Gravity.CENTER);
-            surfaceView.setLayoutParams(surfaceParams);
-            Log.i(TAG, "ANDROID_PRESENTATION_VIEW area=" + areaWidth + "x" + areaHeight
-                    + " fitted=" + viewWidth + "x" + viewHeight + " aspect=16:9");
-        });
         File directory = new File(getExternalFilesDir(null), "m5");
         Log.i(TAG, "M5_PATHS directory=" + directory.getAbsolutePath());
         surfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
             private boolean created;
+            private int generation;
 
             @Override public void surfaceCreated(SurfaceHolder holder) {
                 Log.i(TAG, "ANDROID_SURFACE_CREATED valid=" + holder.getSurface().isValid());
@@ -96,27 +74,47 @@ public final class MainActivity extends Activity {
                     return;
                 }
                 created = true;
+                final int currentGeneration = ++generation;
                 Surface surface = holder.getSurface();
                 NATIVE.execute(() -> {
-                    boolean ready = nativeM4SurfaceCreated(surface, width, height, 1);
+                    boolean ready = nativeM4SurfaceCreated(surface, width, height, currentGeneration);
                     if (!ready) {
                         Log.e(TAG, "ANDROID_WSI_INIT_FAIL");
                         return;
                     }
                     surfaceReady = true;
-                    Log.i(TAG, "M5_VIDEO_PRESENTER_READY surface_generation=1");
+                    Log.i(TAG, "M5_VIDEO_PRESENTER_READY surface_generation=" + currentGeneration);
                     startXbox(directory);
                 });
             }
 
             @Override public void surfaceDestroyed(SurfaceHolder holder) {
                 Log.i(TAG, "ANDROID_SURFACE_DESTROYED");
+                created = false;
                 NATIVE.execute(() -> {
                     nativeM4SurfaceDestroyed();
                     surfaceReady = false;
                 });
             }
         });
+    }
+
+    private void configurePresentationWindow() {
+        getWindow().getDecorView().setBackgroundColor(Color.BLACK);
+        getWindow().setStatusBarColor(Color.BLACK);
+        getWindow().setNavigationBarColor(Color.BLACK);
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration configuration) {
+        super.onConfigurationChanged(configuration);
+        configurePresentationWindow();
+        logDisplayGeometry("CONFIGURATION_CHANGED", 0, 0, 0, 0);
+        // SurfaceHolder delivers the new dimensions; keep the native guest alive.
     }
 
     private void logDisplayGeometry(String event, int surfaceWidth, int surfaceHeight,
