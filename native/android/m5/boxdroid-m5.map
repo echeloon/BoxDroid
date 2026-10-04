@@ -9,5 +9,7 @@ BOXDROID_1 {
         Java_org_boxdroid_m5_MainActivity_nativeM4Diagnostics;
         Java_org_boxdroid_m5_MainActivity_nativeM4Shutdown;
         Java_org_boxdroid_m5_OverlayActivity_nativeM52PresentedFrames;
+        /* Optional getters are absent in frozen M5/M5.2 builds. */
+        Java_org_boxdroid_m5_PerformanceActivity_nativeM53*;
     local: *;
 };

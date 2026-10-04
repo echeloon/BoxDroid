@@ -1,3 +1,7 @@
+#ifdef BOXDROID_M53_RUNTIME
+#include <chrono>
+#include <pixman.h>
+#endif
 #define VK_USE_PLATFORM_ANDROID_KHR 1
 #include <jni.h>
 #include <android/log.h>
@@ -651,6 +655,10 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
         static_cast<uint32_t>(std::max(ANativeWindow_getHeight(p.window), 0)) != p.nativeWindowHeight) {
         if (!resizeSurface(p.requestedWidth, p.requestedHeight, false)) return false;
     }
+#ifdef BOXDROID_M53_RUNTIME
+    using PerfClock = std::chrono::steady_clock;
+    auto perfStart = PerfClock::now();
+#endif
     uint32_t index = 0;
     VkResult r = vkAcquireNextImageKHR(p.device, p.swapchain, UINT64_MAX, p.acquired, VK_NULL_HANDLE, &index);
     if (r == VK_ERROR_OUT_OF_DATE_KHR) {
@@ -668,6 +676,9 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
     else if (r != VK_SUCCESS) { ++p.failedPresents; check(r, "vkAcquireNextImageKHR"); return false; }
     ++p.acquires;
 
+#ifdef BOXDROID_M53_RUNTIME
+    auto perfAcquired = PerfClock::now();
+#endif
     VkBuffer stagingBuffer = VK_NULL_HANDLE;
     VkDeviceMemory stagingMemory = VK_NULL_HANDLE;
     if (pixels && sourceWidth && sourceHeight && sourceStride >= sourceWidth * 4) {
@@ -745,6 +756,33 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
         const size_t destinationBytes = static_cast<size_t>(p.extent.width) * p.extent.height * 4;
         std::memset(dst, 0, destinationBytes);
         for (size_t i = 0; i < destinationBytes / 4; ++i) dst[i * 4 + 3] = 255;
+#ifdef BOXDROID_M53_RUNTIME
+        // Same aspect-fit rectangle; Pixman's NEON scaler removes per-pixel
+        // integer divisions from the refresh/BQL critical path.
+        pixman_image_t *srcImage = pixman_image_create_bits(PIXMAN_a8b8g8r8,
+            sourceWidth, sourceHeight, const_cast<uint32_t *>(reinterpret_cast<const uint32_t *>(pixels)), sourceStride);
+        pixman_image_t *dstImage = pixman_image_create_bits(
+            p.format == VK_FORMAT_B8G8R8A8_UNORM ? PIXMAN_a8r8g8b8 : PIXMAN_a8b8g8r8,
+            p.extent.width, p.extent.height, reinterpret_cast<uint32_t *>(dst), p.extent.width * 4);
+        if (!srcImage || !dstImage) {
+            if (srcImage) pixman_image_unref(srcImage);
+            if (dstImage) pixman_image_unref(dstImage);
+            vkUnmapMemory(p.device, stagingMemory);
+            vkDestroyBuffer(p.device, stagingBuffer, nullptr);
+            vkFreeMemory(p.device, stagingMemory, nullptr);
+            return false;
+        }
+        pixman_transform_t transform;
+        pixman_transform_init_scale(&transform,
+            pixman_double_to_fixed(static_cast<double>(sourceWidth) / destinationWidth),
+            pixman_double_to_fixed(static_cast<double>(sourceHeight) / destinationHeight));
+        pixman_image_set_transform(srcImage, &transform);
+        pixman_image_set_filter(srcImage, PIXMAN_FILTER_NEAREST, nullptr, 0);
+        pixman_image_set_repeat(srcImage, PIXMAN_REPEAT_PAD);
+        pixman_image_composite32(PIXMAN_OP_SRC, srcImage, nullptr, dstImage,
+            0, 0, 0, 0, destinationX, destinationY, destinationWidth, destinationHeight);
+        pixman_image_unref(srcImage); pixman_image_unref(dstImage);
+#else
         for (uint32_t y = 0; y < destinationHeight; ++y) {
             const uint32_t sy = std::min(sourceHeight - 1, static_cast<uint32_t>((static_cast<uint64_t>(y) * sourceHeight) / destinationHeight));
             for (uint32_t x = 0; x < destinationWidth; ++x) {
@@ -759,8 +797,12 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
                 }
             }
         }
+#endif
         vkUnmapMemory(p.device, stagingMemory);
     }
+#ifdef BOXDROID_M53_RUNTIME
+    auto perfPrepared = PerfClock::now();
+#endif
     if (!check(vkResetCommandBuffer(p.commandBuffer, 0), "vkResetCommandBuffer")) return false;
     VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -808,7 +850,13 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
     present.swapchainCount = 1;
     present.pSwapchains = &p.swapchain;
     present.pImageIndices = &index;
+#ifdef BOXDROID_M53_RUNTIME
+    auto perfSubmitted = PerfClock::now();
+#endif
     r = vkQueuePresentKHR(p.queue, &present);
+#ifdef BOXDROID_M53_RUNTIME
+    auto perfPresented = PerfClock::now();
+#endif
     if (r == VK_ERROR_OUT_OF_DATE_KHR) ++p.outOfDate;
     else if (r == VK_ERROR_SURFACE_LOST_KHR) {
         ++p.surfaceLost;
@@ -831,6 +879,20 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
         destroySwapchain();
         return createSwapchain() && allowRetry ? presentFrame(false, pixels, sourceWidth, sourceHeight, sourceStride) : false;
     }
+#ifdef BOXDROID_M53_RUNTIME
+    static uint64_t count=0, acquire=0, prepare=0, submitTime=0, presentTime=0, idle=0;
+    auto micros=[](auto a, auto b) { return std::chrono::duration_cast<std::chrono::microseconds>(b-a).count(); };
+    acquire+=micros(perfStart,perfAcquired); prepare+=micros(perfAcquired,perfPrepared);
+    submitTime+=micros(perfPrepared,perfSubmitted); presentTime+=micros(perfSubmitted,perfPresented);
+    idle+=micros(perfPresented,PerfClock::now());
+    if (++count == 30) {
+        __android_log_print(ANDROID_LOG_INFO,"BoxDroidM53",
+            "WSI frames=%llu acquire_us=%llu prepare_us=%llu submit_us=%llu present_us=%llu idle_us=%llu",
+            (unsigned long long)count,(unsigned long long)acquire,(unsigned long long)prepare,
+            (unsigned long long)submitTime,(unsigned long long)presentTime,(unsigned long long)idle);
+        count=acquire=prepare=submitTime=presentTime=idle=0;
+    }
+#endif
     ++p.presents;
     overlayPresentedFrames.store(p.presents, std::memory_order_relaxed);
     if (p.generation == 1) ++p.frameBeforeRecreate; else ++p.frameAfterRecreate;
@@ -979,3 +1041,10 @@ Java_org_boxdroid_m5_MainActivity_nativeM4Shutdown(JNIEnv *, jobject) {
     p.lastSourceWidth = p.lastSourceHeight = p.lastSourceStride = 0;
     log(ANDROID_LOG_INFO, "VULKAN_SHUTDOWN_CLEAN instance=destroyed device=destroyed");
 }
+
+#ifdef BOXDROID_M53_RUNTIME
+extern "C" JNIEXPORT jlong JNICALL
+Java_org_boxdroid_m5_PerformanceActivity_nativeM53PresentedFrames(JNIEnv *, jobject) {
+    return overlayPresentedFrames.load(std::memory_order_relaxed);
+}
+#endif

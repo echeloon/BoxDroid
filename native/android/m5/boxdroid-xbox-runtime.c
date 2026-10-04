@@ -19,6 +19,11 @@
 #include "hw/xbox/nv2a/nv2a_int.h"
 #include "hw/xbox/nv2a/boxdroid-m5-diagnostics.h"
 #include "target/i386/cpu.h"
+#ifdef BOXDROID_M53_RUNTIME
+#include "qemu/bswap.h"
+static void m53_video_mode_probe(CPUState *cpu, uint64_t pc);
+static void m53_sample_progress(uint64_t pc, uintptr_t tb, uint16_t instructions);
+#endif
 
 #define ARG(value) ((char *)(value))
 #define M5_RAW_FB_BASE UINT64_C(0x3c00000)
@@ -504,6 +509,10 @@ void boxdroid_m5_diag_cpu_store_value(uint64_t address, size_t size,
 void boxdroid_m5_diag_tb_exec(CPUState *cpu, uint64_t pc,
                               uintptr_t tb_id, uint16_t guest_insns)
 {
+#ifdef BOXDROID_M53_RUNTIME
+    m53_video_mode_probe(cpu, pc);
+    m53_sample_progress(pc, tb_id, guest_insns);
+#endif
     int64_t last_change = __atomic_load_n(&m5_progress_last_change_us,
                                            __ATOMIC_RELAXED);
     int64_t now;
@@ -1125,13 +1134,184 @@ static void m5_video_timeline_record(uint64_t pcrtc_start,
 /* Display callbacks run with the BQL held. Accelerated scanout waits for
  * PFIFO; that worker may need the BQL to deliver NV097 notification/context
  * interrupts. Desktop's render loop acquires scanout outside the BQL. */
+#ifdef BOXDROID_M53_RUNTIME
+/* The guest kernel ABI (export ordinal 3) carries the actively selected
+ * Xbox AV mode. Observe it without editing firmware or emulated registers.
+ * Mode definitions: XboxDev/nxdk lib/hal/video.c; unknown modes stay unknown. */
+static const struct { uint32_t mode; unsigned hz; } m53_av_modes[] = {
+    { 0x04010101, 60 },
+    { 0x04010103, 60 },
+    { 0x0401010b, 60 },
+    { 0x04020202, 60 },
+    { 0x04020204, 60 },
+    { 0x0402020c, 60 },
+    { 0x0801010d, 60 },
+    { 0x08010119, 60 },
+    { 0x0802020e, 60 },
+    { 0x0802021a, 60 },
+    { 0x20010101, 60 },
+    { 0x20010103, 60 },
+    { 0x2001010b, 60 },
+    { 0x20020202, 60 },
+    { 0x20020204, 60 },
+    { 0x2002020c, 60 },
+    { 0x44030307, 50 },
+    { 0x44040408, 50 },
+    { 0x48030314, 50 },
+    { 0x48040415, 50 },
+    { 0x60030307, 50 },
+    { 0x60040408, 50 },
+    { 0x88070701, 60 },
+    { 0x88080801, 60 },
+    { 0x880b0a02, 60 },
+    { 0x880e0c03, 60 },
+    { 0xc0030303, 60 },
+    { 0xc0040404, 60 },
+    { 0xc0060601, 60 },
+};
+static uint32_t m53_av_entry, m53_av_mode;
+static uint64_t m53_probe_ticks;
+static unsigned m53_target_hz;
+uint64_t boxdroid_m53_guest_refresh_period_ns(void)
+{
+    unsigned hz=__atomic_load_n(&m53_target_hz,__ATOMIC_RELAXED);
+    return hz ? UINT64_C(1000000000)/hz : 0;
+}
+static bool m53_read32(CPUState *cpu, uint32_t address, uint32_t *value)
+{
+    uint8_t bytes[4];
+    if (cpu_memory_rw_debug(cpu,address,bytes,4,false)) return false;
+    *value=ldl_le_p(bytes); return true;
+}
+static void m53_video_mode_probe(CPUState *cpu, uint64_t pc)
+{
+    if (!m53_av_entry) {
+        if (++m53_probe_ticks % 4096) return;
+        const uint32_t base=0x80010000;
+        uint32_t mz,pe,signature,exportRva,ordinalBase,functions,count,rva;
+        if (!m53_read32(cpu,base,&mz) || (mz&0xffff)!=0x5a4d ||
+            !m53_read32(cpu,base+0x3c,&pe) || pe>0x1000 ||
+            !m53_read32(cpu,base+pe,&signature) || signature!=0x4550 ||
+            !m53_read32(cpu,base+pe+0x78,&exportRva) || exportRva>0x400000 ||
+            !m53_read32(cpu,base+exportRva+16,&ordinalBase) || ordinalBase>3 ||
+            !m53_read32(cpu,base+exportRva+20,&count) || count<4-ordinalBase || count>4096 ||
+            !m53_read32(cpu,base+exportRva+28,&functions) || functions>0x400000 ||
+            !m53_read32(cpu,base+functions+4*(3-ordinalBase),&rva) || !rva || rva>0x400000) return;
+        m53_av_entry=base+rva;
+        __android_log_print(ANDROID_LOG_INFO,"BoxDroidM53","AV_MODE_OBSERVER entry=0x%x ordinal=3",m53_av_entry);
+    }
+    if (pc!=m53_av_entry) return;
+    CPUX86State *env=&X86_CPU(cpu)->env;
+    uint32_t mode, step, pitch, framebuffer;
+    uint32_t sp=env->regs[R_ESP]+env->segs[R_SS].base;
+    if (!m53_read32(cpu,sp+12,&mode) || !m53_read32(cpu,sp+8,&step) ||
+        !m53_read32(cpu,sp+20,&pitch) || !m53_read32(cpu,sp+24,&framebuffer)) return;
+    if (mode==m53_av_mode) return;
+    m53_av_mode=mode;
+    unsigned hz=0;
+    for (size_t i=0;i<G_N_ELEMENTS(m53_av_modes);++i) {
+        if (m53_av_modes[i].mode==mode) { hz=m53_av_modes[i].hz; break; }
+    }
+    __atomic_store_n(&m53_target_hz,hz,__ATOMIC_RELAXED);
+    __android_log_print(ANDROID_LOG_INFO,"BoxDroidM53",
+        "ACTIVE_GUEST_MODE mode=0x%x step=%u pitch=%u framebuffer=0x%x target_hz=%u budget_ns=%llu source=guest-AvSetDisplayMode",
+        mode,step,pitch,framebuffer,hz,hz ? (unsigned long long)(1000000000ULL/hz) : 0);
+}
+/* Sample 1/1024 TB entries for five wall-clock seconds after first green
+ * scanout. No instruction logging, guest memory edits, or per-TB clock read. */
+static int64_t m53_pc_start;
+static bool m53_pc_done;
+static uint64_t m53_pc_ticks, m53_pc_overflow;
+static struct { uint64_t pc, hits, instructions; uintptr_t tb; } m53_pcs[512];
+static void m53_sample_progress(uint64_t pc, uintptr_t tb, uint16_t instructions)
+{
+    int64_t begin=__atomic_load_n(&m53_pc_start,__ATOMIC_RELAXED);
+    if (!begin || m53_pc_done || (++m53_pc_ticks & 1023)) return;
+    if (g_get_monotonic_time()-begin>5*G_USEC_PER_SEC) {
+        m53_pc_done=true;
+        __android_log_print(ANDROID_LOG_INFO,"BoxDroidM53",
+            "TB_SAMPLE entries=%llu interval_us=%lld stride=1024 overflow=%llu",
+            (unsigned long long)m53_pc_ticks,(long long)(g_get_monotonic_time()-begin),
+            (unsigned long long)m53_pc_overflow);
+        for (int top=0;top<16;++top) {
+            int best=-1;
+            for (int i=0;i<512;++i) if (m53_pcs[i].hits &&
+                (best<0 || m53_pcs[i].hits>m53_pcs[best].hits)) best=i;
+            if (best<0) break;
+            __android_log_print(ANDROID_LOG_INFO,"BoxDroidM53",
+                "TB_TOP pc=0x%llx tb=0x%llx samples=%llu guest_instructions=%llu",
+                (unsigned long long)m53_pcs[best].pc,(unsigned long long)m53_pcs[best].tb,
+                (unsigned long long)m53_pcs[best].hits,(unsigned long long)m53_pcs[best].instructions);
+            m53_pcs[best].hits=0;
+        }
+        return;
+    }
+    unsigned slot=(pc>>2)%512;
+    bool stored = false;
+    for (unsigned i=0;i<512;++i) {
+        unsigned n=(slot+i)%512;
+        if (!m53_pcs[n].hits || m53_pcs[n].pc==pc) {
+            m53_pcs[n].pc=pc; m53_pcs[n].tb=tb;
+            ++m53_pcs[n].hits; m53_pcs[n].instructions+=instructions;
+            stored = true; break;
+        }
+    }
+    if (!stored) ++m53_pc_overflow;
+}
+static uint64_t m53_unique, m53_last_hash, m53_frames, m53_green, m53_refreshes;
+static int64_t m53_report_us, m53_period_us, m53_last_start_us;
+static int64_t m53_scanout_us, m53_bql_us, m53_refresh_us, m53_present_us;
+static int64_t m53_conversion_us;
+JNIEXPORT jlong JNICALL
+Java_org_boxdroid_m5_PerformanceActivity_nativeM53UniqueFrames(JNIEnv *env, jobject self)
+{
+    return __atomic_load_n(&m53_unique, __ATOMIC_RELAXED);
+}
+extern uint64_t boxdroid_m53_guest_flips(void);
+static void m53_report(int64_t now)
+{
+    if (!m53_report_us) m53_report_us = now;
+    if (now - m53_report_us < G_USEC_PER_SEC) return;
+    VGACommonState *v = &g_nv2a->vga;
+    static uint64_t last_unique, last_flips;
+    uint64_t flips = boxdroid_m53_guest_flips();
+    __android_log_print(ANDROID_LOG_INFO, "BoxDroidM53",
+        "PERF mono_us=%" PRId64 " elapsed_us=%" PRId64
+        " unique=%" PRIu64 " frames=%" PRIu64 " green=%" PRIu64 " guest_flips=%" PRIu64
+        " refresh=%" PRIu64 " period_us=%" PRId64 " callback_us=%" PRId64
+        " scanout_us=%" PRId64 " bql_reacquire_us=%" PRId64
+        " conversion_us=%" PRId64 " presenter_us=%" PRId64
+        " vpll=0x%x htotal=0x%x vtotal=0x%x overflow=0x%x cr25=0x%x"
+        " sr1=0x%x msr=0x%x fp_h=%u fp_v=%u pcrtc=0x%" PRIx64,
+        now, now-m53_report_us, m53_unique-last_unique, m53_frames, m53_green, flips-last_flips,
+        m53_refreshes, m53_period_us, m53_refresh_us, m53_scanout_us, m53_bql_us,
+        m53_conversion_us, m53_present_us, g_nv2a->pramdac.video_clock_coeff,
+        v->cr[0],v->cr[6],v->cr[7],v->cr[0x25],v->sr[1],v->msr,
+        g_nv2a->pramdac.fp_hcrtc,g_nv2a->pramdac.fp_vcrtc,g_nv2a->pcrtc.start);
+    last_unique=m53_unique; last_flips=flips; m53_report_us=now;
+    m53_frames=m53_green=m53_refreshes=0;
+    m53_period_us=m53_scanout_us=m53_bql_us=m53_refresh_us=0;
+    m53_conversion_us=m53_present_us=0;
+}
+#endif
+
 static int xbox_acquire_scanout(void)
 {
     int result;
     assert(bql_locked());
     bql_unlock();
+#ifdef BOXDROID_M53_RUNTIME
+    int64_t begin = g_get_monotonic_time();
+#endif
     result = nv2a_get_framebuffer_surface();
+#ifdef BOXDROID_M53_RUNTIME
+    int64_t done = g_get_monotonic_time();
+    m53_scanout_us += done - begin;
+#endif
     bql_lock();
+#ifdef BOXDROID_M53_RUNTIME
+    m53_bql_us += g_get_monotonic_time() - done;
+#endif
     return result;
 }
 
@@ -1405,6 +1585,9 @@ static void xbox_display_update(DisplayChangeListener *dcl,
                             UINT64_MAX, direct_vram ? "direct-vram-before-pixman" :
                             "surface-before-pixman");
 
+#ifdef BOXDROID_M53_RUNTIME
+    int64_t m53_convert_begin = g_get_monotonic_time();
+#endif
     rgba = g_malloc((size_t) surface_width_px * surface_height_px * 4);
     stride = surface_width_px * 4;
     converted = pixman_image_create_bits(PIXMAN_a8b8g8r8,
@@ -1497,8 +1680,35 @@ static void xbox_display_update(DisplayChangeListener *dcl,
         __atomic_store_n(&m5_vga_fallback_last_nonblack_pixels,
                          nonblack_pixels, __ATOMIC_RELAXED);
     }
+#ifdef BOXDROID_M53_RUNTIME
+    int64_t m53_present_begin = g_get_monotonic_time();
+    m53_conversion_us += m53_present_begin - m53_convert_begin;
+    ++m53_frames;
+    if (frame_hash != m53_last_hash) {
+        __atomic_add_fetch(&m53_unique, 1, __ATOMIC_RELAXED);
+        if (green_pixels > 1024) {
+            ++m53_green;
+            if (!__atomic_load_n(&m53_pc_start,__ATOMIC_RELAXED))
+                __atomic_store_n(&m53_pc_start,g_get_monotonic_time(),__ATOMIC_RELAXED);
+        }
+        m53_last_hash = frame_hash;
+    }
+#endif
+#ifdef BOXDROID_M53_RUNTIME
+    /* rgba is an owned CPU copy and the NV2A scanout binding is released.
+     * Presenter/window lifetime is serialized by its own mutex. Let vCPU and
+     * device IRQ delivery proceed during CPU fitting and WSI queue waits. */
+    assert(bql_locked());
+    bql_unlock();
+#endif
     bool presented = boxdroid_android_present_rgba(rgba, surface_width_px,
                                                    surface_height_px, stride);
+#ifdef BOXDROID_M53_RUNTIME
+    int64_t m53_present_end = g_get_monotonic_time();
+    m53_present_us += m53_present_end - m53_present_begin;
+    bql_lock();
+    m53_bql_us += g_get_monotonic_time() - m53_present_end;
+#endif
     BoxDroidM5VideoStats video_stats = {
         .hash = frame_hash,
         .nonblack = nonblack_pixels,
@@ -1617,6 +1827,12 @@ static void xbox_display_update(DisplayChangeListener *dcl,
 
 static void xbox_display_refresh(DisplayChangeListener *dcl)
 {
+#ifdef BOXDROID_M53_RUNTIME
+    int64_t m53_begin = g_get_monotonic_time();
+    if (m53_last_start_us) m53_period_us += m53_begin - m53_last_start_us;
+    m53_last_start_us = m53_begin;
+    ++m53_refreshes;
+#endif
     int64_t now_us;
     boxdroid_m5_diag_event(BOXDROID_M5_DIAG_REFRESH_CALLBACK,
                            qemu_clock_get_ms(QEMU_CLOCK_REALTIME), 0, 0, 0, 0, 0);
@@ -1660,6 +1876,10 @@ static void xbox_display_refresh(DisplayChangeListener *dcl)
             }
         }
     }
+#ifdef BOXDROID_M53_RUNTIME
+    m53_refresh_us += g_get_monotonic_time() - m53_begin;
+    m53_report(g_get_monotonic_time());
+#endif
 }
 
 static const DisplayChangeListenerOps xbox_display_ops = {

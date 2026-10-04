@@ -96,7 +96,7 @@ done | tee "$RESULTS/firmware-verification.txt"
 
 BOXDROID_M2_WORK_ROOT="$CORE_ROOT" \
 BOXDROID_M2_TARGET_LIST=i386-softmmu \
-BOXDROID_M2_EXTRA_CFLAGS= \
+BOXDROID_M2_EXTRA_CFLAGS="${BOXDROID_M5_EXTRA_CFLAGS:-}" \
 BOXDROID_M2_ENABLE_SDL=0 \
 BOXDROID_M2_STATIC_PIC=1 \
 BOXDROID_M3_RUNTIME=0 \
@@ -137,6 +137,12 @@ for name in bios mcpx hdd; do
     printf '%s_device_sha256=%s\n' "$name" "$remote_hash" | tee -a "$RESULTS/firmware-verification.txt"
 done
 
+# M5.3 uses a separate bounded benchmark after the shared build/stage flow.
+if [[ "${BOXDROID_M5_PREPARE_ONLY:-0}" == 1 ]]; then
+    echo "M5_PREPARED package=$PACKAGE apk=$APK"
+    exit 0
+fi
+
 "${ADB[@]}" shell am force-stop "$PACKAGE"
 "${ADB[@]}" logcat -c
 VIDEO_DEVICE=/sdcard/Movies/boxdroid-m5-boot.mp4
@@ -171,7 +177,7 @@ wait "$screenrecord_pid" || true
 "${ADB[@]}" shell rm -f "$VIDEO_DEVICE"
 "${ADB[@]}" shell input keyevent KEYCODE_BACK > "$RESULTS/stop-trigger.txt" 2>&1 || true
 sleep "${BOXDROID_M5_STOP_WAIT_SECS:-2}"
-"${ADB[@]}" logcat -d -s BoxDroidM5:I BoxDroidM4:I BoxDroidM52:I '*:S' > "$RESULTS/logcat.txt"
+"${ADB[@]}" logcat -d -s BoxDroidM5:I BoxDroidM4:I BoxDroidM52:I BoxDroidM53:I '*:S' > "$RESULTS/logcat.txt"
 "${ADB[@]}" logcat -b crash -d > "$RESULTS/crash-buffer.txt"
 "${ADB[@]}" exec-out run-as "$PACKAGE" cat files/m5-qemu.log > "$RESULTS/qemu-exec-trace.log" 2>/dev/null || true
 "${ADB[@]}" shell am force-stop "$PACKAGE"
