@@ -11,7 +11,7 @@ import android.util.Log;
 import org.boxdroid.m5.PerformanceActivity;
 
 /** M6-only Android focus/lifecycle owner for the native AAudio output stream. */
-public final class M6Activity extends PerformanceActivity {
+public class M6Activity extends PerformanceActivity {
     private static final String TAG = "BoxDroidM6";
 
     private AudioManager audioManager;
