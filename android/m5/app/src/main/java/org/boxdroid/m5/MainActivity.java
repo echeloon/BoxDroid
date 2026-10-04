@@ -30,6 +30,9 @@ public class MainActivity extends Activity {
     }
 
     private native int nativeXboxStart(String bios, String mcpx, String hdd, String log);
+    /** M5.5-only entry point: the selected document FD is passed into QEMU's DVD block path. */
+    protected native int nativeXboxStartWithDvd(String bios, String mcpx, String hdd, String log,
+                                                 int dvdFd, long dvdSize);
     private native int nativeXboxStop();
     private native boolean nativeM4SurfaceCreated(Surface surface, int width, int height, int generation);
     private native boolean nativeM4SurfaceChanged(int width, int height);
@@ -39,6 +42,12 @@ public class MainActivity extends Activity {
 
     /** Hook for isolated milestone apps that need host setup before QEMU starts. */
     protected void beforeNativeRuntimeStart() { }
+
+    /** Called after the Android surface/presenter is ready; M5.5 overrides this to wait for SAF. */
+    protected void onVideoPresenterReady(File directory) { startXbox(directory); }
+
+    /** Called after the Android surface is destroyed. */
+    protected void onVideoPresenterUnavailable() { }
 
     /** Existing milestone apps stop QEMU when backgrounded. */
     protected boolean stopRuntimeOnActivityStop() { return true; }
@@ -107,7 +116,7 @@ public class MainActivity extends Activity {
                     }
                     surfaceReady = true;
                     Log.i(TAG, "M5_VIDEO_PRESENTER_READY surface_generation=" + currentGeneration);
-                    startXbox(directory);
+                    onVideoPresenterReady(directory);
                 });
             }
 
@@ -117,6 +126,7 @@ public class MainActivity extends Activity {
                 NATIVE.execute(() -> {
                     nativeM4SurfaceDestroyed();
                     surfaceReady = false;
+                    onVideoPresenterUnavailable();
                 });
             }
         });
@@ -176,6 +186,36 @@ public class MainActivity extends Activity {
             Log.i(TAG, "XBOX_INIT_RESULT=" + result + " qemu_log=" + log.getAbsolutePath());
         });
     }
+
+    /** Starts the existing Xbox runtime only after a caller has validated a selected DVD FD. */
+    protected final void startXboxWithDvd(File directory, int dvdFd, long dvdSize) {
+        if (xboxStarted || stopping) return;
+        File bios = new File(directory, "bios.bin");
+        File mcpx = new File(directory, "mcpx.bin");
+        File hdd = new File(directory, "hdd.qcow2");
+        File log = new File(getFilesDir(), "m55-qemu.log");
+        if (!bios.canRead() || !mcpx.canRead() || !hdd.canRead() || dvdFd < 0 || dvdSize <= 0) {
+            Log.e(TAG, "M55_START_REJECTED bios=" + bios.canRead() + " mcpx=" + mcpx.canRead()
+                    + " hdd=" + hdd.canRead() + " fd_valid=" + (dvdFd >= 0)
+                    + " dvd_size=" + dvdSize);
+            onSelectedDvdStartResult(-1);
+            return;
+        }
+        xboxStarted = true;
+        NATIVE.execute(() -> {
+            beforeNativeRuntimeStart();
+            Log.i(TAG, "M55_EMULATOR_START_REQUEST dvd_fd_validated=1 dvd_size=" + dvdSize);
+            int result = nativeXboxStartWithDvd(bios.getAbsolutePath(), mcpx.getAbsolutePath(),
+                    hdd.getAbsolutePath(), log.getAbsolutePath(), dvdFd, dvdSize);
+            Log.i(TAG, "M55_EMULATOR_START_RESULT=" + result);
+            if (result != 0) xboxStarted = false;
+            final int startResult = result;
+            runOnUiThread(() -> onSelectedDvdStartResult(startResult));
+        });
+    }
+
+    /** Result hook for isolated flows that provide startup media themselves. */
+    protected void onSelectedDvdStartResult(int result) { }
 
     @Override
     protected void onStop() {

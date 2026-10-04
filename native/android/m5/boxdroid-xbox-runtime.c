@@ -10,6 +10,8 @@
 #include "system/replay.h"
 #include "system/runstate.h"
 #include "system/system.h"
+#include "system/blockdev.h"
+#include "system/block-backend-io.h"
 #include "crypto/init.h"
 #include "hw/xbox/eeprom_generation.h"
 #include "qapi/error.h"
@@ -58,7 +60,13 @@ static bool init_finished;
 static bool init_succeeded;
 static bool loop_finished;
 static int loop_status;
-static char *arguments[33];
+static char *arguments[40];
+#ifdef BOXDROID_M55_RUNTIME
+#define M55_DVD_FDSET 55
+/* QEMU consumes this duplicate via -add-fd during qemu_init(). */
+static int m55_dvd_source_fd = -1;
+static uint64_t m55_dvd_expected_size;
+#endif
 static char *eeprom_path;
 static uint64_t guest_frame_count;
 static uint64_t m5_diagnostic_sequence;
@@ -2847,21 +2855,83 @@ void boxdroid_m5_diag_hdd_io(bool write, const char *path, uint64_t offset,
     pthread_mutex_unlock(&hdd_io_lock);
 }
 
+#ifdef BOXDROID_M55_RUNTIME
+/* qemu_init() creates the block backend before guest execution enters
+ * qemu_main_loop(). Reject QEMU's empty-DVD fallback for the selected image.
+ */
+static bool m55_verify_selected_dvd(uint64_t *actual_size)
+{
+    DriveInfo *dinfo = drive_get_by_index(IF_IDE, 1);
+    BlockBackend *blk;
+    int64_t length;
+
+    if (!dinfo) return false;
+    blk = blk_by_legacy_dinfo(dinfo);
+    if (!blk || !blk_is_inserted(blk)) return false;
+    length = blk_getlength(blk);
+    if (length < 0) return false;
+    *actual_size = (uint64_t) length;
+    return *actual_size == m55_dvd_expected_size;
+}
+
+static void m55_publish_init_failure(int status)
+{
+    pthread_mutex_lock(&state_lock);
+    init_succeeded = false;
+    init_finished = true;
+    loop_finished = true;
+    loop_status = status;
+    pthread_cond_broadcast(&state_changed);
+    pthread_mutex_unlock(&state_lock);
+}
+#endif
+
 static void *run_xbox(void *unused)
 {
     int status;
+    const char *hdd_arg = arguments[6];
     (void) unused;
 
 #ifdef BOXDROID_M54_RUNTIME
     qemu_thread_naming(true);
 #endif
+#ifdef BOXDROID_M55_RUNTIME
+    hdd_arg = arguments[8];
+#endif
     __android_log_print(ANDROID_LOG_INFO, TAG,
         "M5_QEMU_INPUT_PATHS bios=%s mcpx=%s hdd=%s machine_arg=%s hdd_arg=%s",
         arguments[4], runtime_mcpx_path, runtime_hdd_path,
-        arguments[2], arguments[6]);
+        arguments[2], hdd_arg);
+#ifdef BOXDROID_M55_RUNTIME
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "M55_QEMU_DVD_CONFIG fdset=%d drive_arg=%s expected_bytes=%" PRIu64,
+        M55_DVD_FDSET, arguments[10], m55_dvd_expected_size);
+#endif
     log_message(ANDROID_LOG_INFO, "XEMU_QEMU_INIT_ENTER");
     qemu_init(g_strv_length(arguments), arguments);
     log_message(ANDROID_LOG_INFO, "XEMU_QEMU_INIT_RETURN");
+#ifdef BOXDROID_M55_RUNTIME
+    /* QEMU's early -add-fd handling has duplicated the supplied descriptor
+     * into fdset 55 and closed this original duplicate. */
+    m55_dvd_source_fd = -1;
+    uint64_t attached_size = 0;
+    if (!m55_verify_selected_dvd(&attached_size)) {
+        __android_log_print(ANDROID_LOG_ERROR, TAG,
+            "M55_DVD_ATTACH_FAILED fdset=%d expected_bytes=%" PRIu64
+            " actual_bytes=%" PRIu64 " guest_started=0",
+            M55_DVD_FDSET, m55_dvd_expected_size, attached_size);
+        qemu_cleanup(1);
+        bql_unlock();
+        replay_mutex_unlock();
+        m55_dvd_expected_size = 0;
+        m55_publish_init_failure(1);
+        return NULL;
+    }
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "M55_DVD_ATTACHED drive=ide,index=1 fdset=%d bytes=%" PRIu64
+        " inserted=1 format=raw",
+        M55_DVD_FDSET, attached_size);
+#endif
     xbox_display_listener.con = qemu_console_lookup_by_index(0);
     if (xbox_display_listener.con) {
         register_displaychangelistener(&xbox_display_listener);
@@ -2879,6 +2949,12 @@ static void *run_xbox(void *unused)
 
     replay_mutex_lock();
     bql_lock();
+#ifdef BOXDROID_M55_RUNTIME
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "M55_GAME_BOOT_ATTEMPT guest_start=1 dvd_attached=1");
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "M55_MCPX_BIOS_START dvd_attached=1");
+#endif
     log_message(ANDROID_LOG_INFO, "XBOX_MAIN_LOOP_START guest=i386 host=aarch64 tcg=on");
     boxdroid_m5_diag_guest_io_start();
     status = qemu_main_loop();
@@ -2890,6 +2966,9 @@ static void *run_xbox(void *unused)
     log_message(ANDROID_LOG_INFO, "XBOX_QEMU_CLEANUP_BEGIN");
     qemu_cleanup(status);
     log_message(ANDROID_LOG_INFO, "XBOX_QEMU_CLEANUP_COMPLETE");
+#ifdef BOXDROID_M55_RUNTIME
+    m55_dvd_expected_size = 0;
+#endif
     bql_unlock();
     replay_mutex_unlock();
 
@@ -2909,8 +2988,20 @@ Java_org_boxdroid_m5_MainActivity_nativeXboxStart(JNIEnv *env, jobject self,
                                                    jstring hdd, jstring log)
 {
     const char *bios_path, *mcpx_path, *hdd_path, *log_path;
+#ifdef BOXDROID_M55_RUNTIME
+    const int arg_shift = 2;
+#else
+    const int arg_shift = 0;
+#endif
     (void) self;
     if (thread_created) return -EALREADY;
+#ifdef BOXDROID_M55_RUNTIME
+    if (m55_dvd_source_fd < 0 || m55_dvd_expected_size == 0) {
+        __android_log_print(ANDROID_LOG_ERROR, TAG,
+                            "M55_START_REJECTED reason=no_validated_dvd");
+        return -EPERM;
+    }
+#endif
     bios_path = (*env)->GetStringUTFChars(env, bios, NULL);
     mcpx_path = (*env)->GetStringUTFChars(env, mcpx, NULL);
     hdd_path = (*env)->GetStringUTFChars(env, hdd, NULL);
@@ -2929,41 +3020,55 @@ Java_org_boxdroid_m5_MainActivity_nativeXboxStart(JNIEnv *env, jobject self,
     arguments[5] = ARG("-drive");
     arguments[6] = "file=BOXDROID_HDD,if=ide,index=0,media=disk,format=qcow2";
     arguments[7] = ARG("-drive");
+#ifdef BOXDROID_M55_RUNTIME
+    arguments[5] = ARG("-add-fd");
+    arguments[6] = g_strdup_printf("fd=%d,set=%d", m55_dvd_source_fd,
+                                   M55_DVD_FDSET);
+    arguments[7] = ARG("-drive");
+    arguments[8] = "file=BOXDROID_HDD,if=ide,index=0,media=disk,format=qcow2";
+    arguments[9] = ARG("-drive");
+    arguments[10] = ARG("file=/dev/fdset/55,if=ide,index=1,media=cdrom,format=raw");
+#else
     arguments[8] = ARG("if=ide,index=1,media=cdrom,file=");
-    arguments[9] = ARG("-display");
-    arguments[10] = ARG("none");
-    arguments[11] = ARG("-serial");
-    arguments[12] = ARG("none");
-    arguments[13] = ARG("-monitor");
-    arguments[14] = ARG("none");
-    arguments[15] = ARG("-net");
-    arguments[16] = ARG("none");
-    arguments[17] = ARG("-accel");
-    arguments[18] = ARG("tcg,thread=single");
-    arguments[19] = ARG("-D");
-    arguments[20] = (char *) log_path;
-    arguments[21] = ARG("-d");
-    arguments[22] = ARG("guest_errors,cpu_reset,exec,in_asm");
-    arguments[23] = ARG("-dfilter");
+#endif
+    arguments[9 + arg_shift] = ARG("-display");
+    arguments[10 + arg_shift] = ARG("none");
+    arguments[11 + arg_shift] = ARG("-serial");
+    arguments[12 + arg_shift] = ARG("none");
+    arguments[13 + arg_shift] = ARG("-monitor");
+    arguments[14 + arg_shift] = ARG("none");
+    arguments[15 + arg_shift] = ARG("-net");
+    arguments[16 + arg_shift] = ARG("none");
+    arguments[17 + arg_shift] = ARG("-accel");
+    arguments[18 + arg_shift] = ARG("tcg,thread=single");
+    arguments[19 + arg_shift] = ARG("-D");
+    arguments[20 + arg_shift] = (char *) log_path;
+    arguments[21 + arg_shift] = ARG("-d");
+    arguments[22 + arg_shift] = ARG("guest_errors,cpu_reset,exec,in_asm");
+    arguments[23 + arg_shift] = ARG("-dfilter");
     /* Capture only the reset vector and the observed late polling range.
      * The M5 TCG hook suppresses per-execution logs for that polling range. */
-    arguments[24] = ARG("0x8001b000..0x8001b080,0xfffffff0..0xffffffff");
+    arguments[24 + arg_shift] = ARG("0x8001b000..0x8001b080,0xfffffff0..0xffffffff");
 #ifdef BOXDROID_M54_X87_PROFILE
-    arguments[22] = ARG("guest_errors,in_asm,op,out_asm");
-    arguments[24] = ARG("0x80058c00..0x80058d00,0x80058180..0x80058300,0x800566cf..0x80056980,0x80042980..0x80042a00");
+    arguments[22 + arg_shift] = ARG("guest_errors,in_asm,op,out_asm");
+    arguments[24 + arg_shift] = ARG("0x80058c00..0x80058d00,0x80058180..0x80058300,0x800566cf..0x80056980,0x80042980..0x80042a00");
 #endif
-    arguments[25] = ARG("-device");
-    arguments[26] = NULL;
-    arguments[27] = ARG("-m");
-    arguments[28] = ARG("64");
-    arguments[29] = ARG("-device");
-    arguments[30] = ARG("usb-hub,port=1,ports=4");
-    arguments[31] = NULL;
-    arguments[32] = NULL;
+    arguments[25 + arg_shift] = ARG("-device");
+    arguments[26 + arg_shift] = NULL;
+    arguments[27 + arg_shift] = ARG("-m");
+    arguments[28 + arg_shift] = ARG("64");
+    arguments[29 + arg_shift] = ARG("-device");
+    arguments[30 + arg_shift] = ARG("usb-hub,port=1,ports=4");
+    arguments[31 + arg_shift] = NULL;
+    arguments[32 + arg_shift] = NULL;
 
     /* Replace placeholders after preserving the Java strings through qemu_init. */
     arguments[2] = g_strdup_printf("xbox,bootrom=%s,kernel-irqchip=off,avpack=scart", mcpx_path);
+#ifdef BOXDROID_M55_RUNTIME
+    arguments[8] = g_strdup_printf("file=%s,if=ide,index=0,media=disk,format=qcow2", hdd_path);
+#else
     arguments[6] = g_strdup_printf("file=%s,if=ide,index=0,media=disk,format=qcow2", hdd_path);
+#endif
     g_free(runtime_mcpx_path);
     g_free(runtime_hdd_path);
     runtime_mcpx_path = g_strdup(mcpx_path);
@@ -2996,7 +3101,7 @@ Java_org_boxdroid_m5_MainActivity_nativeXboxStart(JNIEnv *env, jobject self,
         (*env)->ReleaseStringUTFChars(env, log, log_path);
         return -EIO;
     }
-    arguments[26] = g_strdup_printf("smbus-storage,file=%s", eeprom_path);
+    arguments[26 + arg_shift] = g_strdup_printf("smbus-storage,file=%s", eeprom_path);
     __android_log_print(ANDROID_LOG_INFO, TAG, "XBOX_EEPROM_READY size=256 app_private=1");
     __android_log_print(ANDROID_LOG_INFO, TAG,
                         "XBOX_INIT_BEGIN machine=xbox guest=i386 host=aarch64 target=tcg");
@@ -3008,12 +3113,85 @@ Java_org_boxdroid_m5_MainActivity_nativeXboxStart(JNIEnv *env, jobject self,
     pthread_mutex_lock(&state_lock);
     while (!init_finished && !loop_finished) pthread_cond_wait(&state_changed, &state_lock);
     pthread_mutex_unlock(&state_lock);
+    bool started = init_succeeded;
+    if (!started) {
+        pthread_join(qemu_thread, NULL);
+        thread_created = false;
+    }
     (*env)->ReleaseStringUTFChars(env, bios, bios_path);
     (*env)->ReleaseStringUTFChars(env, mcpx, mcpx_path);
     (*env)->ReleaseStringUTFChars(env, hdd, hdd_path);
     (*env)->ReleaseStringUTFChars(env, log, log_path);
-    return init_succeeded ? 0 : -EIO;
+    return started ? 0 : -EIO;
 }
+
+#ifdef BOXDROID_M55_RUNTIME
+JNIEXPORT jint JNICALL
+Java_org_boxdroid_m5_MainActivity_nativeXboxStartWithDvd(JNIEnv *env, jobject self,
+                                                          jstring bios, jstring mcpx,
+                                                          jstring hdd, jstring log,
+                                                          jint selected_fd,
+                                                          jlong selected_size)
+{
+    struct stat st;
+    uint8_t probe;
+    int fd_flags;
+    int qemu_fd;
+    ssize_t first_read, last_read;
+    int result;
+
+    if (m55_dvd_source_fd >= 0 || selected_fd < STDERR_FILENO + 1) {
+        return -EINVAL;
+    }
+    if (fstat(selected_fd, &st) < 0 || st.st_size < 2048) {
+        __android_log_print(ANDROID_LOG_ERROR, TAG,
+            "M55_URI_FD_REJECTED reason=invalid_size_or_unreadable errno=%d", errno);
+        return -EINVAL;
+    }
+    first_read = pread(selected_fd, &probe, sizeof(probe), 0);
+    last_read = pread(selected_fd, &probe, sizeof(probe), st.st_size - 1);
+    if (first_read != 1 || last_read != 1 ||
+        (selected_size > 0 && (uint64_t) selected_size != (uint64_t) st.st_size)) {
+        __android_log_print(ANDROID_LOG_ERROR, TAG,
+            "M55_URI_FD_REJECTED reason=random_read_or_size_mismatch size=%" PRIu64
+            " metadata_size=%" PRId64 " first=%zd last=%zd errno=%d",
+            (uint64_t) st.st_size, (int64_t) selected_size,
+            first_read, last_read, errno);
+        return -EIO;
+    }
+
+    qemu_fd = fcntl(selected_fd, F_DUPFD, STDERR_FILENO + 1);
+    if (qemu_fd < 0) {
+        __android_log_print(ANDROID_LOG_ERROR, TAG,
+            "M55_URI_FD_DUP_FAILED errno=%d", errno);
+        return -errno;
+    }
+    fd_flags = fcntl(qemu_fd, F_GETFD);
+    if (fd_flags < 0 || fcntl(qemu_fd, F_SETFD, fd_flags & ~FD_CLOEXEC) < 0) {
+        int saved_errno = errno;
+        close(qemu_fd);
+        __android_log_print(ANDROID_LOG_ERROR, TAG,
+            "M55_URI_FD_PREPARE_FAILED errno=%d", saved_errno);
+        return -saved_errno;
+    }
+
+    m55_dvd_source_fd = qemu_fd;
+    m55_dvd_expected_size = (uint64_t) st.st_size;
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "M55_URI_FD_VALIDATED fd_ready=1 fdset=%d size=%" PRIu64
+        " first_byte_read=1 last_byte_read=1 owner=QEMU_add-fd",
+        M55_DVD_FDSET, m55_dvd_expected_size);
+
+    result = Java_org_boxdroid_m5_MainActivity_nativeXboxStart(
+        env, self, bios, mcpx, hdd, log);
+    if (result != 0 && m55_dvd_source_fd >= 0) {
+        close(m55_dvd_source_fd);
+        m55_dvd_source_fd = -1;
+        m55_dvd_expected_size = 0;
+    }
+    return result;
+}
+#endif
 
 JNIEXPORT jint JNICALL
 Java_org_boxdroid_m5_MainActivity_nativeXboxStop(JNIEnv *env, jobject self)
