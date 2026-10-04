@@ -3,7 +3,7 @@
 ## Status and isolation
 
 **PARTIAL.** The current guest requests nominal 60 Hz, but three final fresh
-Retroid runs produced **18.99, 20.08, and 17.93 unique FPS** across the bounded
+Retroid runs produced **19.78, 19.67, and 17.52 unique FPS** across the bounded
 pre-dashboard animation interval. The sustained ≥58 FPS criterion is unmet.
 The release build gives a small improvement, not the requested major step to
 full speed. No polling, MMIO, or renderer shortcut is claimed as a solution.
@@ -273,9 +273,10 @@ is not evidence for a valid optimized implementation. Corrected versions were
 benchmarked independently. No precision reduction, ignored exceptions,
 firmware patch, or arbitrary host-FPU substitution remains in the series.
 Rejected patch versions and generated test trees are preserved only as ignored
-experiment evidence. Final reconstruction contains no experimental patch 0017.
+experiment evidence. Active patch 0017 is profiling-only; the rejected
+TB-local candidate is not in the active series.
 
-## Three final fresh launches
+## Earlier checkpoint launches
 
 All runs used the final release-built native library from fresh pinned-source
 reconstruction. The Android project was also built with `clean assembleDebug`;
@@ -650,3 +651,41 @@ or the >=58 unique FPS target. The checkpoint's original FP semantics and
 validated release profile remain intact. Exact all-helper latency, complete
 TCG/x87 CPU attribution and a semantics-preserving TB-local decoded-state
 implementation remain open work within M5.4, not M5.5 or M6.
+
+## Final retained-path validation after interrupted-run continuation
+
+The resumed run completed the pending TB-local candidate validation before any
+device benchmark. The recognized vector add/subtract and three-term
+multiply/accumulate chains reduced their original 15 FPU helper boundaries to
+one compound TCG boundary; vector stores still used the exact conversion/store
+helpers internally. A three-entry TB-local cache of validated ordinary-RAM
+page mappings was then added to remove repeated guest-memory lookup overhead.
+It cached mappings only, never values, and each store was re-probed.
+
+Differential coverage passed with zero failures:
+
+- 14,680,064 full architectural/memory comparisons for the compound chains.
+- 1,048,576 mapping-cache comparisons, including changing RAM contents between
+  repeated reads and partial-boundary/fault cases.
+
+The mapping-cache device candidate measured 19.19 unique FPS in its proper
+accelerated window, versus the earlier committed-path mean of 20.70 FPS. It
+was rejected. No TB-local runtime candidate, native precision substitution,
+reduced-precision path, polling wait, affinity change, fence removal or timing
+change is retained.
+
+The final retained-path validation used a fresh pinned-source build with the
+TB-local candidate disabled. Its three fresh runs were:
+
+| PID | Unique FPS | Presents/sec | Flips/sec | Duplicate rate | vCPU | PFIFO | Main/presenter | Fence mean | Acquire/submit/present | Failed presents |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|
+| 29916 | 19.78 | 22.86 | 22.86 | 13.46% | 91.11% | 27.73% | 17.68% | 1.83 ms | 548 / 548 / 548 | 0 |
+| 3922 | 19.67 | 24.73 | 24.73 | 20.44% | 91.38% | 26.78% | 19.55% | 1.92 ms | 546 / 546 / 546 | 0 |
+| 9104 | 17.52 | 21.20 | 21.02 | 17.37% | 91.63% | 27.19% | 19.12% | 1.90 ms | 553 / 553 / 553 | 0 |
+
+The mean was 18.99 unique FPS. All three showed the green animation, Xbox
+logo and dashboard, with correct fitting, zero failed presents, clean shutdown
+and empty crash buffers. The active NTSC-M target remains 60 unique FPS, so
+M5.4 is still PARTIAL. The remaining high-value direction is a genuinely
+TB-local x87 representation that removes repeated conversion and state
+materialization without adding a per-access guest-memory cost.

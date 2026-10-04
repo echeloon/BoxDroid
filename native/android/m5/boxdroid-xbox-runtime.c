@@ -2950,7 +2950,7 @@ Java_org_boxdroid_m5_MainActivity_nativeXboxStart(JNIEnv *env, jobject self,
     arguments[24] = ARG("0x8001b000..0x8001b080,0xfffffff0..0xffffffff");
 #ifdef BOXDROID_M54_X87_PROFILE
     arguments[22] = ARG("guest_errors,in_asm,op,out_asm");
-    arguments[24] = ARG("0x80058c00..0x80058d00,0x80058280..0x80058300,0x80042980..0x80042a00");
+    arguments[24] = ARG("0x80058c00..0x80058d00,0x80058180..0x80058300,0x800566cf..0x80056980,0x80042980..0x80042a00");
 #endif
     arguments[25] = ARG("-device");
     arguments[26] = NULL;
