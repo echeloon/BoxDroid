@@ -37,6 +37,29 @@ public class MainActivity extends Activity {
     private native String nativeM4Diagnostics();
     private native void nativeM4Shutdown();
 
+    /** Hook for isolated milestone apps that need host setup before QEMU starts. */
+    protected void beforeNativeRuntimeStart() { }
+
+    /** Existing milestone apps stop QEMU when backgrounded. */
+    protected boolean stopRuntimeOnActivityStop() { return true; }
+
+    /** Runs on the native executor after QEMU has stopped. */
+    protected void afterNativeRuntimeStop() { }
+
+    /** Stop the native runtime in order before closing this milestone app. */
+    protected final void shutdownNativeRuntimeAndFinish() {
+        if (stopping) return;
+        stopping = true;
+        NATIVE.execute(() -> {
+            if (xboxStarted) Log.i(TAG, "XBOX_STOP_RESULT=" + nativeXboxStop());
+            Log.i(TAG, "VULKAN_DIAGNOSTICS=" + nativeM4Diagnostics());
+            afterNativeRuntimeStop();
+            nativeM4Shutdown();
+            Log.i(TAG, "M5_SHUTDOWN_COMPLETE");
+            runOnUiThread(this::finish);
+        });
+    }
+
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -147,6 +170,7 @@ public class MainActivity extends Activity {
         xboxStarted = true;
         Log.i(TAG, "XBOX_START_REQUEST machine=xbox target=tcg guest=i386 host=aarch64");
         NATIVE.execute(() -> {
+            beforeNativeRuntimeStart();
             int result = nativeXboxStart(bios.getAbsolutePath(), mcpx.getAbsolutePath(),
                     hdd.getAbsolutePath(), log.getAbsolutePath());
             Log.i(TAG, "XBOX_INIT_RESULT=" + result + " qemu_log=" + log.getAbsolutePath());
@@ -156,11 +180,12 @@ public class MainActivity extends Activity {
     @Override
     protected void onStop() {
         super.onStop();
-        if (xboxStarted && !stopping) {
+        if (stopRuntimeOnActivityStop() && xboxStarted && !stopping) {
             stopping = true;
             NATIVE.execute(() -> {
                 Log.i(TAG, "XBOX_STOP_RESULT=" + nativeXboxStop());
                 Log.i(TAG, "VULKAN_DIAGNOSTICS=" + nativeM4Diagnostics());
+                afterNativeRuntimeStop();
                 nativeM4Shutdown();
                 Log.i(TAG, "M5_SHUTDOWN_COMPLETE");
             });
@@ -174,6 +199,7 @@ public class MainActivity extends Activity {
             NATIVE.execute(() -> {
                 if (xboxStarted) Log.i(TAG, "XBOX_STOP_RESULT=" + nativeXboxStop());
                 Log.i(TAG, "VULKAN_DIAGNOSTICS=" + nativeM4Diagnostics());
+                afterNativeRuntimeStop();
                 nativeM4Shutdown();
                 Log.i(TAG, "M5_SHUTDOWN_COMPLETE");
             });

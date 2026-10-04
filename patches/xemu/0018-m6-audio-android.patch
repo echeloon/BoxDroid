@@ -1,0 +1,60 @@
+diff --git a/hw/xbox/mcpx/apu/monitor.c b/hw/xbox/mcpx/apu/monitor.c
+index 7eeb124..6284d17 100644
+--- a/hw/xbox/mcpx/apu/monitor.c
++++ b/hw/xbox/mcpx/apu/monitor.c
+@@ -21,0 +22,4 @@
++#if defined(__ANDROID__) && defined(BOXDROID_M6_AUDIO)
++#include "boxdroid-m6-audio.h"
++#endif
++
+@@ -23 +27 @@
+-/* Preserve APU emulation while deferring platform audio output. */
++/* Android M5 keeps guest APU state active but has no host output backend. */
+@@ -27,0 +32,3 @@ void mcpx_apu_monitor_init(MCPXAPUState *d, Error **errp)
++#ifdef BOXDROID_M6_AUDIO
++    boxdroid_m6_audio_apu_attach();
++#endif
+@@ -32,0 +40,3 @@ void mcpx_apu_monitor_finalize(MCPXAPUState *d)
++#ifdef BOXDROID_M6_AUDIO
++    boxdroid_m6_audio_apu_detach();
++#endif
+@@ -37,2 +47,2 @@ void mcpx_apu_monitor_frame(MCPXAPUState *d)
+-    if (!((d->ep_frame_div + 1) % 8)) {
+-        memset(d->monitor.frame_buf, 0, sizeof(d->monitor.frame_buf));
++    if ((d->ep_frame_div + 1) % 8) {
++        return;
+@@ -39,0 +50,7 @@ void mcpx_apu_monitor_frame(MCPXAPUState *d)
++
++#ifdef BOXDROID_M6_AUDIO
++    float gain = pow(fmax(0.0, fmin(g_config.audio.volume_limit, 1.0)), M_E);
++    boxdroid_m6_audio_push(&d->monitor.frame_buf[0][0],
++                           ARRAY_SIZE(d->monitor.frame_buf), gain);
++#endif
++    memset(d->monitor.frame_buf, 0, sizeof(d->monitor.frame_buf));
+diff --git a/meson.build b/meson.build
+index 95eb931..fee6e95 100644
+--- a/meson.build
++++ b/meson.build
+@@ -4720,0 +4721,6 @@ foreach target : target_dirs
++      boxdroid_m6_audio_sources = []
++      boxdroid_m6_audio_dependencies = []
++      if get_option('boxdroid_m6_audio')
++        boxdroid_m6_audio_sources += files('system/boxdroid-m6-audio.c')
++        boxdroid_m6_audio_dependencies += [cc.find_library('aaudio', required: true)]
++      endif
+@@ -4725 +4731,2 @@ foreach target : target_dirs
+-                           'system/boxdroid-vulkan-presenter.cpp'),
++                           'system/boxdroid-vulkan-presenter.cpp') +
++                         boxdroid_m6_audio_sources,
+@@ -4731 +4738,2 @@ foreach target : target_dirs
+-                                                boxdroid_vulkan],
++                                                boxdroid_vulkan] +
++                                               boxdroid_m6_audio_dependencies,
+diff --git a/meson_options.txt b/meson_options.txt
+index 62e4fce..7acf0d2 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -407,0 +408,3 @@ option('boxdroid_m5_xbox_runtime', type: 'boolean', value: false,
++
++option('boxdroid_m6_audio', type: 'boolean', value: false,
++       description: 'Build the BoxDroid Android AAudio output bridge')

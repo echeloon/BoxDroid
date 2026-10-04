@@ -23,7 +23,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /** Android-only diagnostic overlay. MainActivity continues to own the Xbox runtime. */
-public final class PerformanceActivity extends MainActivity {
+public class PerformanceActivity extends MainActivity {
     private static final String TAG = "BoxDroidM53";
     private static final long SAMPLE_MS = 500;
     private final Object samplerLock = new Object();
@@ -34,6 +34,9 @@ public final class PerformanceActivity extends MainActivity {
     // Counts changes in the complete guest RGBA frame, independently of presents.
     private native long nativeM53UniqueFrames();
     private native long nativeM53PresentedFrames();
+
+    /** Optional isolated-app diagnostics; empty in the frozen M5.3/M5.4 apps. */
+    protected String additionalOverlayMetrics() { return ""; }
 
     @Override
     protected void onCreate(Bundle state) {
@@ -176,7 +179,10 @@ public final class PerformanceActivity extends MainActivity {
                 String gpuValue = gpuPercent();
                 String value = String.format(Locale.US, "FPS: %.1f\nRAM: %d MB\nCPU: %.0f%%\nGPU: %s",
                         smoothFps, rssMb, cpu, gpuValue);
-                runOnUiThread(() -> metrics.setText(value));
+                String additional = additionalOverlayMetrics();
+                final String displayedValue = additional != null && !additional.isEmpty()
+                        ? value + "\n" + additional : value;
+                runOnUiThread(() -> metrics.setText(displayedValue));
                 long sampleMicros = (SystemClock.elapsedRealtimeNanos() - sampleStart) / 1000;
                 totalSampleMicros += sampleMicros;
                 maxSampleMicros = Math.max(maxSampleMicros, sampleMicros);

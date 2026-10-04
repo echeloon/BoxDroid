@@ -31,6 +31,7 @@ ENABLE_SDL="${BOXDROID_M2_ENABLE_SDL:-1}"
 M3_RUNTIME="${BOXDROID_M3_RUNTIME:-0}"
 M4_PRESENTER="${BOXDROID_M4_PRESENTER:-0}"
 M5_XBOX_RUNTIME="${BOXDROID_M5_XBOX_RUNTIME:-0}"
+M6_AUDIO="${BOXDROID_M2_M6_AUDIO:-0}"
 NEED_I386=0
 if [[ ",${TARGET_LIST}," == *,i386-softmmu,* ]]; then
     NEED_I386=1
@@ -141,6 +142,11 @@ if [[ "$M5_XBOX_RUNTIME" == 1 ]]; then
     cp "$ROOT/native/android/m5/boxdroid-vulkan-presenter.cpp" "$SOURCE/system/boxdroid-vulkan-presenter.cpp"
     cp "$ROOT/native/android/m5/boxdroid-m5-diagnostics.h" "$SOURCE/hw/xbox/nv2a/boxdroid-m5-diagnostics.h"
     cp "$ROOT/native/android/m5/boxdroid-m5-diagnostics.h" "$SOURCE/system/boxdroid-m5-diagnostics.h"
+    if [[ "$M6_AUDIO" == 1 ]]; then
+        cp "$ROOT/native/android/m6/boxdroid-m6-audio.c" "$SOURCE/system/boxdroid-m6-audio.c"
+        cp "$ROOT/native/android/m6/boxdroid-m6-audio.h" "$SOURCE/hw/xbox/mcpx/apu/boxdroid-m6-audio.h"
+        cp "$ROOT/native/android/m6/boxdroid-m6-audio.h" "$SOURCE/system/boxdroid-m6-audio.h"
+    fi
 elif [[ "$M3_RUNTIME" == 1 ]]; then
     [[ "$TARGET_LIST" == aarch64-softmmu ]] || \
         die "M3 embedded runtime currently requires BOXDROID_M2_TARGET_LIST=aarch64-softmmu"
@@ -254,6 +260,11 @@ if [[ ! -e "$BUILD/meson-private/coredata.dat" ]]; then
     if [[ "$M5_XBOX_RUNTIME" == 1 ]]; then
         configure_args+=( -Dboxdroid_m5_xbox_runtime=true )
     fi
+    if [[ "$M6_AUDIO" == 1 ]]; then
+        configure_args+=( -Dboxdroid_m6_audio=true )
+    else
+        configure_args+=( -Dboxdroid_m6_audio=false )
+    fi
     "$SOURCE/configure" \
         "${configure_args[@]}"
 else
@@ -267,6 +278,11 @@ else
     fi
     if [[ "$M5_XBOX_RUNTIME" == 1 ]]; then
         "$HOST_VENV/bin/meson" configure "$BUILD" -Dboxdroid_m5_xbox_runtime=true
+    fi
+    if [[ "$M6_AUDIO" == 1 ]]; then
+        "$HOST_VENV/bin/meson" configure "$BUILD" -Dboxdroid_m6_audio=true
+    else
+        "$HOST_VENV/bin/meson" configure "$BUILD" -Dboxdroid_m6_audio=false
     fi
 fi
 

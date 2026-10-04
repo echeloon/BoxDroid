@@ -58,7 +58,7 @@ PY
 
 [[ "$(git -C "$ROOT" branch --show-current)" == android-port ]] || die "must run on android-port"
 [[ "$(git -C "$ROOT/upstream/xemu" rev-parse HEAD)" == "$PIN" ]] || die "upstream/xemu is not pinned at $PIN"
-for patch in 0001-m2-android-arm64-cross-build.patch 0002-m3-generic-headless-target.patch 0003-m4-android-vulkan-presentation.patch 0004-m5-android-xbox-headless-core.patch 0005-m5-display-refresh-diagnostics.patch 0006-m5-scanout-black-localization.patch 0007-m5-vulkan-image-content-diagnostics.patch 0008-m5-firmware-storage-provenance.patch 0009-m5-vga-raw-vram-diagnostics.patch 0010-m5-vram-transition-diagnostics.patch 0011-m5-framebuffer-writer-diagnostics.patch 0012-m5-cpu-framebuffer-value-diagnostics.patch 0013-m5-guest-progress-diagnostics.patch 0014-m5-nv2a-vulkan-output-diagnostics.patch; do
+for patch in 0001-m2-android-arm64-cross-build.patch 0002-m3-generic-headless-target.patch 0003-m4-android-vulkan-presentation.patch 0004-m5-android-xbox-headless-core.patch 0005-m5-display-refresh-diagnostics.patch 0006-m5-scanout-black-localization.patch 0007-m5-vulkan-image-content-diagnostics.patch 0008-m5-firmware-storage-provenance.patch 0009-m5-vga-raw-vram-diagnostics.patch 0010-m5-vram-transition-diagnostics.patch 0011-m5-framebuffer-writer-diagnostics.patch 0012-m5-cpu-framebuffer-value-diagnostics.patch 0013-m5-guest-progress-diagnostics.patch 0014-m5-nv2a-vulkan-output-diagnostics.patch 0015-m53-performance-timing.patch 0016-m54-execution-profile.patch 0017-m54-x87-workload-profile.patch; do
     grep -qx "$patch" "$ROOT/patches/xemu/series" || die "patch series is missing $patch"
 done
 
@@ -94,14 +94,23 @@ for entry in "bios:$BIOS" "mcpx:$MCPX" "hdd:$HDD"; do
     printf '%s_bytes=%s sha256=%s\n' "$name" "$(wc -c < "$path" | tr -d ' ')" "$(host_sha256 "$path")"
 done | tee "$RESULTS/firmware-verification.txt"
 
+M6_AUDIO="${BOXDROID_M6_AUDIO:-0}"
+M2_EXTRA_CFLAGS="${BOXDROID_M5_EXTRA_CFLAGS:-}"
+if [[ "$M6_AUDIO" == 1 ]]; then
+    M2_EXTRA_CFLAGS="$M2_EXTRA_CFLAGS -DBOXDROID_M6_AUDIO=1"
+    grep -qx '0018-m6-audio-android.patch' "$ROOT/patches/xemu/series" || \
+        die "M6 audio is enabled but patch 0018 is not active"
+fi
+
 BOXDROID_M2_WORK_ROOT="$CORE_ROOT" \
 BOXDROID_M2_TARGET_LIST=i386-softmmu \
-BOXDROID_M2_EXTRA_CFLAGS="${BOXDROID_M5_EXTRA_CFLAGS:-}" \
+BOXDROID_M2_EXTRA_CFLAGS="$M2_EXTRA_CFLAGS" \
 BOXDROID_M2_ENABLE_SDL=0 \
 BOXDROID_M2_STATIC_PIC=1 \
 BOXDROID_M3_RUNTIME=0 \
 BOXDROID_M4_PRESENTER=0 \
 BOXDROID_M5_XBOX_RUNTIME=1 \
+BOXDROID_M2_M6_AUDIO="$M6_AUDIO" \
 JOBS="${JOBS:-4}" \
     "$ROOT/scripts/m2-android-arm64.sh" | tee "$RESULTS/build.log"
 ninja -C "$BUILD" -j"${JOBS:-4}" libboxdroid.so | tee -a "$RESULTS/build.log"
