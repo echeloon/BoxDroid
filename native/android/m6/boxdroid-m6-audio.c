@@ -51,6 +51,12 @@ static _Atomic uint64_t stat_overrun_blocks;
 static _Atomic uint64_t stat_dropped_frames;
 static _Atomic uint64_t stat_offered_frames;
 static _Atomic uint64_t stat_nonzero_frames;
+static _Atomic uint64_t stat_source_nonzero_frames;
+static _Atomic uint64_t stat_consumed_frames;
+static _Atomic uint64_t stat_consumed_nonzero_frames;
+static _Atomic int32_t stat_source_peak;
+static _Atomic int32_t stat_ring_peak;
+static _Atomic int32_t stat_consumed_peak;
 static _Atomic uint64_t stat_muted_frames;
 static _Atomic uint64_t last_source_callback;
 static _Atomic int stat_last_callback_frames;
@@ -86,12 +92,25 @@ static void reset_stats(void)
     atomic_store_explicit(&stat_dropped_frames, 0, memory_order_relaxed);
     atomic_store_explicit(&stat_offered_frames, 0, memory_order_relaxed);
     atomic_store_explicit(&stat_nonzero_frames, 0, memory_order_relaxed);
+    atomic_store_explicit(&stat_source_nonzero_frames, 0, memory_order_relaxed);
+    atomic_store_explicit(&stat_consumed_frames, 0, memory_order_relaxed);
+    atomic_store_explicit(&stat_consumed_nonzero_frames, 0, memory_order_relaxed);
+    atomic_store_explicit(&stat_source_peak, 0, memory_order_relaxed);
+    atomic_store_explicit(&stat_ring_peak, 0, memory_order_relaxed);
+    atomic_store_explicit(&stat_consumed_peak, 0, memory_order_relaxed);
     atomic_store_explicit(&stat_muted_frames, 0, memory_order_relaxed);
     atomic_store_explicit(&last_source_callback, 0, memory_order_relaxed);
     atomic_store_explicit(&stat_last_callback_frames, 0, memory_order_relaxed);
     atomic_store_explicit(&stat_min_callback_frames, INT32_MAX, memory_order_relaxed);
     atomic_store_explicit(&stat_max_callback_frames, 0, memory_order_relaxed);
     atomic_store_explicit(&last_stats_log_ns, 0, memory_order_relaxed);
+}
+
+static inline int32_t stereo_peak(int32_t left, int32_t right)
+{
+    int32_t l = left < 0 ? -left : left;
+    int32_t r = right < 0 ? -right : right;
+    return l > r ? l : r;
 }
 
 static aaudio_data_callback_result_t audio_data_callback(
@@ -144,9 +163,17 @@ static aaudio_data_callback_result_t audio_data_callback(
     write_at = atomic_load_explicit(&ring_write, memory_order_acquire);
     available = write_at - read_at;
     count = (int32_t)(available < (uint64_t)num_frames ? available : (uint64_t)num_frames);
+    uint64_t nonzero = 0;
+    int32_t peak = atomic_load_explicit(&stat_consumed_peak, memory_order_relaxed);
     for (int32_t i = 0; i < count; i++) {
         out[i] = ring[(read_at + (uint64_t)i) & (M6_RING_FRAMES - 1)];
+        int32_t magnitude = stereo_peak(out[i].channel[0], out[i].channel[1]);
+        nonzero += magnitude != 0;
+        if (magnitude > peak) peak = magnitude;
     }
+    atomic_fetch_add_explicit(&stat_consumed_frames, (uint64_t)count, memory_order_relaxed);
+    atomic_fetch_add_explicit(&stat_consumed_nonzero_frames, nonzero, memory_order_relaxed);
+    atomic_store_explicit(&stat_consumed_peak, peak, memory_order_relaxed);
     atomic_store_explicit(&ring_read, read_at + (uint64_t)count, memory_order_release);
 
     uint64_t callbacks = atomic_load_explicit(&stat_callbacks, memory_order_relaxed);
@@ -287,6 +314,15 @@ void boxdroid_m6_audio_shutdown(void)
         (unsigned long long)atomic_load(&stat_dropped_frames),
         (unsigned long long)atomic_load(&stat_offered_frames),
         (unsigned long long)atomic_load(&stat_nonzero_frames));
+    __android_log_print(ANDROID_LOG_INFO, M6_TAG,
+        "AAUDIO_PCM source_nonzero_frames=%llu source_peak=%d ring_nonzero_frames=%llu ring_peak=%d consumed_frames=%llu consumed_nonzero_frames=%llu consumed_peak=%d",
+        (unsigned long long)atomic_load(&stat_source_nonzero_frames),
+        atomic_load(&stat_source_peak),
+        (unsigned long long)atomic_load(&stat_nonzero_frames),
+        atomic_load(&stat_ring_peak),
+        (unsigned long long)atomic_load(&stat_consumed_frames),
+        (unsigned long long)atomic_load(&stat_consumed_nonzero_frames),
+        atomic_load(&stat_consumed_peak));
 }
 
 void boxdroid_m6_audio_set_focus(bool focused)
@@ -324,7 +360,21 @@ void boxdroid_m6_audio_push(const int16_t *samples, uint32_t frames, float gain)
     uint64_t write_at, read_at, queued, free_frames;
     uint32_t accepted, nonzero = 0;
 
-    atomic_fetch_add_explicit(&stat_offered_frames, frames, memory_order_relaxed);
+    uint64_t previous = atomic_fetch_add_explicit(&stat_offered_frames, frames,
+                                                  memory_order_relaxed);
+    if (previous == 0) {
+        __android_log_print(ANDROID_LOG_INFO, M6_TAG,
+                            "APU_PCM_SOURCE stage=GP_OR_EP_monitor gain=%g", (double)gain);
+    }
+    uint64_t source_nonzero = 0;
+    int32_t source_peak = atomic_load_explicit(&stat_source_peak, memory_order_relaxed);
+    for (uint32_t i = 0; i < frames; i++) {
+        int32_t magnitude = stereo_peak(samples[i * 2], samples[i * 2 + 1]);
+        source_nonzero += magnitude != 0;
+        if (magnitude > source_peak) source_peak = magnitude;
+    }
+    atomic_fetch_add_explicit(&stat_source_nonzero_frames, source_nonzero, memory_order_relaxed);
+    atomic_store_explicit(&stat_source_peak, source_peak, memory_order_relaxed);
     atomic_store_explicit(&last_source_callback,
         atomic_load_explicit(&stat_callbacks, memory_order_relaxed),
         memory_order_release);
@@ -347,6 +397,7 @@ void boxdroid_m6_audio_push(const int16_t *samples, uint32_t frames, float gain)
                                   memory_order_relaxed);
     }
 
+    int32_t ring_peak = atomic_load_explicit(&stat_ring_peak, memory_order_relaxed);
     for (uint32_t i = 0; i < accepted; i++) {
         int32_t left = samples[i * 2];
         int32_t right = samples[i * 2 + 1];
@@ -359,7 +410,10 @@ void boxdroid_m6_audio_push(const int16_t *samples, uint32_t frames, float gain)
         ring[(write_at + i) & (M6_RING_FRAMES - 1)].channel[0] = (int16_t)left;
         ring[(write_at + i) & (M6_RING_FRAMES - 1)].channel[1] = (int16_t)right;
         nonzero += (left != 0 || right != 0);
+        int32_t magnitude = stereo_peak(left, right);
+        if (magnitude > ring_peak) ring_peak = magnitude;
     }
+    atomic_store_explicit(&stat_ring_peak, ring_peak, memory_order_relaxed);
     atomic_fetch_add_explicit(&stat_nonzero_frames, nonzero, memory_order_relaxed);
     atomic_store_explicit(&ring_write, write_at + accepted, memory_order_release);
 }
@@ -387,6 +441,12 @@ void boxdroid_m6_audio_snapshot(BoxDroidM6AudioStats *stats)
     stats->dropped_frames = atomic_load_explicit(&stat_dropped_frames, memory_order_relaxed);
     stats->offered_frames = atomic_load_explicit(&stat_offered_frames, memory_order_relaxed);
     stats->nonzero_frames = atomic_load_explicit(&stat_nonzero_frames, memory_order_relaxed);
+    stats->source_nonzero_frames = atomic_load_explicit(&stat_source_nonzero_frames, memory_order_relaxed);
+    stats->consumed_frames = atomic_load_explicit(&stat_consumed_frames, memory_order_relaxed);
+    stats->consumed_nonzero_frames = atomic_load_explicit(&stat_consumed_nonzero_frames, memory_order_relaxed);
+    stats->source_peak = atomic_load_explicit(&stat_source_peak, memory_order_relaxed);
+    stats->ring_peak = atomic_load_explicit(&stat_ring_peak, memory_order_relaxed);
+    stats->consumed_peak = atomic_load_explicit(&stat_consumed_peak, memory_order_relaxed);
     stats->muted_frames = atomic_load_explicit(&stat_muted_frames, memory_order_relaxed);
     stats->queued_frames = write_at >= read_at ? write_at - read_at : 0;
     stats->initialized = atomic_load_explicit(&stream_initialized, memory_order_acquire);
@@ -421,7 +481,7 @@ void boxdroid_m6_audio_format_metrics(char *buffer, uint32_t buffer_size)
         atomic_compare_exchange_strong_explicit(&last_stats_log_ns, &previous, now,
             memory_order_relaxed, memory_order_relaxed)) {
         __android_log_print(ANDROID_LOG_INFO, M6_TAG,
-            "AUDIO_STATS backend=AAudio state=%s rate=%d channels=%d format=S16LE burst=%d callback_frames=%d..%d buffer_frames=%d capacity_frames=%d queued_frames=%llu queued_estimate_ms=%llu callbacks=%llu callback_frames_total=%llu underrun_callbacks=%llu underrun_frames=%llu overrun_blocks=%llu dropped_frames=%llu offered_frames=%llu nonzero_frames=%llu muted_frames=%llu focus=%d foreground=%d apu_attached=%d error=%d",
+            "AUDIO_STATS backend=AAudio state=%s rate=%d channels=%d format=S16LE burst=%d callback_frames=%d..%d buffer_frames=%d capacity_frames=%d queued_frames=%llu queued_estimate_ms=%llu callbacks=%llu callback_frames_total=%llu underrun_callbacks=%llu underrun_frames=%llu overrun_blocks=%llu dropped_frames=%llu offered_frames=%llu nonzero_frames=%llu muted_frames=%llu focus=%d foreground=%d apu_attached=%d error=%d source_nonzero_frames=%llu source_peak=%d ring_peak=%d consumed_frames=%llu consumed_nonzero_frames=%llu consumed_peak=%d",
             state, s.sample_rate, s.channels, s.frames_per_burst,
             s.min_callback_frames, s.max_callback_frames,
             s.stream_buffer_frames, s.stream_capacity_frames,
@@ -431,7 +491,10 @@ void boxdroid_m6_audio_format_metrics(char *buffer, uint32_t buffer_size)
             (unsigned long long)s.overrun_blocks, (unsigned long long)s.dropped_frames,
             (unsigned long long)s.offered_frames, (unsigned long long)s.nonzero_frames,
             (unsigned long long)s.muted_frames, s.focus_granted, s.foreground,
-            s.apu_attached, s.error_code);
+            s.apu_attached, s.error_code,
+            (unsigned long long)s.source_nonzero_frames, s.source_peak, s.ring_peak,
+            (unsigned long long)s.consumed_frames,
+            (unsigned long long)s.consumed_nonzero_frames, s.consumed_peak);
     }
 }
 

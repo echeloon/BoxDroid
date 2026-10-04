@@ -22,6 +22,12 @@ typedef struct BoxDroidM6AudioStats {
     uint64_t dropped_frames;
     uint64_t offered_frames;
     uint64_t nonzero_frames;
+    uint64_t source_nonzero_frames;
+    uint64_t consumed_frames;
+    uint64_t consumed_nonzero_frames;
+    int32_t source_peak;
+    int32_t ring_peak;
+    int32_t consumed_peak;
     uint64_t queued_frames;
     uint64_t muted_frames;
     bool initialized;

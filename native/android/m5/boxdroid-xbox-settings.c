@@ -11,6 +11,10 @@ struct config g_config = {
     },
     .perf = { .cache_shaders = true },
     .audio = {
+#ifdef BOXDROID_M6_AUDIO
+        /* Desktop config_spec.yml defaults to unity. Omitted C fields are zero. */
+        .volume_limit = 1.0,
+#endif
         .use_dsp = true,
         .use_dsp_jit = false,
         .hrtf = false,
