@@ -24,6 +24,9 @@
 static void m53_video_mode_probe(CPUState *cpu, uint64_t pc);
 static void m53_sample_progress(uint64_t pc, uintptr_t tb, uint16_t instructions);
 static int64_t m53_pc_start;
+#ifdef BOXDROID_M54_X87_PROFILE
+int64_t boxdroid_m54_x87_start;
+#endif
 #endif
 
 #define ARG(value) ((char *)(value))
@@ -1810,6 +1813,10 @@ static void xbox_display_update(DisplayChangeListener *dcl,
             ++m53_green;
             if (!__atomic_load_n(&m53_pc_start,__ATOMIC_RELAXED))
                 __atomic_store_n(&m53_pc_start,g_get_monotonic_time(),__ATOMIC_RELAXED);
+#ifdef BOXDROID_M54_X87_PROFILE
+            if (!__atomic_load_n(&boxdroid_m54_x87_start,__ATOMIC_RELAXED))
+                __atomic_store_n(&boxdroid_m54_x87_start,g_get_monotonic_time(),__ATOMIC_RELAXED);
+#endif
         }
         m53_last_hash = frame_hash;
     }
@@ -2941,6 +2948,10 @@ Java_org_boxdroid_m5_MainActivity_nativeXboxStart(JNIEnv *env, jobject self,
     /* Capture only the reset vector and the observed late polling range.
      * The M5 TCG hook suppresses per-execution logs for that polling range. */
     arguments[24] = ARG("0x8001b000..0x8001b080,0xfffffff0..0xffffffff");
+#ifdef BOXDROID_M54_X87_PROFILE
+    arguments[22] = ARG("guest_errors,in_asm,op,out_asm");
+    arguments[24] = ARG("0x80058c00..0x80058d00,0x80058280..0x80058300,0x80042980..0x80042a00");
+#endif
     arguments[25] = ARG("-device");
     arguments[26] = NULL;
     arguments[27] = ARG("-m");

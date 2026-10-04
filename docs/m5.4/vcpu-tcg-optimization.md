@@ -384,3 +384,269 @@ specializations did not suffice. Exact full-speed causality and a safe
 high-impact replacement remain unresolved; further work is still M5.4, not M6.
 The current result must remain **PARTIAL** until sustained unique output reaches
 the active guest target without correctness compromises.
+
+## Extended x87/TCG investigation
+
+**M5.4 remains PARTIAL.** This iteration retains the checkpoint's O3/ThinLTO/
+disabled-QOM-cast-debug profile. No new performance candidate was retained.
+The active NTSC-M target remains nominally 60 unique FPS, with the existing
+>=58 sustained criterion. M5/M5.1/M5.2 remain PASS; M5.3 stays frozen PARTIAL.
+No M5.5/M6 work, commit, or push was performed.
+
+### Measurement design
+
+Patch `0017-m54-x87-workload-profile.patch` is opt-in through
+`BOXDROID_M54_X87_PROFILE=1` in the M5.4 wrapper. It records executed x87
+opcode/ModRM counts, fixed helper IDs, helper pairs, sampled control words,
+and operand classes for five seconds after the first changing-green frame.
+Counts are vCPU-owned; the start anchor is atomic. Tables are fixed-size:
+2048 opcode bins, 82 helper identities, and 1024 instruction-PC slots. Logging
+occurs once at window completion. The PC summary omits counts <=10,000.
+Helper timings are sampled at 1/2048 using ARM64 CNTVCT, with CNTFRQ conversion,
+a paired-counter calibration and thread-CPU window measurement. Arithmetic
+operand classification is also sampled; its work is included in those timing
+samples. Thus these durations are instrumentation estimates, not precise
+unperturbed helper latency. No BQL, GPU, guest-state or timing changes were
+introduced by this instrumentation.
+
+The separate diagnostic APK additionally captures translation-only `in_asm`,
+`op`, and `out_asm` in three bounded hot address ranges during the 45-second
+run. It does not log every execution or dump modules/firmware. Profiling is
+**disabled** in the final validation APK, so opcode instrumentation and these
+translation logs do not contaminate final FPS comparisons. Opt-in instruction
+counts themselves slow the guest; their rates must not be extrapolated as
+unprofiled throughput.
+
+`scripts/m5.4-x87-analyze.py` analyzes the bounded counters.
+`scripts/m5.4-softfloat-profile.py` resolves simpleperf offsets against the
+matching unstripped ELF and reports vCPU CPU-self samples. Anonymous JIT code
+remains unresolved rather than being assigned to an invented helper.
+
+### Executed opcode and helper distribution
+
+The counter-profile run PID 9929 recorded **17,098,752 x87 instructions** and
+**29,260,554 public x87 helper entries** in 5.000532 seconds. These are measured
+rates of that instrumented run, not the final APK's instruction rates.
+
+| Executed instruction | Count | Instructions/sec |
+|---|---:|---:|
+| FLD m32 | 4,093,071 | 818,527 |
+| FSTP m32 | 2,696,122 | 539,167 |
+| FMUL m32 | 2,584,337 | 516,812 |
+| FADDP reg | 1,561,202 | 312,207 |
+| FMUL reg | 1,037,554 | 207,489 |
+| FSTP reg | 1,014,291 | 202,837 |
+| FLD ST(i) | 998,545 | 199,688 |
+| FADD reg | 543,395 | 108,667 |
+| FSUB m32 | 542,088 | 108,406 |
+| FILD m32 | 277,073 | 55,409 |
+| FNSTSW AX | 196,593 | 39,314 |
+| FCHS | 170,679 | 34,132 |
+| FADD m32 | 163,172 | 32,631 |
+| FDIVR m32 | 153,939 | 30,785 |
+| FDIV m32 | 126,604 | 25,318 |
+| FCOMP m32 | 121,856 | 24,369 |
+
+There were no observed FLDCW/FNSTCW changes, transcendental arithmetic, or
+FCOMI/FUCOMI instructions in this window. Counts for omitted rare instructions
+are retained in ignored `x87-summary.json`; omission is not a claim about all
+possible boot workloads. Every sampled control word was `0x027f`: 53-bit
+significand precision, nearest-even rounding, all six exceptions masked.
+This does **not** restrict x87's extended exponent range to binary64.
+
+| Public helper | Calls | Calls/sec |
+|---|---:|---:|
+| fpop | 5,554,074 | 1,110,697 |
+| flds_ST0 | 4,093,071 | 818,527 |
+| flds_FT0 | 3,761,150 | 752,150 |
+| fmul_ST0_FT0 | 3,720,579 | 744,037 |
+| fsts_ST0 | 2,742,337 | 548,409 |
+| fadd_STN_ST0 | 1,686,671 | 337,298 |
+| fmov_FT0_STN | 1,534,381 | 306,844 |
+| fpush | 1,147,451 | 229,466 |
+| fmov_STN_ST0 | 1,014,291 | 202,837 |
+| fmov_ST0_STN | 998,545 | 199,688 |
+| fsub_ST0_FT0 | 608,128 | 121,613 |
+| fadd_ST0_FT0 | 581,098 | 116,207 |
+
+Important observed pairs include single-precision operand load -> multiply,
+FADDP arithmetic -> pop, store conversion -> pop, and push -> register copy.
+The source mapping is `target/i386/tcg/translate.c:gen_x87` and
+`target/i386/tcg/fpu_helper.c`: FLD m32 -> `flds_ST0`; FMUL m32 ->
+`flds_FT0` then `fmul_ST0_FT0`; FSTP m32 -> `fsts_ST0` then `fpop`;
+FADDP -> `fadd_STN_ST0` then `fpop`. Conversions unpack FloatParts64, widen to
+FloatParts128 and repack floatx80; subsequent arithmetic unpacks that value
+again. Results round according to the unchanged x87 control state.
+Each conversion/arithmetic helper separately saves/clears/merges flags.
+
+The corrected arithmetic-operand run PID 20943 sampled 26,648 actual
+arithmetic inputs: 21,254 normal finite (79.758%),
+5,363 zeros (20.125%), and 31 NaNs
+(0.116%). No subnormal, infinity or unsupported arithmetic
+inputs were sampled. Normal plus zero inputs were 99.884%.
+This is sampled input evidence, not proof that outputs avoid underflow/overflow
+or that binary64 has equivalent x87 exceptions/exponent range. The earlier
+ST0/FT0-at-opcode samples include unused/stale stack values and are not used as
+arithmetic-operand statistics. All sampled control words again were `0x027f`.
+
+### CPU-time attribution and limits
+
+An independent seven-second 499 Hz `cpu-clock:u` simpleperf sample collected
+6072 process samples in a profiling-disabled stack-candidate run, PID 18958.
+Resolved **vCPU self samples** were: SoftFloat 37.30%, x87 helper bodies 15.34%,
+anonymous translated code 36.54%, other 10.81%. The combined observed
+SoftFloat/x87 helper share was approximately **52.65%**. This is statistical
+CPU-self attribution, not exact wall time, and not a count of calls to every
+internal normalization routine. It does not include an invented attribution
+of anonymous translated code to x87.
+
+Dominant vCPU samples were `parts64_uncanon_normal` 11.91%,
+`floatx80_addsub` 6.67%, `floatx80_round_pack_canonical` 5.11%,
+`floatx80_mul` 5.09%, `helper_flds_FT0` 3.86%, and `helper_flds_ST0` 3.83%.
+The original per-helper monotonic timing method was rejected: an empty clock
+pair averaged 186.48 ns, comparable to the measured operation. The ARM counter
+probe also has a measurable floor (131.315 ns in PID 9929). Timer-subtracted
+costs are estimates and are not summed into a causal frame budget or presented
+as exact percentages. Internal `parts*` calls/sec, exact per-TB CPU costs,
+and helper-ABI-only CPU time remain unmeasured.
+
+The strongest evidence remains serial conversion, normalization, rounding,
+and arithmetic, plus generated-code/helper boundary work. Low GPU utilization
+is consistent with limited guest command production, not proof of a GPU wait
+bottleneck. Even ideal elimination of the sampled 52.65% alone would not imply
+60 FPS from a 19 FPS baseline; that extrapolation is only an Amdahl estimate,
+not a performance forecast.
+
+### Representative hot translated blocks
+
+The bounded guest/TCG/host dump establishes concrete work rather than treating
+an idle-loop PC as animation computation:
+
+- `0x800582c0` implements three scalar vector additions: three repetitions of
+  FLD m32, FADD m32, FSTP m32, followed by RET. There are 9 x87 instructions and
+  15 original FPU helper boundaries, plus 9 profiling calls and lookup. The
+  captured profiled translation has 149 TCG ops / 2068 host bytes (including
+  literal data and diagnostic overhead); these are not baseline code-size
+  measurements. A later translation has 152 ops / 2080 bytes.
+- `0x80058c3e` begins a three-component multiply/accumulate sequence, then
+  duplicates ST0, compares, and tests status. The captured translation has
+  160 ops / 1944 host bytes, including profiling. It uses three memory
+  multiplies and two FADDP/pop pairs. This is a useful arithmetic block.
+- `0x800429d0` contains integer copy work, not x87; the captured block has
+  61 ops / 696 host bytes. `0x80058cab` is a short integer block (25 ops /
+  268 bytes). Their presence disproves treating all hot PCs as FP instructions.
+- The previously sampled `0x800582b9` does not independently establish a full
+  TB's start/cost. The bounded dump's `0x800582c0` block is the measured example;
+  no invented per-PC instruction count is assigned to `0x800582b9`.
+
+Representative existing IR:
+
+```text
+qemu_ld_i32 operand, address, ...
+call flds_FT0, env, operand
+call fmul_ST0_FT0, env
+...
+call fsts_ST0, result, env
+qemu_st_i32 result, address, ...
+call fpop, env
+```
+
+The dump also shows FIP/FDP/segment updates after each instruction and broad
+register synchronization around generic helper calls. The ARM64 output uses
+loads/stores, argument moves and indirect helper calls (`blr`), with guest
+register spills/reloads. Host byte counts include pools and must not be divided
+by four and called exact executed instruction counts. No ARM64 backend,
+indirect lookup, affinity or renderer rewrite was justified by this evidence.
+
+### Tested candidates and correctness
+
+Two candidates were isolated with separate compile flags and excluded after
+benchmarking. Their patches/source/tests are preserved only under ignored
+`build/m5.4/rejected/x87-boundaries/`; they are **not in the ordered series**.
+
+1. Integer TCG lowering of x87 push/pop and 80-bit register copies. Low 64 and
+   high 16 bits are copied without numerical conversion; tags/top remain
+   architectural. On ARM64, 1,310,720 comparisons against the original pinned
+   helpers passed across all stack tops/indexes, aliasing, arbitrary 80-bit
+   encodings, and control/status/tag preservation. It produced 17.24 FPS;
+   a separately sampled run produced 17.28 FPS. No retained win.
+2. Explicit stack-top helper operands, narrower TCG global-clobber contracts,
+   and merging the two helper boundaries of a **single** memory arithmetic
+   instruction. The original SoftFloat conversion, arithmetic, FT0 state and
+   ordered exception merges remained intact. Register arithmetic was also
+   tested with explicit operands. On Retroid ARM64, **5,242,880** state/result
+   comparisons passed: all four precision-control encodings and rounding modes,
+   masked/unmasked exceptions, randomized extended encodings, signed zero,
+   subnormal, NaN/Inf and unsupported encodings. It produced 17.72 and 17.46
+   unique FPS versus a contemporaneous committed-binary launch at 20.08 FPS.
+   Correctness was necessary but no throughput benefit was demonstrated.
+
+No native binary32/binary64 replacement or global precision reduction was
+retained or reintroduced. Previous rejected per-operation fast paths were not
+repeated. Passing narrow helper tests does not prove native FP equivalent for
+whole extended-precision blocks. A future TB-local unpacked representation
+would need explicit state-flush/exception/interrupt boundaries and a new
+correctness proof; no such architecture was added in this iteration.
+
+### Final validation of retained state
+
+Final APK: `build/m5.4/BoxDroid-M5.4-arm64-v8a.apk`, package `org.boxdroid.m54`.
+Profiling and rejected optimization flags are disabled. Guest timing still
+selects 60 Hz / 16.6667 ms for active mode `0x20010101`.
+
+| PID | Unique FPS | Presents/sec | Flips/sec | Duplicates | Mean change ms | vCPU % | PFIFO % | Fence ms | Acquire/submit/present |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| 15507 | 17.01 | 19.88 | 19.61 | 14.48% | 58.81 | 91.19 | 28.04 | 1.96 | 555/555/555 |
+| 26471 | 17.51 | 21.12 | 20.84 | 17.09% | 57.12 | 91.77 | 27.23 | 1.97 | 554/554/554 |
+| 31583 | 19.46 | 24.35 | 24.35 | 20.09% | 51.38 | 91.52 | 27.24 | 1.96 | 543/543/543 |
+
+Mean unique FPS: **17.99**, versus the prior committed
+checkpoint mean 19.00 and contemporaneous checkpoint launch 20.08. The
+17.01–19.46 final range overlaps prior run variation; no throughput gain is
+claimed. Mean changed-frame intervals remain 51.38–58.81 ms.
+
+Each run physically captured genuine green animation (6 s), Xbox logo
+(12 s) and the dashboard prompt (20 s), visually reviewed. Landscape,
+640×480 -> 1440×1080 at (240,0) in a 1920×1080 surface, overlay and black
+borders remain correct. Failed presents were zero; shutdown was clean;
+crash buffers were empty. The inherited M4 JSON says FAIL because these
+launches do not exercise its required recreation sequence; this is not a
+failed M5.4 present. Present mode FIFO and four swapchain images were retained.
+
+Final renderer fence means were 1.96–1.97 ms. No fence, synchronization,
+concurrency, BQL, scheduling or affinity change was retained. Capacity
+classes remained 351/871/1024; vCPU samples primarily use highest-capacity
+CPU 7. One-second placement samples cannot establish every migration or
+cycle of low-capacity residency.
+
+Overlay samples overlapping the accelerated benchmark windows averaged
+approximately 21/22/26% total-capacity CPU and 11.67/11.67/17% whole-device
+GPU busy for the three runs, respectively. These windows include partial
+phase boundaries; they are not exclusively green-animation samples or an
+optimization claim. Main-loop BQL acquisition waits averaged approximately
+6.92/7.91/6.70 ms per elapsed second. Mean changed-frame intervals above do
+not establish frame-time percentiles or exact individual spike durations.
+
+All four milestone packages remain installed. The unchanged M5.3 app was
+relaunched (PID 5754), showed the same boot sequence, completed all presents
+without failure, shut down cleanly and left an empty crash buffer. Shared
+FP diagnostics compile out of M5/M5.2/M5.3; their installed APKs were not
+overwritten.
+
+Clean Android native build and Gradle build succeeded. A fresh pinned
+reconstruction independently applied 0001–0017 in order; all 66
+patch-touched files matched the final build tree. The diagnostic operand
+guard correction was copied before final x87 compilation. ELF64/AArch64,
+package/manifest checks, shell/Python syntax and `git diff --check` passed.
+Pin and pre-existing upstream untracked files are unchanged. Generated
+binaries, test evidence, performance logs and screen captures stay ignored.
+
+### Remaining bottleneck and decision
+
+M5.4 remains **PARTIAL**. This investigation characterizes the opcode mix,
+public-helper frequency, repeated conversion/materialization and sampled
+CPU-time distribution. It does not deliver a retained major performance gain
+or the >=58 unique FPS target. The checkpoint's original FP semantics and
+validated release profile remain intact. Exact all-helper latency, complete
+TCG/x87 CPU attribution and a semantics-preserving TB-local decoded-state
+implementation remain open work within M5.4, not M5.5 or M6.

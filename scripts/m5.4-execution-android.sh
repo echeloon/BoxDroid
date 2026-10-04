@@ -15,6 +15,9 @@ grep -qx '0016-m54-execution-profile.patch' "$ROOT/patches/xemu/series"
 export BOXDROID_M2_OPTIMIZED_BUILD="${BOXDROID_M54_RELEASE:-1}"
 export BOXDROID_M5_PREPARE_ONLY=1
 export BOXDROID_M5_EXTRA_CFLAGS="-DBOXDROID_M53_RUNTIME=1 -DBOXDROID_M54_RUNTIME=1"
+if [[ "${BOXDROID_M54_X87_PROFILE:-0}" == 1 ]]; then
+    export BOXDROID_M5_EXTRA_CFLAGS="$BOXDROID_M5_EXTRA_CFLAGS -DBOXDROID_M54_X87_PROFILE=1"
+fi
 "$ROOT/scripts/m5-xbox-boot-android.sh" "$@"
 if [[ "${BOXDROID_M54_PREPARE_ONLY:-0}" != 1 ]]; then
     python3 "$ROOT/scripts/m5.4-benchmark.py" --results "$BOXDROID_M5_RESULTS" \
