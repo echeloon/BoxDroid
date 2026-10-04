@@ -21,6 +21,9 @@
 #include "hw/xbox/nv2a/nv2a_int.h"
 #include "hw/xbox/nv2a/boxdroid-m5-diagnostics.h"
 #include "target/i386/cpu.h"
+#ifdef BOXDROID_M62_INPUT
+#include "boxdroid-m62-input.h"
+#endif
 #ifdef BOXDROID_M53_RUNTIME
 #include "qemu/bswap.h"
 static void m53_video_mode_probe(CPUState *cpu, uint64_t pc);
@@ -2963,6 +2966,9 @@ static void *run_xbox(void *unused)
     if (xbox_display_listener.ds) {
         unregister_displaychangelistener(&xbox_display_listener);
     }
+#ifdef BOXDROID_M62_INPUT
+    boxdroid_m62_input_clear_all();
+#endif
     log_message(ANDROID_LOG_INFO, "XBOX_QEMU_CLEANUP_BEGIN");
     qemu_cleanup(status);
     log_message(ANDROID_LOG_INFO, "XBOX_QEMU_CLEANUP_COMPLETE");
@@ -3061,6 +3067,15 @@ Java_org_boxdroid_m5_MainActivity_nativeXboxStart(JNIEnv *env, jobject self,
     arguments[30 + arg_shift] = ARG("usb-hub,port=1,ports=4");
     arguments[31 + arg_shift] = NULL;
     arguments[32 + arg_shift] = NULL;
+#ifdef BOXDROID_M62_INPUT
+    /* Reuse Xemu's existing Xbox XID device on player-one's internal hub.
+     * QEMU creates it during qemu_init, before MCPX/BIOS enters guest code. */
+    arguments[31 + arg_shift] = ARG("-device");
+    arguments[32 + arg_shift] = ARG("usb-hub,port=1.3,ports=3");
+    arguments[33 + arg_shift] = ARG("-device");
+    arguments[34 + arg_shift] = ARG("usb-xbox-gamepad,port=1.3.1,index=0");
+    arguments[35 + arg_shift] = NULL;
+#endif
 
     /* Replace placeholders after preserving the Java strings through qemu_init. */
     arguments[2] = g_strdup_printf("xbox,bootrom=%s,kernel-irqchip=off,avpack=scart", mcpx_path);

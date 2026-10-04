@@ -32,6 +32,11 @@ M3_RUNTIME="${BOXDROID_M3_RUNTIME:-0}"
 M4_PRESENTER="${BOXDROID_M4_PRESENTER:-0}"
 M5_XBOX_RUNTIME="${BOXDROID_M5_XBOX_RUNTIME:-0}"
 M6_AUDIO="${BOXDROID_M2_M6_AUDIO:-0}"
+M62_INPUT="${BOXDROID_M2_M62_INPUT:-0}"
+if [[ "$M62_INPUT" == 1 && ( "$M5_XBOX_RUNTIME" != 1 || "$M6_AUDIO" != 1 ) ]]; then
+    echo "error: M6.2 input requires the M5 Xbox runtime and M6 audio" >&2
+    exit 1
+fi
 NEED_I386=0
 if [[ ",${TARGET_LIST}," == *,i386-softmmu,* ]]; then
     NEED_I386=1
@@ -146,6 +151,11 @@ if [[ "$M5_XBOX_RUNTIME" == 1 ]]; then
         cp "$ROOT/native/android/m6/boxdroid-m6-audio.c" "$SOURCE/system/boxdroid-m6-audio.c"
         cp "$ROOT/native/android/m6/boxdroid-m6-audio.h" "$SOURCE/hw/xbox/mcpx/apu/boxdroid-m6-audio.h"
         cp "$ROOT/native/android/m6/boxdroid-m6-audio.h" "$SOURCE/system/boxdroid-m6-audio.h"
+    fi
+    if [[ "$M62_INPUT" == 1 ]]; then
+        [[ "$M6_AUDIO" == 1 ]] || die "M6.2 input requires the M6 audio baseline"
+        cp "$ROOT/native/android/m62/boxdroid-m62-input.c" "$SOURCE/system/boxdroid-m62-input.c"
+        cp "$ROOT/native/android/m62/boxdroid-m62-input.h" "$SOURCE/system/boxdroid-m62-input.h"
     fi
 elif [[ "$M3_RUNTIME" == 1 ]]; then
     [[ "$TARGET_LIST" == aarch64-softmmu ]] || \
@@ -265,6 +275,11 @@ if [[ ! -e "$BUILD/meson-private/coredata.dat" ]]; then
     else
         configure_args+=( -Dboxdroid_m6_audio=false )
     fi
+    if [[ "$M62_INPUT" == 1 ]]; then
+        configure_args+=( -Dboxdroid_m62_input=true )
+    else
+        configure_args+=( -Dboxdroid_m62_input=false )
+    fi
     "$SOURCE/configure" \
         "${configure_args[@]}"
 else
@@ -283,6 +298,11 @@ else
         "$HOST_VENV/bin/meson" configure "$BUILD" -Dboxdroid_m6_audio=true
     else
         "$HOST_VENV/bin/meson" configure "$BUILD" -Dboxdroid_m6_audio=false
+    fi
+    if [[ "$M62_INPUT" == 1 ]]; then
+        "$HOST_VENV/bin/meson" configure "$BUILD" -Dboxdroid_m62_input=true
+    else
+        "$HOST_VENV/bin/meson" configure "$BUILD" -Dboxdroid_m62_input=false
     fi
 fi
 

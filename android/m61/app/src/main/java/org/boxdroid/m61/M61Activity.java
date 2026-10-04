@@ -25,7 +25,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /** Picker-gated Xbox game boot validation. No guest runtime starts before a selected DVD is ready. */
-public final class M61Activity extends M6Activity {
+public class M61Activity extends M6Activity {
     private static final String TAG = "BoxDroidM61";
     private static final int REQUEST_XISO = 6101;
     private static final String[] MIME_TYPES = {
