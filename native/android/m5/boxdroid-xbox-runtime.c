@@ -23,6 +23,7 @@
 #include "qemu/bswap.h"
 static void m53_video_mode_probe(CPUState *cpu, uint64_t pc);
 static void m53_sample_progress(uint64_t pc, uintptr_t tb, uint16_t instructions);
+static int64_t m53_pc_start;
 #endif
 
 #define ARG(value) ((char *)(value))
@@ -504,11 +505,125 @@ void boxdroid_m5_diag_cpu_store_value(uint64_t address, size_t size,
     pthread_mutex_unlock(&m5_vram_write_lock);
 }
 
+#ifdef BOXDROID_M54_RUNTIME
+/* Single vCPU owns these counters. Logs use host time only once per 4096
+ * dispatches. Count dispatches separately from chained guest TBs. */
+static struct {
+    uint64_t dispatches, idle, returns, chains, exits[4], events[4];
+    uint64_t reads, writes, samples, execution_us;
+    int64_t sample_begin, report_us;
+    bool decoded;
+} m54_exec;
+
+void boxdroid_m54_tcg_event(unsigned kind)
+{
+    if (kind < G_N_ELEMENTS(m54_exec.events)) ++m54_exec.events[kind];
+}
+
+/* Sample indirect-chain lookups as well as outer C dispatches. The latter
+ * disproportionately sample STI's interrupt-shadow exits in the idle loop. */
+void boxdroid_m54_lookup_pc(uint64_t pc)
+{
+    static uint64_t ticks, samples, overflow;
+    static bool done;
+    static struct { uint64_t pc, hits; } pcs[512];
+    ++m54_exec.events[0];
+    if ((++ticks & 1023) || done) return;
+    int64_t begin = __atomic_load_n(&m53_pc_start, __ATOMIC_RELAXED);
+    if (!begin) return;
+    int64_t now = g_get_monotonic_time();
+    if (now - begin >= 5 * G_USEC_PER_SEC) {
+        done = true;
+        __android_log_print(ANDROID_LOG_INFO, "BoxDroidM54",
+            "LOOKUP_SAMPLE elapsed_us=%lld samples=%llu overflow=%llu stride=1024",
+            (long long)(now-begin), (unsigned long long)samples,
+            (unsigned long long)overflow);
+        for (unsigned rank = 0; rank < 12; ++rank) {
+            int best = -1;
+            for (unsigned i = 0; i < G_N_ELEMENTS(pcs); ++i)
+                if (pcs[i].hits && (best < 0 || pcs[i].hits > pcs[best].hits)) best = i;
+            if (best < 0) break;
+            __android_log_print(ANDROID_LOG_INFO, "BoxDroidM54",
+                "LOOKUP_PC rank=%u pc=0x%llx samples=%llu", rank,
+                (unsigned long long)pcs[best].pc, (unsigned long long)pcs[best].hits);
+            pcs[best].hits = 0;
+        }
+        return;
+    }
+    ++samples;
+    unsigned slot = (pc ^ (pc >> 12)) % G_N_ELEMENTS(pcs);
+    for (unsigned count = 0; count < G_N_ELEMENTS(pcs); ++count) {
+        unsigned index = (slot + count) % G_N_ELEMENTS(pcs);
+        if (!pcs[index].hits || pcs[index].pc == pc) {
+            pcs[index].pc = pc; ++pcs[index].hits; return;
+        }
+    }
+    ++overflow;
+}
+
+void boxdroid_m54_tb_return(bool chained, unsigned exit_index)
+{
+    ++m54_exec.returns;
+    m54_exec.chains += chained;
+    if (exit_index < G_N_ELEMENTS(m54_exec.exits)) ++m54_exec.exits[exit_index];
+    if (m54_exec.sample_begin) {
+        m54_exec.execution_us += g_get_monotonic_time() - m54_exec.sample_begin;
+        m54_exec.sample_begin = 0;
+        ++m54_exec.samples;
+    }
+}
+
+static void m54_tb_profile(CPUState *cpu, uint64_t pc)
+{
+    ++m54_exec.dispatches;
+    m54_exec.idle += pc == 0x8001b02f || pc == 0x8001b030;
+    if ((m54_exec.dispatches & 4095) != 0) return;
+    int64_t now = g_get_monotonic_time();
+    CPUX86State *env = &X86_CPU(cpu)->env;
+    if (!m54_exec.report_us) m54_exec.report_us = now;
+    if (now - m54_exec.report_us >= G_USEC_PER_SEC) {
+        uint32_t queue = 0, next = 0;
+        uint8_t bytes[4];
+        /* These offsets describe the idle-loop KPCR, not arbitrary EBX/EBP
+         * values in application code. Never probe a device address by mistake. */
+        bool idle_context = (pc == 0x8001b02f || pc == 0x8001b030) &&
+            env->regs[R_EBX] == env->segs[R_FS].base &&
+            env->regs[R_EBP] == env->regs[R_EBX] + 0x50 &&
+            env->regs[R_EBX] >= 0x80000000 && env->regs[R_EBX] < 0x83ffffa0;
+        bool queue_ok = idle_context &&
+            !cpu_memory_rw_debug(cpu, env->regs[R_EBP], bytes, 4, false);
+        if (queue_ok) queue = ldl_le_p(bytes);
+        bool next_ok = idle_context &&
+            !cpu_memory_rw_debug(cpu, env->regs[R_EBX] + 0x2c, bytes, 4, false);
+        if (next_ok) next = ldl_le_p(bytes);
+        __android_log_print(ANDROID_LOG_INFO, "BoxDroidM54",
+            "EXEC_WINDOW mono_us=%lld elapsed_us=%lld dispatch=%llu idle=%llu returns=%llu chain_returns=%llu exit0=%llu exit1=%llu requested=%llu lookup_hit=%llu lookup_miss=%llu mmio_reads=%llu mmio_writes=%llu samples=%llu execution_us=%llu pc=0x%llx queue_addr=0x%llx queue=0x%x queue_ok=%d next_addr=0x%llx next=0x%x next_ok=%d eflags=0x%x hflags=0x%x",
+            (long long)now, (long long)(now-m54_exec.report_us),
+            (unsigned long long)m54_exec.dispatches, (unsigned long long)m54_exec.idle,
+            (unsigned long long)m54_exec.returns, (unsigned long long)m54_exec.chains,
+            (unsigned long long)m54_exec.exits[0], (unsigned long long)m54_exec.exits[1],
+            (unsigned long long)m54_exec.exits[3], (unsigned long long)m54_exec.events[0],
+            (unsigned long long)m54_exec.events[1], (unsigned long long)m54_exec.reads,
+            (unsigned long long)m54_exec.writes, (unsigned long long)m54_exec.samples,
+            (unsigned long long)m54_exec.execution_us, (unsigned long long)pc,
+            (unsigned long long)env->regs[R_EBP], queue, queue_ok,
+            (unsigned long long)(env->regs[R_EBX]+0x2c), next, next_ok,
+            env->eflags, env->hflags);
+        memset(&m54_exec, 0, sizeof(m54_exec));
+        m54_exec.report_us = now;
+    }
+    m54_exec.sample_begin = g_get_monotonic_time();
+}
+#endif
+
 /* M5-only, single-vCPU window: start after the last changing white pixel has
  * been quiet for one second, then profile five seconds without per-TB logs. */
 void boxdroid_m5_diag_tb_exec(CPUState *cpu, uint64_t pc,
                               uintptr_t tb_id, uint16_t guest_insns)
 {
+#ifdef BOXDROID_M54_RUNTIME
+    m54_tb_profile(cpu, pc);
+#endif
 #ifdef BOXDROID_M53_RUNTIME
     m53_video_mode_probe(cpu, pc);
     m53_sample_progress(pc, tb_id, guest_insns);
@@ -629,6 +744,12 @@ void boxdroid_m5_diag_device_access(bool write, const char *region,
 {
     uint64_t pc;
     size_t i;
+#ifdef BOXDROID_M54_RUNTIME
+    if (cpu) {
+        if (write) ++m54_exec.writes;
+        else ++m54_exec.reads;
+    }
+#endif
 
     if (!m5_progress_started_us || m5_progress_ended_us || !cpu) {
         return;
@@ -1219,7 +1340,6 @@ static void m53_video_mode_probe(CPUState *cpu, uint64_t pc)
 }
 /* Sample 1/1024 TB entries for five wall-clock seconds after first green
  * scanout. No instruction logging, guest memory edits, or per-TB clock read. */
-static int64_t m53_pc_start;
 static bool m53_pc_done;
 static uint64_t m53_pc_ticks, m53_pc_overflow;
 static struct { uint64_t pc, hits, instructions; uintptr_t tb; } m53_pcs[512];
@@ -2725,6 +2845,9 @@ static void *run_xbox(void *unused)
     int status;
     (void) unused;
 
+#ifdef BOXDROID_M54_RUNTIME
+    qemu_thread_naming(true);
+#endif
     __android_log_print(ANDROID_LOG_INFO, TAG,
         "M5_QEMU_INPUT_PATHS bios=%s mcpx=%s hdd=%s machine_arg=%s hdd_arg=%s",
         arguments[4], runtime_mcpx_path, runtime_hdd_path,

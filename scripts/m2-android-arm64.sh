@@ -231,6 +231,12 @@ if [[ ! -e "$BUILD/meson-private/coredata.dat" ]]; then
         -Dvirtfs=disabled -Dmultiprocess=disabled -Ddocs=disabled \
         -Dfdt=enabled -Dlibcbor=enabled \
     )
+    # Opt-in release profile for isolated performance experiments. Existing
+    # milestone builds retain their original compiler and QOM debug options.
+    if [[ "${BOXDROID_M2_OPTIMIZED_BUILD:-0}" == 1 ]]; then
+        configure_args+=( -Doptimization=3 -Dqom_cast_debug=false
+                          -Db_lto=true -Db_lto_mode=thin )
+    fi
     if [[ "$ENABLE_SDL" == 1 ]]; then
         configure_args+=( --enable-sdl )
     else
@@ -264,6 +270,20 @@ else
     fi
 fi
 
+if [[ -n "${BOXDROID_M2_OPTIMIZED_BUILD+x}" ]]; then
+    python3 - "$BUILD/meson-info/intro-buildoptions.json" "$BOXDROID_M2_OPTIMIZED_BUILD" <<'PY'
+import json, sys
+options = {row['name']: row['value'] for row in json.load(open(sys.argv[1]))}
+optimized = sys.argv[2] == '1'
+expected = {'optimization': '3' if optimized else '2',
+            'qom_cast_debug': not optimized, 'b_lto': optimized}
+if optimized:
+    expected['b_lto_mode'] = 'thin'
+if any(options[key] != value for key, value in expected.items()):
+    raise SystemExit('build profile differs: select a fresh work root for this experiment')
+PY
+fi
+
 ninja_targets=( libsystem.a libcommon.a libblock.a libqemuutil.a )
 IFS=',' read -r -a configured_targets <<< "$TARGET_LIST"
 for target in "${configured_targets[@]}"; do
@@ -281,6 +301,15 @@ verify_aarch64() {
     local object="$1"
     [[ -s "$object" ]] || die "missing Android target object: $object"
     local header
+    if [[ "${BOXDROID_M2_OPTIMIZED_BUILD:-0}" == 1 ]] && file "$object" | rg -q 'LLVM IR bitcode'; then
+        # ThinLTO objects are IR until the shared-library link. Validate their
+        # target here; the runtime script still verifies the final ELF header.
+        "$NDK_BIN/llvm-dis" "$object" -o "$BUILD/verify-target.ll"
+        rg -q '^target triple = "aarch64-.*android' "$BUILD/verify-target.ll" ||
+            die "not Android AArch64 bitcode: $object"
+        echo "Verified Android AArch64 ThinLTO object: $object"
+        return
+    fi
     header="$("$NDK_BIN/llvm-readelf" -h "$object")"
     echo "$header" | rg -q 'Class:\s+ELF64' || die "not an ELF64 object: $object"
     echo "$header" | rg -q 'Machine:\s+AArch64' || die "not an AArch64 object: $object"

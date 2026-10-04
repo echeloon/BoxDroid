@@ -141,4 +141,10 @@ void boxdroid_m5_diag_device_access(bool write, const char *region,
                                     struct CPUState *cpu);
 void boxdroid_m5_diag_progress_summary(void);
 
+#ifdef BOXDROID_M54_RUNTIME
+void boxdroid_m54_tb_return(bool chained, unsigned exit_index);
+void boxdroid_m54_tcg_event(unsigned kind);
+void boxdroid_m54_lookup_pc(uint64_t pc);
+#endif
+
 #endif
