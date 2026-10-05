@@ -1,0 +1,136 @@
+diff --git a/hw/xbox/nv2a/pcrtc.c b/hw/xbox/nv2a/pcrtc.c
+index cc9f77c231..40341dfd0b 100644
+--- a/hw/xbox/nv2a/pcrtc.c
++++ b/hw/xbox/nv2a/pcrtc.c
+@@ -22,0 +23,3 @@
++#if defined(BOXDROID_M5_XBOX_RUNTIME)
++#include "hw/xbox/nv2a/boxdroid-m5-diagnostics.h"
++#endif
+@@ -67,0 +71,3 @@ void pcrtc_write(void *opaque, hwaddr addr, uint64_t val, unsigned int size)
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++        boxdroid_m5_diag_event(BOXDROID_M5_DIAG_PCRTC_START, val, 0, 0, 0, 0, 0);
++#endif
+diff --git a/hw/xbox/nv2a/pgraph/pgraph.c b/hw/xbox/nv2a/pgraph/pgraph.c
+index 9d8118fb49..fe092063c6 100644
+--- a/hw/xbox/nv2a/pgraph/pgraph.c
++++ b/hw/xbox/nv2a/pgraph/pgraph.c
+@@ -24,0 +25,3 @@
++#if defined(BOXDROID_M5_XBOX_RUNTIME)
++#include "hw/xbox/nv2a/boxdroid-m5-diagnostics.h"
++#endif
+@@ -933,0 +937,3 @@ DEF_METHOD(NV097, SET_CONTEXT_DMA_COLOR)
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++    boxdroid_m5_diag_event(BOXDROID_M5_DIAG_PGRAPH_COLOR_DMA, parameter, 0, 0, 0, 0, 0);
++#endif
+@@ -990,0 +997,3 @@ DEF_METHOD(NV097, SET_SURFACE_FORMAT)
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++    boxdroid_m5_diag_event(BOXDROID_M5_DIAG_PGRAPH_SURFACE_FORMAT, parameter, 0, 0, 0, 0, 0);
++#endif
+@@ -1013,0 +1023,3 @@ DEF_METHOD(NV097, SET_SURFACE_PITCH)
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++    boxdroid_m5_diag_event(BOXDROID_M5_DIAG_PGRAPH_SURFACE_PITCH, parameter, 0, 0, 0, 0, 0);
++#endif
+@@ -1026,0 +1039,3 @@ DEF_METHOD(NV097, SET_SURFACE_COLOR_OFFSET)
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++    boxdroid_m5_diag_event(BOXDROID_M5_DIAG_PGRAPH_COLOR_OFFSET, parameter, 0, 0, 0, 0, 0);
++#endif
+diff --git a/hw/xbox/nv2a/pgraph/vk/renderer.c b/hw/xbox/nv2a/pgraph/vk/renderer.c
+index 96c853c5cf..de3be0fc1a 100644
+--- a/hw/xbox/nv2a/pgraph/vk/renderer.c
++++ b/hw/xbox/nv2a/pgraph/vk/renderer.c
+@@ -20,0 +21,3 @@
++#if defined(BOXDROID_M5_XBOX_RUNTIME)
++#include "hw/xbox/nv2a/boxdroid-m5-diagnostics.h"
++#endif
+@@ -197,0 +201 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
++    int display_width = 0, display_height = 0;
+@@ -198,0 +203,7 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
++    d->vga.get_resolution(&d->vga, &display_width, &display_height);
++    hwaddr scanout_address = d->pcrtc.start + vga_display_params.line_offset;
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++    boxdroid_m5_diag_event(BOXDROID_M5_DIAG_FRAMEBUFFER_LOOKUP,
++                           scanout_address, vga_display_params.line_offset,
++                           display_width, display_height, 0, 0);
++#endif
+@@ -200,2 +211 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
+-    SurfaceBinding *surface = pgraph_vk_surface_get_within(
+-        d, d->pcrtc.start + vga_display_params.line_offset);
++    SurfaceBinding *surface = pgraph_vk_surface_get_within(d, scanout_address);
+@@ -203 +213,10 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
+-#ifdef __ANDROID__
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++        boxdroid_m5_diag_event(BOXDROID_M5_DIAG_FRAMEBUFFER_MISS,
++                               scanout_address,
++                               surface ? surface->vram_addr : UINT64_MAX,
++                               surface ? surface->size : 0,
++                               vga_display_params.line_offset,
++                               surface ? surface->width : display_width,
++                               surface ? surface->height : display_height);
++#endif
++#if defined(__ANDROID__) && !defined(BOXDROID_M5_XBOX_RUNTIME)
+@@ -215,0 +235,5 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++    boxdroid_m5_diag_event(BOXDROID_M5_DIAG_FRAMEBUFFER_HIT,
++                           scanout_address, surface->vram_addr, surface->size,
++                           surface->pitch, surface->width, surface->height);
++#endif
+@@ -228,0 +253,5 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++    boxdroid_m5_diag_event(BOXDROID_M5_DIAG_READBACK_BEGIN,
++                           surface->width, surface->height, 0, 0, 0, 0);
++#endif
++#if !defined(BOXDROID_M5_XBOX_RUNTIME)
+@@ -231,0 +261 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
++#endif
+@@ -234,0 +265,5 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++    boxdroid_m5_diag_event(BOXDROID_M5_DIAG_READBACK_COMPLETE,
++                           surface->width, surface->height, 0, 0, 0, 0);
++#endif
++#if !defined(BOXDROID_M5_XBOX_RUNTIME)
+@@ -236,0 +272 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
++#endif
+diff --git a/hw/xbox/nv2a/pgraph/vk/surface.c b/hw/xbox/nv2a/pgraph/vk/surface.c
+index 9d438f2d7b..8caa31be56 100644
+--- a/hw/xbox/nv2a/pgraph/vk/surface.c
++++ b/hw/xbox/nv2a/pgraph/vk/surface.c
+@@ -26,0 +27,3 @@
++#if defined(BOXDROID_M5_XBOX_RUNTIME)
++#include "hw/xbox/nv2a/boxdroid-m5-diagnostics.h"
++#endif
+@@ -1531,0 +1535,7 @@ static void update_surface_part(NV2AState *d, bool upload, bool color)
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++            if (color) {
++                boxdroid_m5_diag_event(BOXDROID_M5_DIAG_COLOR_BINDING,
++                                       target.vram_addr, target.size, target.pitch,
++                                       target.width, target.height, 0);
++            }
++#endif
+diff --git a/hw/xbox/nv2a/prmcio.c b/hw/xbox/nv2a/prmcio.c
+index d75e14a518..91e77f46a0 100644
+--- a/hw/xbox/nv2a/prmcio.c
++++ b/hw/xbox/nv2a/prmcio.c
+@@ -22,0 +23,4 @@
++#include "hw/display/vga_regs.h"
++#if defined(BOXDROID_M5_XBOX_RUNTIME)
++#include "hw/xbox/nv2a/boxdroid-m5-diagnostics.h"
++#endif
+@@ -54,0 +59,12 @@ void prmcio_write(void *opaque, hwaddr addr, uint64_t val, unsigned int size)
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++    if (addr == VGA_CRT_DC &&
++        (d->vga.cr_index == VGA_CRTC_H_DISP ||
++         d->vga.cr_index == VGA_CRTC_V_DISP_END ||
++         d->vga.cr_index == VGA_CRTC_OFFSET ||
++         d->vga.cr_index == VGA_CRTC_MODE ||
++         d->vga.cr_index == VGA_CRTC_START_HI ||
++         d->vga.cr_index == VGA_CRTC_START_LO)) {
++        boxdroid_m5_diag_event(BOXDROID_M5_DIAG_VGA_CRTC_WRITE,
++                               d->vga.cr_index, val, 0, 0, 0, 0);
++    }
++#endif
+diff --git a/meson.build b/meson.build
+index e28737ca42..95eb9319a3 100644
+--- a/meson.build
++++ b/meson.build
+@@ -39,0 +40 @@ if get_option('boxdroid_m5_xbox_runtime') and host_os == 'android'
++  add_project_arguments('-DBOXDROID_M5_XBOX_RUNTIME=1', language: 'c')

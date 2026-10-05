@@ -1,0 +1,81 @@
+diff --git a/hw/xbox/xbox.c b/hw/xbox/xbox.c
+--- a/hw/xbox/xbox.c
++++ b/hw/xbox/xbox.c
+@@ -56,0 +57,3 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++#include "system/boxdroid-m5-diagnostics.h"
++#endif
+@@ -74,0 +78,5 @@
++
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++    boxdroid_m5_diag_firmware_event("BIOS", "resolve", filename,
++                                    filename != NULL, 0);
++#endif
+@@ -89,0 +98,4 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++        boxdroid_m5_diag_firmware_event("BIOS", "open_attempt", filename,
++                                        -1, bios_size);
++#endif
+@@ -90,0 +103,4 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++        boxdroid_m5_diag_firmware_event("BIOS", "open_result", filename,
++                                        fd >= 0 ? 0 : -errno, bios_size);
++#endif
+@@ -92,0 +109,4 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++            boxdroid_m5_diag_firmware_event("BIOS", "read_result", filename,
++                                            rc, rc > 0 ? rc : 0);
++#endif
+@@ -147,0 +168,6 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++        boxdroid_m5_diag_firmware_event("MCPX", "resolve", filename,
++                                        filename != NULL, 0);
++        boxdroid_m5_diag_firmware_event("MCPX", "open_attempt", filename,
++                                        -1, 512);
++#endif
+@@ -159,0 +186,4 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++        boxdroid_m5_diag_firmware_event("MCPX", "open_result", filename,
++                                        fd >= 0 ? 0 : -errno, 512);
++#endif
+@@ -161,0 +192,4 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++        boxdroid_m5_diag_firmware_event("MCPX", "read_result", filename,
++                                        rc, rc > 0 ? rc : 0);
++#endif
+diff --git a/block/qcow2.c b/block/qcow2.c
+--- a/block/qcow2.c
++++ b/block/qcow2.c
+@@ -25,0 +26,3 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++#include "system/boxdroid-m5-diagnostics.h"
++#endif
+@@ -2041,0 +2045,4 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++    boxdroid_m5_diag_hdd_open(bs->filename, -EINPROGRESS, 0);
++#endif
++
+@@ -2043,0 +2051,3 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++        boxdroid_m5_diag_hdd_open(bs->filename, ret, 0);
++#endif
+@@ -2056,0 +2067,5 @@
++
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++    boxdroid_m5_diag_hdd_open(bs->filename, qoc.ret,
++        qoc.ret == 0 ? bs->total_sectors * BDRV_SECTOR_SIZE : 0);
++#endif
+@@ -2477,0 +2493 @@
++    int64_t diag_offset = offset, diag_bytes = bytes;
+@@ -2531,0 +2548,4 @@
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++    boxdroid_m5_diag_hdd_io(false, bs->filename, diag_offset, diag_bytes, ret);
++#endif
++
+@@ -2767,0 +2788 @@
++    int64_t diag_offset = offset, diag_bytes = bytes;
+@@ -2840,0 +2862,4 @@
++
++#ifdef BOXDROID_M5_XBOX_RUNTIME
++    boxdroid_m5_diag_hdd_io(true, bs->filename, diag_offset, diag_bytes, ret);
++#endif
