@@ -8,29 +8,22 @@ if (m5BuildRoot == null) {
 }
 
 android {
-    namespace 'org.boxdroid.m7'
+    namespace 'org.boxdroid'
     compileSdk 36
     buildToolsVersion '36.0.0'
     ndkVersion '30.0.16248370'
 
     defaultConfig {
-        applicationId 'org.boxdroid.m7'
+        applicationId 'org.boxdroid'
         minSdk 26
         targetSdk 33
         versionCode 1
-        versionName '0.7.0'
+        versionName '1.0.0'
         ndk { abiFilters 'arm64-v8a' }
     }
 
     sourceSets {
         main {
-            java.srcDirs += [
-                file('../../m5/app/src/main/java'),
-                file('../../m53/app/src/main/java'),
-                file('../../m6/app/src/main/java'),
-                file('../../m61/app/src/main/java'),
-                file('../../m62/app/src/main/java')
-            ]
             jniLibs.srcDirs = ["${m5BuildRoot}/jniLibs"]
             assets.srcDirs = ["${m5BuildRoot}/assets"]
         }

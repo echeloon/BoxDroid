@@ -7,7 +7,7 @@
         android:theme="@style/Theme.BoxDroid">
         
         <activity
-            android:name="org.boxdroid.m7.FrontendActivity"
+            android:name=".FrontendActivity"
             android:configChanges="orientation|screenSize|smallestScreenSize"
             android:exported="true"
             android:screenOrientation="landscape">
@@ -18,7 +18,7 @@
         </activity>
 
         <activity
-            android:name="org.boxdroid.m62.GameActivity"
+            android:name=".GameActivity"
             android:configChanges="orientation|screenSize|smallestScreenSize"
             android:exported="false"
             android:process=":emulator"

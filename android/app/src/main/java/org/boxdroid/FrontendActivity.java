@@ -1,4 +1,4 @@
-package org.boxdroid.m7;
+package org.boxdroid;
 
 import android.app.Activity;
 import android.content.Context;

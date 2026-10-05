@@ -1,45 +1,25 @@
-package org.boxdroid.m62;
+package org.boxdroid;
 
-import android.app.Activity;
-import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 
-import org.boxdroid.m61.M61Activity;
+import org.boxdroid.M61Activity;
 
-
-public class GameActivity extends M61Activity {
-    private static final String TAG = "BoxDroidM7_Game";
-    private static final int REQUEST_XISO = 6101;
-    
+/** M6.1 picker/game/audio baseline with Android physical input delivery. */
+public final class M62Activity extends M61Activity {
+    private static final String TAG = "BoxDroidM62";
     private M62Input physicalInput;
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        
+    protected void onCreate(Bundle state) {
+        super.onCreate(state);
         physicalInput = new M62Input(this);
         physicalInput.start();
         Log.i(TAG, "INPUT_LAYER_READY host=Android_Gamepad_Joystick slots=4 guest=XID_Duke");
-        
-        Uri uri = getIntent().getData();
-        if (uri != null) {
-            Log.i(TAG, "Received game URI: " + uri);
-            Intent fakeResult = new Intent();
-            fakeResult.setData(uri);
-            fakeResult.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            
-            // This tricks M61Activity into thinking the picker just returned
-            onActivityResult(REQUEST_XISO, Activity.RESULT_OK, fakeResult);
-        } else {
-            Log.e(TAG, "No game URI provided, finishing");
-            finish();
-        }
     }
-    
+
     @Override
     protected void onResume() {
         super.onResume();
@@ -59,9 +39,6 @@ public class GameActivity extends M61Activity {
             physicalInput = null;
         }
         super.onDestroy();
-        // Since the native emulator is not re-entrant, we must kill the emulator process
-        // when the activity is destroyed to ensure a clean slate for the next game.
-        System.exit(0);
     }
 
     @Override
