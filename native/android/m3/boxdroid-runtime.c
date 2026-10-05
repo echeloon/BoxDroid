@@ -20,7 +20,7 @@
 #define WATCHDOG_SECONDS 20
 
 JNIEXPORT jint JNICALL
-Java_org_boxdroid_m3_MainActivity_nativeRunTcgTest(JNIEnv *env, jobject self,
+Java_org_boxdroid_MainActivity_nativeRunTcgTest(JNIEnv *env, jobject self,
                                                    jstring guest,
                                                    jstring serial,
                                                    jstring trace);
@@ -286,7 +286,7 @@ void boxdroid_runtime_request_shutdown(void)
 }
 
 JNIEXPORT jint JNICALL
-Java_org_boxdroid_m3_MainActivity_nativeRunTcgTest(JNIEnv *env, jobject self,
+Java_org_boxdroid_MainActivity_nativeRunTcgTest(JNIEnv *env, jobject self,
                                                    jstring guest,
                                                    jstring serial,
                                                    jstring trace)

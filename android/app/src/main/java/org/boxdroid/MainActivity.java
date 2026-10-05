@@ -83,7 +83,7 @@ public class MainActivity extends Activity {
         root.addView(surfaceView, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         setContentView(root);
-        File directory = new File(getExternalFilesDir(null), "m5");
+        File directory = getExternalFilesDir(null);
         Log.i(TAG, "M5_PATHS directory=" + directory.getAbsolutePath());
         surfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
             private boolean created;

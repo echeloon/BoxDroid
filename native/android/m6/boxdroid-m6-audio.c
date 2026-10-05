@@ -17,17 +17,17 @@
 #define M6_RING_FRAMES 2048
 
 JNIEXPORT jint JNICALL
-Java_org_boxdroid_m6_M6Activity_nativeM6AudioInitialize(JNIEnv *env, jobject self);
+Java_org_boxdroid_M6Activity_nativeM6AudioInitialize(JNIEnv *env, jobject self);
 JNIEXPORT void JNICALL
-Java_org_boxdroid_m6_M6Activity_nativeM6AudioSetFocus(JNIEnv *env, jobject self,
+Java_org_boxdroid_M6Activity_nativeM6AudioSetFocus(JNIEnv *env, jobject self,
                                                        jboolean focused);
 JNIEXPORT void JNICALL
-Java_org_boxdroid_m6_M6Activity_nativeM6AudioSetForeground(JNIEnv *env, jobject self,
+Java_org_boxdroid_M6Activity_nativeM6AudioSetForeground(JNIEnv *env, jobject self,
                                                             jboolean foreground);
 JNIEXPORT jstring JNICALL
-Java_org_boxdroid_m6_M6Activity_nativeM6AudioOverlayMetrics(JNIEnv *env, jobject self);
+Java_org_boxdroid_M6Activity_nativeM6AudioOverlayMetrics(JNIEnv *env, jobject self);
 JNIEXPORT void JNICALL
-Java_org_boxdroid_m6_M6Activity_nativeM6AudioShutdown(JNIEnv *env, jobject self);
+Java_org_boxdroid_M6Activity_nativeM6AudioShutdown(JNIEnv *env, jobject self);
 
 typedef struct M6StereoFrame {
     int16_t channel[M6_CHANNELS];
@@ -499,7 +499,7 @@ void boxdroid_m6_audio_format_metrics(char *buffer, uint32_t buffer_size)
 }
 
 JNIEXPORT jint JNICALL
-Java_org_boxdroid_m6_M6Activity_nativeM6AudioInitialize(JNIEnv *env, jobject self)
+Java_org_boxdroid_M6Activity_nativeM6AudioInitialize(JNIEnv *env, jobject self)
 {
     (void)env;
     (void)self;
@@ -507,7 +507,7 @@ Java_org_boxdroid_m6_M6Activity_nativeM6AudioInitialize(JNIEnv *env, jobject sel
 }
 
 JNIEXPORT void JNICALL
-Java_org_boxdroid_m6_M6Activity_nativeM6AudioSetFocus(JNIEnv *env, jobject self,
+Java_org_boxdroid_M6Activity_nativeM6AudioSetFocus(JNIEnv *env, jobject self,
                                                        jboolean focused)
 {
     (void)env;
@@ -516,7 +516,7 @@ Java_org_boxdroid_m6_M6Activity_nativeM6AudioSetFocus(JNIEnv *env, jobject self,
 }
 
 JNIEXPORT void JNICALL
-Java_org_boxdroid_m6_M6Activity_nativeM6AudioSetForeground(JNIEnv *env, jobject self,
+Java_org_boxdroid_M6Activity_nativeM6AudioSetForeground(JNIEnv *env, jobject self,
                                                             jboolean is_foreground)
 {
     (void)env;
@@ -525,7 +525,7 @@ Java_org_boxdroid_m6_M6Activity_nativeM6AudioSetForeground(JNIEnv *env, jobject 
 }
 
 JNIEXPORT jstring JNICALL
-Java_org_boxdroid_m6_M6Activity_nativeM6AudioOverlayMetrics(JNIEnv *env, jobject self)
+Java_org_boxdroid_M6Activity_nativeM6AudioOverlayMetrics(JNIEnv *env, jobject self)
 {
     char metrics[192];
     (void)self;
@@ -534,7 +534,7 @@ Java_org_boxdroid_m6_M6Activity_nativeM6AudioOverlayMetrics(JNIEnv *env, jobject
 }
 
 JNIEXPORT void JNICALL
-Java_org_boxdroid_m6_M6Activity_nativeM6AudioShutdown(JNIEnv *env, jobject self)
+Java_org_boxdroid_M6Activity_nativeM6AudioShutdown(JNIEnv *env, jobject self)
 {
     (void)env;
     (void)self;

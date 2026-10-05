@@ -121,7 +121,7 @@ bool boxdroid_m62_input_snapshot_primary(BoxDroidM62InputState *state)
 }
 
 JNIEXPORT void JNICALL
-Java_org_boxdroid_m62_M62Input_nativeSetState(JNIEnv *env, jclass type,
+Java_org_boxdroid_M62Input_nativeSetState(JNIEnv *env, jclass type,
         jint slot, jint device_id, jboolean connected, jint buttons,
         jfloat left_x, jfloat left_y, jfloat right_x, jfloat right_y,
         jfloat left_trigger, jfloat right_trigger)
@@ -146,7 +146,7 @@ Java_org_boxdroid_m62_M62Input_nativeSetState(JNIEnv *env, jclass type,
 }
 
 JNIEXPORT void JNICALL
-Java_org_boxdroid_m62_M62Input_nativeClearAll(JNIEnv *env, jclass type)
+Java_org_boxdroid_M62Input_nativeClearAll(JNIEnv *env, jclass type)
 {
     (void)env;
     (void)type;
@@ -155,7 +155,7 @@ Java_org_boxdroid_m62_M62Input_nativeClearAll(JNIEnv *env, jclass type)
 }
 
 JNIEXPORT void JNICALL
-Java_org_boxdroid_m62_M62Input_nativeSelectPrimary(JNIEnv *env, jclass type,
+Java_org_boxdroid_M62Input_nativeSelectPrimary(JNIEnv *env, jclass type,
                                                     jint slot)
 {
     (void)env;

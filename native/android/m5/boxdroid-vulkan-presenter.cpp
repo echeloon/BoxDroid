@@ -952,13 +952,13 @@ std::string diagnostics() {
 }
 } // namespace
 
-extern "C" JNIEXPORT jboolean JNICALL Java_org_boxdroid_m5_MainActivity_nativeM4SurfaceCreated(JNIEnv *, jobject, jobject, jint, jint, jint);
-extern "C" JNIEXPORT jboolean JNICALL Java_org_boxdroid_m5_MainActivity_nativeM4SurfaceChanged(JNIEnv *, jobject, jint, jint);
-extern "C" JNIEXPORT jboolean JNICALL Java_org_boxdroid_m5_MainActivity_nativeM4PresentFrame(JNIEnv *, jobject);
-extern "C" JNIEXPORT void JNICALL Java_org_boxdroid_m5_MainActivity_nativeM4SurfaceDestroyed(JNIEnv *, jobject);
-extern "C" JNIEXPORT jstring JNICALL Java_org_boxdroid_m5_MainActivity_nativeM4Diagnostics(JNIEnv *, jobject);
-extern "C" JNIEXPORT void JNICALL Java_org_boxdroid_m5_MainActivity_nativeM4Shutdown(JNIEnv *, jobject);
-extern "C" JNIEXPORT jlong JNICALL Java_org_boxdroid_m5_OverlayActivity_nativeM52PresentedFrames(JNIEnv *, jobject);
+extern "C" JNIEXPORT jboolean JNICALL Java_org_boxdroid_MainActivity_nativeM4SurfaceCreated(JNIEnv *, jobject, jobject, jint, jint, jint);
+extern "C" JNIEXPORT jboolean JNICALL Java_org_boxdroid_MainActivity_nativeM4SurfaceChanged(JNIEnv *, jobject, jint, jint);
+extern "C" JNIEXPORT jboolean JNICALL Java_org_boxdroid_MainActivity_nativeM4PresentFrame(JNIEnv *, jobject);
+extern "C" JNIEXPORT void JNICALL Java_org_boxdroid_MainActivity_nativeM4SurfaceDestroyed(JNIEnv *, jobject);
+extern "C" JNIEXPORT jstring JNICALL Java_org_boxdroid_MainActivity_nativeM4Diagnostics(JNIEnv *, jobject);
+extern "C" JNIEXPORT void JNICALL Java_org_boxdroid_MainActivity_nativeM4Shutdown(JNIEnv *, jobject);
+extern "C" JNIEXPORT jlong JNICALL Java_org_boxdroid_OverlayActivity_nativeM52PresentedFrames(JNIEnv *, jobject);
 
 extern "C" bool boxdroid_android_present_rgba(const uint8_t *, uint32_t,
                                                 uint32_t, uint32_t);
@@ -978,7 +978,7 @@ extern "C" bool boxdroid_android_present_rgba(const uint8_t *pixels,
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_org_boxdroid_m5_MainActivity_nativeM4SurfaceCreated(JNIEnv *env, jobject, jobject surface, jint width, jint height, jint generation) {
+Java_org_boxdroid_MainActivity_nativeM4SurfaceCreated(JNIEnv *env, jobject, jobject surface, jint width, jint height, jint generation) {
     std::lock_guard<std::mutex> guard(presenterLock);
     const bool ok = createSurface(env, surface, static_cast<uint32_t>(std::max(width, 1)),
         static_cast<uint32_t>(std::max(height, 1)), static_cast<uint32_t>(generation));
@@ -987,7 +987,7 @@ Java_org_boxdroid_m5_MainActivity_nativeM4SurfaceCreated(JNIEnv *env, jobject, j
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_org_boxdroid_m5_MainActivity_nativeM4SurfaceChanged(JNIEnv *, jobject, jint width, jint height) {
+Java_org_boxdroid_MainActivity_nativeM4SurfaceChanged(JNIEnv *, jobject, jint width, jint height) {
     std::lock_guard<std::mutex> guard(presenterLock);
     const bool ok = resizeSurface(static_cast<uint32_t>(std::max(width, 1)), static_cast<uint32_t>(std::max(height, 1)));
     log(ok ? ANDROID_LOG_INFO : ANDROID_LOG_ERROR, std::string("M4_SURFACE_CHANGED result=") + (ok ? "PASS" : "FAIL"));
@@ -995,19 +995,19 @@ Java_org_boxdroid_m5_MainActivity_nativeM4SurfaceChanged(JNIEnv *, jobject, jint
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_org_boxdroid_m5_MainActivity_nativeM4PresentFrame(JNIEnv *, jobject) {
+Java_org_boxdroid_MainActivity_nativeM4PresentFrame(JNIEnv *, jobject) {
     std::lock_guard<std::mutex> guard(presenterLock);
     return presentFrame() ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_org_boxdroid_m5_MainActivity_nativeM4SurfaceDestroyed(JNIEnv *, jobject) {
+Java_org_boxdroid_MainActivity_nativeM4SurfaceDestroyed(JNIEnv *, jobject) {
     std::lock_guard<std::mutex> guard(presenterLock);
     destroySurface();
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_org_boxdroid_m5_MainActivity_nativeM4Diagnostics(JNIEnv *env, jobject) {
+Java_org_boxdroid_MainActivity_nativeM4Diagnostics(JNIEnv *env, jobject) {
     std::lock_guard<std::mutex> guard(presenterLock);
     const std::string result = diagnostics();
     log(ANDROID_LOG_INFO, "M4_DIAGNOSTICS=" + result);
@@ -1017,12 +1017,12 @@ Java_org_boxdroid_m5_MainActivity_nativeM4Diagnostics(JNIEnv *env, jobject) {
 // Read only the completed-present counter for the Android performance view.
 // Guest execution, NV2A rendering, and scanout never depend on this query.
 extern "C" JNIEXPORT jlong JNICALL
-Java_org_boxdroid_m5_OverlayActivity_nativeM52PresentedFrames(JNIEnv *, jobject) {
+Java_org_boxdroid_OverlayActivity_nativeM52PresentedFrames(JNIEnv *, jobject) {
     return static_cast<jlong>(overlayPresentedFrames.load(std::memory_order_relaxed));
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_org_boxdroid_m5_MainActivity_nativeM4Shutdown(JNIEnv *, jobject) {
+Java_org_boxdroid_MainActivity_nativeM4Shutdown(JNIEnv *, jobject) {
     std::lock_guard<std::mutex> guard(presenterLock);
     destroySurface();
     if (p.device) {
@@ -1044,7 +1044,7 @@ Java_org_boxdroid_m5_MainActivity_nativeM4Shutdown(JNIEnv *, jobject) {
 
 #ifdef BOXDROID_M53_RUNTIME
 extern "C" JNIEXPORT jlong JNICALL
-Java_org_boxdroid_m5_PerformanceActivity_nativeM53PresentedFrames(JNIEnv *, jobject) {
+Java_org_boxdroid_PerformanceActivity_nativeM53PresentedFrames(JNIEnv *, jobject) {
     return overlayPresentedFrames.load(std::memory_order_relaxed);
 }
 #endif

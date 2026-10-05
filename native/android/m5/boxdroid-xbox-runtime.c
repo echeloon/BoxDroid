@@ -1048,11 +1048,11 @@ void xemu_queue_notification(const char *message);
 void xemu_queue_error_message(const char *message);
 
 JNIEXPORT jint JNICALL
-Java_org_boxdroid_m5_MainActivity_nativeXboxStart(JNIEnv *env, jobject self,
+Java_org_boxdroid_MainActivity_nativeXboxStart(JNIEnv *env, jobject self,
                                                    jstring bios, jstring mcpx,
                                                    jstring hdd, jstring log);
 JNIEXPORT jint JNICALL
-Java_org_boxdroid_m5_MainActivity_nativeXboxStop(JNIEnv *env, jobject self);
+Java_org_boxdroid_MainActivity_nativeXboxStop(JNIEnv *env, jobject self);
 
 typedef struct BoxDroidM5VideoStats {
     uint64_t hash;
@@ -1397,7 +1397,7 @@ static int64_t m53_report_us, m53_period_us, m53_last_start_us;
 static int64_t m53_scanout_us, m53_bql_us, m53_refresh_us, m53_present_us;
 static int64_t m53_conversion_us;
 JNIEXPORT jlong JNICALL
-Java_org_boxdroid_m5_PerformanceActivity_nativeM53UniqueFrames(JNIEnv *env, jobject self)
+Java_org_boxdroid_PerformanceActivity_nativeM53UniqueFrames(JNIEnv *env, jobject self)
 {
     return __atomic_load_n(&m53_unique, __ATOMIC_RELAXED);
 }
@@ -2989,7 +2989,7 @@ static void *run_xbox(void *unused)
 }
 
 JNIEXPORT jint JNICALL
-Java_org_boxdroid_m5_MainActivity_nativeXboxStart(JNIEnv *env, jobject self,
+Java_org_boxdroid_MainActivity_nativeXboxStart(JNIEnv *env, jobject self,
                                                    jstring bios, jstring mcpx,
                                                    jstring hdd, jstring log)
 {
@@ -3142,7 +3142,7 @@ Java_org_boxdroid_m5_MainActivity_nativeXboxStart(JNIEnv *env, jobject self,
 
 #ifdef BOXDROID_M55_RUNTIME
 JNIEXPORT jint JNICALL
-Java_org_boxdroid_m5_MainActivity_nativeXboxStartWithDvd(JNIEnv *env, jobject self,
+Java_org_boxdroid_MainActivity_nativeXboxStartWithDvd(JNIEnv *env, jobject self,
                                                           jstring bios, jstring mcpx,
                                                           jstring hdd, jstring log,
                                                           jint selected_fd,
@@ -3197,7 +3197,7 @@ Java_org_boxdroid_m5_MainActivity_nativeXboxStartWithDvd(JNIEnv *env, jobject se
         " first_byte_read=1 last_byte_read=1 owner=QEMU_add-fd",
         M55_DVD_FDSET, m55_dvd_expected_size);
 
-    result = Java_org_boxdroid_m5_MainActivity_nativeXboxStart(
+    result = Java_org_boxdroid_MainActivity_nativeXboxStart(
         env, self, bios, mcpx, hdd, log);
     if (result != 0 && m55_dvd_source_fd >= 0) {
         close(m55_dvd_source_fd);
@@ -3209,7 +3209,7 @@ Java_org_boxdroid_m5_MainActivity_nativeXboxStartWithDvd(JNIEnv *env, jobject se
 #endif
 
 JNIEXPORT jint JNICALL
-Java_org_boxdroid_m5_MainActivity_nativeXboxStop(JNIEnv *env, jobject self)
+Java_org_boxdroid_MainActivity_nativeXboxStop(JNIEnv *env, jobject self)
 {
     (void) env;
     (void) self;

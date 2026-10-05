@@ -441,15 +441,15 @@ std::string diagnostics() {
 }
 } // namespace
 
-extern "C" JNIEXPORT jboolean JNICALL Java_org_boxdroid_m3_MainActivity_nativeM4SurfaceCreated(JNIEnv *, jobject, jobject, jint, jint, jint);
-extern "C" JNIEXPORT jboolean JNICALL Java_org_boxdroid_m3_MainActivity_nativeM4SurfaceChanged(JNIEnv *, jobject, jint, jint);
-extern "C" JNIEXPORT jboolean JNICALL Java_org_boxdroid_m3_MainActivity_nativeM4PresentFrame(JNIEnv *, jobject);
-extern "C" JNIEXPORT void JNICALL Java_org_boxdroid_m3_MainActivity_nativeM4SurfaceDestroyed(JNIEnv *, jobject);
-extern "C" JNIEXPORT jstring JNICALL Java_org_boxdroid_m3_MainActivity_nativeM4Diagnostics(JNIEnv *, jobject);
-extern "C" JNIEXPORT void JNICALL Java_org_boxdroid_m3_MainActivity_nativeM4Shutdown(JNIEnv *, jobject);
+extern "C" JNIEXPORT jboolean JNICALL Java_org_boxdroid_MainActivity_nativeM4SurfaceCreated(JNIEnv *, jobject, jobject, jint, jint, jint);
+extern "C" JNIEXPORT jboolean JNICALL Java_org_boxdroid_MainActivity_nativeM4SurfaceChanged(JNIEnv *, jobject, jint, jint);
+extern "C" JNIEXPORT jboolean JNICALL Java_org_boxdroid_MainActivity_nativeM4PresentFrame(JNIEnv *, jobject);
+extern "C" JNIEXPORT void JNICALL Java_org_boxdroid_MainActivity_nativeM4SurfaceDestroyed(JNIEnv *, jobject);
+extern "C" JNIEXPORT jstring JNICALL Java_org_boxdroid_MainActivity_nativeM4Diagnostics(JNIEnv *, jobject);
+extern "C" JNIEXPORT void JNICALL Java_org_boxdroid_MainActivity_nativeM4Shutdown(JNIEnv *, jobject);
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_org_boxdroid_m3_MainActivity_nativeM4SurfaceCreated(JNIEnv *env, jobject, jobject surface, jint width, jint height, jint generation) {
+Java_org_boxdroid_MainActivity_nativeM4SurfaceCreated(JNIEnv *env, jobject, jobject surface, jint width, jint height, jint generation) {
     const bool ok = createSurface(env, surface, static_cast<uint32_t>(std::max(width, 1)),
         static_cast<uint32_t>(std::max(height, 1)), static_cast<uint32_t>(generation));
     log(ok ? ANDROID_LOG_INFO : ANDROID_LOG_ERROR, std::string("M4_SURFACE_CREATED result=") + (ok ? "PASS" : "FAIL") + " generation=" + std::to_string(generation));
@@ -457,31 +457,31 @@ Java_org_boxdroid_m3_MainActivity_nativeM4SurfaceCreated(JNIEnv *env, jobject, j
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_org_boxdroid_m3_MainActivity_nativeM4SurfaceChanged(JNIEnv *, jobject, jint width, jint height) {
+Java_org_boxdroid_MainActivity_nativeM4SurfaceChanged(JNIEnv *, jobject, jint width, jint height) {
     const bool ok = resizeSurface(static_cast<uint32_t>(std::max(width, 1)), static_cast<uint32_t>(std::max(height, 1)));
     log(ok ? ANDROID_LOG_INFO : ANDROID_LOG_ERROR, std::string("M4_SURFACE_CHANGED result=") + (ok ? "PASS" : "FAIL"));
     return ok ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_org_boxdroid_m3_MainActivity_nativeM4PresentFrame(JNIEnv *, jobject) {
+Java_org_boxdroid_MainActivity_nativeM4PresentFrame(JNIEnv *, jobject) {
     return presentFrame() ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_org_boxdroid_m3_MainActivity_nativeM4SurfaceDestroyed(JNIEnv *, jobject) {
+Java_org_boxdroid_MainActivity_nativeM4SurfaceDestroyed(JNIEnv *, jobject) {
     destroySurface();
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_org_boxdroid_m3_MainActivity_nativeM4Diagnostics(JNIEnv *env, jobject) {
+Java_org_boxdroid_MainActivity_nativeM4Diagnostics(JNIEnv *env, jobject) {
     const std::string result = diagnostics();
     log(ANDROID_LOG_INFO, "M4_DIAGNOSTICS=" + result);
     return env->NewStringUTF(result.c_str());
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_org_boxdroid_m3_MainActivity_nativeM4Shutdown(JNIEnv *, jobject) {
+Java_org_boxdroid_MainActivity_nativeM4Shutdown(JNIEnv *, jobject) {
     destroySurface();
     if (p.device) {
         vkDeviceWaitIdle(p.device);
