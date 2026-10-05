@@ -96,7 +96,7 @@ public class FrontendActivity extends Activity {
     }
 
     private void startGame(String uriString) {
-        Intent intent = new Intent(this, org.boxdroid.m62.GameActivity.class);
+        Intent intent = new Intent(this, org.boxdroid.GameActivity.class);
         intent.setData(Uri.parse(uriString));
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         startActivity(intent);
