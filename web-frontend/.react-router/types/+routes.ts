@@ -27,6 +27,10 @@ type RouteFiles = {
     id: "root";
     page: "/" | "/library" | "/settings";
   };
+  "routes/matrix-layout.tsx": {
+    id: "routes/matrix-layout";
+    page: "/" | "/library" | "/settings";
+  };
   "routes/_index.tsx": {
     id: "routes/_index";
     page: "/";
@@ -43,6 +47,7 @@ type RouteFiles = {
 
 type RouteModules = {
   "root": typeof import("./app/root.tsx");
+  "routes/matrix-layout": typeof import("./app/routes/matrix-layout.tsx");
   "routes/_index": typeof import("./app/routes/_index.tsx");
   "routes/library": typeof import("./app/routes/library.tsx");
   "routes/settings": typeof import("./app/routes/settings.tsx");

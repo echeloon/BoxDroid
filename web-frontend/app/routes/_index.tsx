@@ -23,7 +23,7 @@ export default function Index() {
   }, []);
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center space-y-6" style={{ marginTop: '20vh' }}>
+    <div className="home-content flex-1 flex flex-col items-center space-y-6" style={{ paddingTop: '20vh' }}>
       <h1 className="text-4xl font-bold mb-8">BoxDroid</h1>
       
       {canPlay ? (
@@ -31,7 +31,7 @@ export default function Index() {
           <Gamepad2 /> Play Games
         </Link>
       ) : (
-        <button 
+        <button
           onClick={() => alert("Load BIOS, MCPX and HDD Image first in Settings.")}
           className="px-8 py-4 bg-gray-600 rounded text-xl w-64 text-center opacity-50 cursor-not-allowed flex items-center justify-center gap-2"
         >
@@ -42,7 +42,7 @@ export default function Index() {
       <Link to="/settings" className="px-8 py-4 bg-blue-600 rounded text-xl w-64 text-center flex items-center justify-center gap-2 mt-4">
         <Settings /> Settings
       </Link>
+
     </div>
   );
 }
-
