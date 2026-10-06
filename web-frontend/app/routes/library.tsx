@@ -1,5 +1,7 @@
 import { Link } from "react-router";
 import { useEffect, useState } from "react";
+import { Gamepad2, Trash2 } from "lucide-react";
+import SelectionListItem from "../components/SelectionListItem";
 
 export default function Library() {
   const [games, setGames] = useState<any[]>([]);
@@ -16,7 +18,7 @@ export default function Library() {
   }, []);
 
   return (
-    <div className="flex-1 flex flex-col p-6">
+    <div className="flex-1 flex flex-col p-6 w-full">
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center">
           <Link to="/" className="mr-4 px-4 py-2 bg-gray-700 rounded">&lt; Back</Link>
@@ -35,22 +37,24 @@ export default function Library() {
           No games found. Click Add Game to select an xiso.
         </div>
       ) : (
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+        <div className="flex w-full flex-col gap-4">
           {games.map((game, index) => (
-            <div key={index} className="bg-gray-800 p-4 rounded flex items-center justify-between">
-              <div 
-                className="flex-1 cursor-pointer" 
-                onClick={() => window.BoxDroidBridge?.startGame(game.uri)}
-              >
-                <h3 className="text-xl font-semibold">{game.name}</h3>
-              </div>
-              <button 
-                onClick={(e) => { e.stopPropagation(); window.BoxDroidBridge?.deleteGame(index); }} 
-                className="ml-4 p-2 bg-red-600 rounded"
-              >
-                Delete
-              </button>
-            </div>
+            <SelectionListItem
+              key={index}
+              title={game.name}
+              subtitle={<><Gamepad2 size={18} className="shrink-0 text-green-500" /> Tap to launch</>}
+              onSelect={() => window.BoxDroidBridge?.startGame(game.uri)}
+              action={(
+                <button
+                  type="button"
+                  aria-label={`Remove ${game.name}`}
+                  onClick={() => window.BoxDroidBridge?.deleteGame(index)}
+                  className="p-2 bg-red-600 rounded text-white flex items-center justify-center"
+                >
+                  <Trash2 size={20} />
+                </button>
+              )}
+            />
           ))}
         </div>
       )}
