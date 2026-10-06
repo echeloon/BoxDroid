@@ -1,5 +1,5 @@
-#ifndef BOXDROID_M5_DIAGNOSTICS_H
-#define BOXDROID_M5_DIAGNOSTICS_H
+#ifndef BOXDROID_DIAGNOSTICS_H
+#define BOXDROID_DIAGNOSTICS_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -7,54 +7,54 @@
 
 struct CPUState;
 
-typedef enum BoxDroidM5Diagnostic {
-    BOXDROID_M5_DIAG_REFRESH_CALLBACK,
-    BOXDROID_M5_DIAG_GRAPHIC_HW_UPDATE,
-    BOXDROID_M5_DIAG_PCRTC_START,
-    BOXDROID_M5_DIAG_VGA_CRTC_WRITE,
-    BOXDROID_M5_DIAG_PGRAPH_COLOR_DMA,
-    BOXDROID_M5_DIAG_PGRAPH_SURFACE_FORMAT,
-    BOXDROID_M5_DIAG_PGRAPH_SURFACE_PITCH,
-    BOXDROID_M5_DIAG_PGRAPH_COLOR_OFFSET,
-    BOXDROID_M5_DIAG_COLOR_BINDING,
-    BOXDROID_M5_DIAG_FRAMEBUFFER_LOOKUP,
-    BOXDROID_M5_DIAG_FRAMEBUFFER_HIT,
-    BOXDROID_M5_DIAG_FRAMEBUFFER_MISS,
-    BOXDROID_M5_DIAG_READBACK_BEGIN,
-    BOXDROID_M5_DIAG_READBACK_COMPLETE,
-    BOXDROID_M5_DIAG_DISPLAY_CALLBACK,
-    BOXDROID_M5_DIAG_FRAME_PRESENT,
-    BOXDROID_M5_DIAG_DOWNLOAD_WAIT,
-    BOXDROID_M5_DIAG_DOWNLOAD_DIRTY,
-    BOXDROID_M5_DIAG_DOWNLOAD_REQUESTED,
-    BOXDROID_M5_DIAG_DOWNLOAD_SKIPPED,
-    BOXDROID_M5_DIAG_DOWNLOAD_PERFORMED,
-    BOXDROID_M5_DIAG_COUNT,
-} BoxDroidM5Diagnostic;
+typedef enum BoxDroidDiagnostic {
+    BOXDROID_DIAG_REFRESH_CALLBACK,
+    BOXDROID_DIAG_GRAPHIC_HW_UPDATE,
+    BOXDROID_DIAG_PCRTC_START,
+    BOXDROID_DIAG_VGA_CRTC_WRITE,
+    BOXDROID_DIAG_PGRAPH_COLOR_DMA,
+    BOXDROID_DIAG_PGRAPH_SURFACE_FORMAT,
+    BOXDROID_DIAG_PGRAPH_SURFACE_PITCH,
+    BOXDROID_DIAG_PGRAPH_COLOR_OFFSET,
+    BOXDROID_DIAG_COLOR_BINDING,
+    BOXDROID_DIAG_FRAMEBUFFER_LOOKUP,
+    BOXDROID_DIAG_FRAMEBUFFER_HIT,
+    BOXDROID_DIAG_FRAMEBUFFER_MISS,
+    BOXDROID_DIAG_READBACK_BEGIN,
+    BOXDROID_DIAG_READBACK_COMPLETE,
+    BOXDROID_DIAG_DISPLAY_CALLBACK,
+    BOXDROID_DIAG_FRAME_PRESENT,
+    BOXDROID_DIAG_DOWNLOAD_WAIT,
+    BOXDROID_DIAG_DOWNLOAD_DIRTY,
+    BOXDROID_DIAG_DOWNLOAD_REQUESTED,
+    BOXDROID_DIAG_DOWNLOAD_SKIPPED,
+    BOXDROID_DIAG_DOWNLOAD_PERFORMED,
+    BOXDROID_DIAG_COUNT,
+} BoxDroidDiagnostic;
 
-typedef enum BoxDroidM5SampleBoundary {
-    BOXDROID_M5_SAMPLE_NV2A_STAGING,
-    BOXDROID_M5_SAMPLE_XBOX_VRAM,
-    BOXDROID_M5_SAMPLE_DISPLAY_SURFACE,
-    BOXDROID_M5_SAMPLE_PIXMAN_RGBA,
-    BOXDROID_M5_SAMPLE_COUNT,
-} BoxDroidM5SampleBoundary;
+typedef enum BoxDroidSampleBoundary {
+    BOXDROID_SAMPLE_NV2A_STAGING,
+    BOXDROID_SAMPLE_XBOX_VRAM,
+    BOXDROID_SAMPLE_DISPLAY_SURFACE,
+    BOXDROID_SAMPLE_PIXMAN_RGBA,
+    BOXDROID_SAMPLE_COUNT,
+} BoxDroidSampleBoundary;
 
-typedef enum BoxDroidM5BindingEvent {
-    BOXDROID_M5_BINDING_CREATE,
-    BOXDROID_M5_BINDING_REUSE,
-    BOXDROID_M5_BINDING_UPLOAD_PENDING,
-    BOXDROID_M5_BINDING_UPLOAD,
-    BOXDROID_M5_BINDING_DRAW_DIRTY,
-    BOXDROID_M5_BINDING_CLEAR,
-    BOXDROID_M5_BINDING_GUEST_DRAW,
-    BOXDROID_M5_BINDING_GPU_PROBE,
-    BOXDROID_M5_BINDING_STAGING_COMPARE,
-    BOXDROID_M5_BINDING_SCANOUT,
-    BOXDROID_M5_BINDING_EVENT_COUNT,
-} BoxDroidM5BindingEvent;
+typedef enum BoxDroidBindingEvent {
+    BOXDROID_BINDING_CREATE,
+    BOXDROID_BINDING_REUSE,
+    BOXDROID_BINDING_UPLOAD_PENDING,
+    BOXDROID_BINDING_UPLOAD,
+    BOXDROID_BINDING_DRAW_DIRTY,
+    BOXDROID_BINDING_CLEAR,
+    BOXDROID_BINDING_GUEST_DRAW,
+    BOXDROID_BINDING_GPU_PROBE,
+    BOXDROID_BINDING_STAGING_COMPARE,
+    BOXDROID_BINDING_SCANOUT,
+    BOXDROID_BINDING_EVENT_COUNT,
+} BoxDroidBindingEvent;
 
-typedef struct BoxDroidM5BindingInfo {
+typedef struct BoxDroidBindingInfo {
     uint64_t pcrtc_start;
     uint64_t line_offset;
     uint64_t lookup_address;
@@ -76,9 +76,9 @@ typedef struct BoxDroidM5BindingInfo {
     bool upload_pending;
     bool initialized;
     bool cleared;
-} BoxDroidM5BindingInfo;
+} BoxDroidBindingInfo;
 
-void boxdroid_diag_event(BoxDroidM5Diagnostic event,
+void boxdroid_diag_event(BoxDroidDiagnostic event,
                             uint64_t a, uint64_t b, uint64_t c,
                             uint64_t d, uint64_t e, uint64_t f);
 uint64_t boxdroid_diag_record(const char *event, uint64_t a, uint64_t b,
@@ -107,19 +107,19 @@ void boxdroid_diag_framebuffer_sample(const char *boundary,
                                         const uint8_t *data,
                                         size_t length);
 void boxdroid_diag_summary(void);
-void boxdroid_diag_binding(const BoxDroidM5BindingInfo *info);
+void boxdroid_diag_binding(const BoxDroidBindingInfo *info);
 void boxdroid_diag_late_miss(uint64_t pcrtc_start, uint64_t line_offset,
                                 uint64_t lookup_address,
-                                const BoxDroidM5BindingInfo *nearest,
-                                const BoxDroidM5BindingInfo *binding_32a4000,
-                                const BoxDroidM5BindingInfo *binding_3628000);
+                                const BoxDroidBindingInfo *nearest,
+                                const BoxDroidBindingInfo *binding_32a4000,
+                                const BoxDroidBindingInfo *binding_3628000);
 void boxdroid_diag_track_surface(const void *surface);
 bool boxdroid_diag_is_tracked_surface(const void *surface);
-void boxdroid_diag_sample(BoxDroidM5SampleBoundary boundary,
+void boxdroid_diag_sample(BoxDroidSampleBoundary boundary,
                              const void *data, size_t size,
                              uint64_t nonblack_pixels,
                              const char *copy_status);
-void boxdroid_diag_binding_event(BoxDroidM5BindingEvent event,
+void boxdroid_diag_binding_event(BoxDroidBindingEvent event,
                                     uint64_t base, uint64_t generation,
                                     const uint64_t values[8]);
 void boxdroid_diag_firmware_event(const char *kind, const char *stage,
@@ -142,9 +142,9 @@ void boxdroid_diag_device_access(bool write, const char *region,
 void boxdroid_diag_progress_summary(void);
 
 #ifdef BOXDROID_XBOX_RUNTIME
-void boxdroid_m54_tb_return(bool chained, unsigned exit_index);
-void boxdroid_m54_tcg_event(unsigned kind);
-void boxdroid_m54_lookup_pc(uint64_t pc);
+void boxdroid_tb_return(bool chained, unsigned exit_index);
+void boxdroid_tcg_event(unsigned kind);
+void boxdroid_lookup_pc(uint64_t pc);
 #endif
 
 #endif

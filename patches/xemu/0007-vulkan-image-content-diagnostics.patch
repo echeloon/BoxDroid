@@ -20,8 +20,8 @@ diff --git a/hw/xbox/nv2a/pgraph/vk/surface.c b/hw/xbox/nv2a/pgraph/vk/surface.c
 +++ b/hw/xbox/nv2a/pgraph/vk/surface.c
 @@ -40,0 +41,132 @@
 +#ifdef BOXDROID_XBOX_RUNTIME
-+#define BOXDROID_M5_PROBE_PATCH_WIDTH 64
-+#define BOXDROID_M5_PROBE_PATCH_HEIGHT 64
++#define BOXDROID_PROBE_PATCH_WIDTH 64
++#define BOXDROID_PROBE_PATCH_HEIGHT 64
 +
 +static uint64_t boxdroid_surface_generation;
 +
@@ -51,8 +51,8 @@ diff --git a/hw/xbox/nv2a/pgraph/vk/surface.c b/hw/xbox/nv2a/pgraph/vk/surface.c
 +    VkBufferImageCopy region;
 +    uint8_t *mapped = NULL;
 +    unsigned int width = surface->width, height = surface->height;
-+    const unsigned int count = BOXDROID_M5_PROBE_PATCH_WIDTH *
-+                               BOXDROID_M5_PROBE_PATCH_HEIGHT;
++    const unsigned int count = BOXDROID_PROBE_PATCH_WIDTH *
++                               BOXDROID_PROBE_PATCH_HEIGHT;
 +    const unsigned int bytes_per_pixel = surface->host_fmt.host_bytes_per_pixel;
 +    const size_t buffer_size = (size_t)count * 4;
 +    uint64_t nonzero_samples = 0, nonblack_samples = 0;
@@ -70,8 +70,8 @@ diff --git a/hw/xbox/nv2a/pgraph/vk/surface.c b/hw/xbox/nv2a/pgraph/vk/surface.c
 +        return;
 +    }
 +    pgraph_apply_scaling_factor(pg, &width, &height);
-+    if (width < BOXDROID_M5_PROBE_PATCH_WIDTH ||
-+        height < BOXDROID_M5_PROBE_PATCH_HEIGHT) {
++    if (width < BOXDROID_PROBE_PATCH_WIDTH ||
++        height < BOXDROID_PROBE_PATCH_HEIGHT) {
 +        return;
 +    }
 +    surface->boxdroid_probe_done = true;
@@ -88,12 +88,12 @@ diff --git a/hw/xbox/nv2a/pgraph/vk/surface.c b/hw/xbox/nv2a/pgraph/vk/surface.c
 +        .imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 +        .imageSubresource.layerCount = 1,
 +        .imageOffset = {
-+            .x = (width - BOXDROID_M5_PROBE_PATCH_WIDTH) / 2,
-+            .y = (height - BOXDROID_M5_PROBE_PATCH_HEIGHT) / 2,
++            .x = (width - BOXDROID_PROBE_PATCH_WIDTH) / 2,
++            .y = (height - BOXDROID_PROBE_PATCH_HEIGHT) / 2,
 +            .z = 0,
 +        },
-+        .imageExtent = { BOXDROID_M5_PROBE_PATCH_WIDTH,
-+                         BOXDROID_M5_PROBE_PATCH_HEIGHT, 1 },
++        .imageExtent = { BOXDROID_PROBE_PATCH_WIDTH,
++                         BOXDROID_PROBE_PATCH_HEIGHT, 1 },
 +    };
 +
 +    VkCommandBuffer cmd = pgraph_vk_begin_single_time_commands(pg);
@@ -138,15 +138,15 @@ diff --git a/hw/xbox/nv2a/pgraph/vk/surface.c b/hw/xbox/nv2a/pgraph/vk/surface.c
 +    vmaUnmapMemory(r->allocator, allocation);
 +    vmaDestroyBuffer(r->allocator, buffer, allocation);
 +
-+    values[0] = BOXDROID_M5_PROBE_PATCH_WIDTH;
-+    values[1] = BOXDROID_M5_PROBE_PATCH_HEIGHT;
++    values[0] = BOXDROID_PROBE_PATCH_WIDTH;
++    values[1] = BOXDROID_PROBE_PATCH_HEIGHT;
 +    values[2] = count;
 +    values[3] = nonblack_samples;
 +    values[4] = hash;
 +    values[5] = surface->host_fmt.vk_format;
 +    values[6] = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 +    values[7] = nonzero_samples;
-+    boxdroid_diag_binding_event(BOXDROID_M5_BINDING_GPU_PROBE,
++    boxdroid_diag_binding_event(BOXDROID_BINDING_GPU_PROBE,
 +        surface->vram_addr, surface->boxdroid_generation, values);
 +}
 +#endif
@@ -165,9 +165,9 @@ diff --git a/hw/xbox/nv2a/pgraph/vk/surface.c b/hw/xbox/nv2a/pgraph/vk/surface.c
 +        uint64_t nonzero_samples = 0, nonblack_samples = 0;
 +        uint64_t sample_hash = UINT64_C(1469598103934665603);
 +        uint64_t values[8] = {0};
-+        unsigned int sample_width = MIN(BOXDROID_M5_PROBE_PATCH_WIDTH,
++        unsigned int sample_width = MIN(BOXDROID_PROBE_PATCH_WIDTH,
 +                                        scaled_width);
-+        unsigned int sample_height = MIN(BOXDROID_M5_PROBE_PATCH_HEIGHT,
++        unsigned int sample_height = MIN(BOXDROID_PROBE_PATCH_HEIGHT,
 +                                         scaled_height);
 +        unsigned int start_x = (scaled_width - sample_width) / 2;
 +        unsigned int start_y = (scaled_height - sample_height) / 2;
@@ -197,7 +197,7 @@ diff --git a/hw/xbox/nv2a/pgraph/vk/surface.c b/hw/xbox/nv2a/pgraph/vk/surface.c
 +        values[5] = surface->host_fmt.vk_format;
 +        values[6] = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 +        values[7] = nonzero_samples;
-+        boxdroid_diag_binding_event(BOXDROID_M5_BINDING_STAGING_COMPARE,
++        boxdroid_diag_binding_event(BOXDROID_BINDING_STAGING_COMPARE,
 +            surface->vram_addr, surface->boxdroid_generation, values);
 +    }
 +#endif
@@ -206,7 +206,7 @@ diff --git a/hw/xbox/nv2a/pgraph/vk/surface.c b/hw/xbox/nv2a/pgraph/vk/surface.c
 +#ifdef BOXDROID_XBOX_RUNTIME
 +    if (boxdroid_target_surface(surface) && surface->draw_dirty) {
 +        uint64_t values[8] = { 1, 0, 3 };
-+        boxdroid_diag_binding_event(BOXDROID_M5_BINDING_DRAW_DIRTY,
++        boxdroid_diag_binding_event(BOXDROID_BINDING_DRAW_DIRTY,
 +            surface->vram_addr, surface->boxdroid_generation, values);
 +    }
 +#endif
@@ -214,7 +214,7 @@ diff --git a/hw/xbox/nv2a/pgraph/vk/surface.c b/hw/xbox/nv2a/pgraph/vk/surface.c
 +#ifdef BOXDROID_XBOX_RUNTIME
 +    if (boxdroid_target_surface(surface)) {
 +        uint64_t values[8] = { surface->upload_pending, 0, force };
-+        boxdroid_diag_binding_event(BOXDROID_M5_BINDING_UPLOAD_PENDING,
++        boxdroid_diag_binding_event(BOXDROID_BINDING_UPLOAD_PENDING,
 +            surface->vram_addr, surface->boxdroid_generation, values);
 +    }
 +#endif
@@ -229,7 +229,7 @@ diff --git a/hw/xbox/nv2a/pgraph/vk/surface.c b/hw/xbox/nv2a/pgraph/vk/surface.c
 +        values[1] = hash_bytes;
 +        values[2] = surface->fmt.bytes_per_pixel;
 +        values[3] = surface->swizzle;
-+        boxdroid_diag_binding_event(BOXDROID_M5_BINDING_UPLOAD,
++        boxdroid_diag_binding_event(BOXDROID_BINDING_UPLOAD,
 +            surface->vram_addr, surface->boxdroid_generation, values);
 +    }
 +#endif
@@ -243,7 +243,7 @@ diff --git a/hw/xbox/nv2a/pgraph/vk/surface.c b/hw/xbox/nv2a/pgraph/vk/surface.c
 +                                            surface->upload_pending,
 +                                            mem_dirty };
 +                    boxdroid_diag_binding_event(
-+                        BOXDROID_M5_BINDING_UPLOAD_PENDING,
++                        BOXDROID_BINDING_UPLOAD_PENDING,
 +                        surface->vram_addr, surface->boxdroid_generation,
 +                        values);
 +                }
@@ -267,13 +267,13 @@ diff --git a/hw/xbox/nv2a/pgraph/vk/surface.c b/hw/xbox/nv2a/pgraph/vk/surface.c
 +                    image_reused,
 +                    surface->initialized,
 +                };
-+                boxdroid_diag_binding_event(BOXDROID_M5_BINDING_CREATE,
++                boxdroid_diag_binding_event(BOXDROID_BINDING_CREATE,
 +                    surface->vram_addr, surface->boxdroid_generation, values);
 +                values[0] = 0;
 +                values[1] = surface->upload_pending;
 +                values[2] = 2;
 +                boxdroid_diag_binding_event(
-+                    BOXDROID_M5_BINDING_UPLOAD_PENDING,
++                    BOXDROID_BINDING_UPLOAD_PENDING,
 +                    surface->vram_addr, surface->boxdroid_generation, values);
 +            }
 +#endif
@@ -290,7 +290,7 @@ diff --git a/hw/xbox/nv2a/pgraph/vk/surface.c b/hw/xbox/nv2a/pgraph/vk/surface.c
 +                0,
 +                surface->initialized,
 +            };
-+            boxdroid_diag_binding_event(BOXDROID_M5_BINDING_REUSE,
++            boxdroid_diag_binding_event(BOXDROID_BINDING_REUSE,
 +                surface->vram_addr, surface->boxdroid_generation, values);
 +        }
 +#endif
@@ -349,7 +349,7 @@ diff --git a/hw/xbox/nv2a/pgraph/vk/draw.c b/hw/xbox/nv2a/pgraph/vk/draw.c
 +    values[5] = boxdroid_pack32(x, y);
 +    values[6] = boxdroid_pack32(width, height);
 +    values[7] = cull | (depth << 8) | (stencil << 16) | (depth_write << 24);
-+    boxdroid_diag_binding_event(BOXDROID_M5_BINDING_GUEST_DRAW,
++    boxdroid_diag_binding_event(BOXDROID_BINDING_GUEST_DRAW,
 +        surface->vram_addr, surface->boxdroid_generation, values);
 +}
 +
@@ -374,7 +374,7 @@ diff --git a/hw/xbox/nv2a/pgraph/vk/draw.c b/hw/xbox/nv2a/pgraph/vk/draw.c
 +                           clear_rect->rect.extent.height),
 +        parameter & NV097_CLEAR_SURFACE_COLOR,
 +    };
-+    boxdroid_diag_binding_event(BOXDROID_M5_BINDING_CLEAR,
++    boxdroid_diag_binding_event(BOXDROID_BINDING_CLEAR,
 +        surface->vram_addr, surface->boxdroid_generation, values);
 +}
 +#endif
@@ -414,7 +414,7 @@ diff --git a/hw/xbox/nv2a/pgraph/vk/draw.c b/hw/xbox/nv2a/pgraph/vk/draw.c
 +            uint64_t values[8] = { old_draw_dirty,
 +                                    r->color_binding->draw_dirty,
 +                                    is_clear ? 1 : 2 };
-+            boxdroid_diag_binding_event(BOXDROID_M5_BINDING_DRAW_DIRTY,
++            boxdroid_diag_binding_event(BOXDROID_BINDING_DRAW_DIRTY,
 +                r->color_binding->vram_addr,
 +                r->color_binding->boxdroid_generation, values);
 +        }
@@ -440,7 +440,7 @@ diff --git a/hw/xbox/nv2a/pgraph/vk/renderer.c b/hw/xbox/nv2a/pgraph/vk/renderer
 --- a/hw/xbox/nv2a/pgraph/vk/renderer.c
 +++ b/hw/xbox/nv2a/pgraph/vk/renderer.c
 @@ -237,0 +238 @@
-+            BoxDroidM5BindingInfo binding_a = {0}, binding_b = {0};
++            BoxDroidBindingInfo binding_a = {0}, binding_b = {0};
 @@ -245,0 +247,22 @@
 +            QTAILQ_FOREACH(candidate, &pg->vk_renderer_state->surfaces, entry) {
 +                if (!candidate->color ||
@@ -448,7 +448,7 @@ diff --git a/hw/xbox/nv2a/pgraph/vk/renderer.c b/hw/xbox/nv2a/pgraph/vk/renderer
 +                     candidate->vram_addr != UINT64_C(0x3628000))) {
 +                    continue;
 +                }
-+                BoxDroidM5BindingInfo *target =
++                BoxDroidBindingInfo *target =
 +                    candidate->vram_addr == UINT64_C(0x32a4000) ?
 +                        &binding_a : &binding_b;
 +                target->binding_base = candidate->vram_addr;
@@ -485,7 +485,7 @@ diff --git a/hw/xbox/nv2a/pgraph/vk/renderer.c b/hw/xbox/nv2a/pgraph/vk/renderer
 +        surface->draw_dirty,
 +        surface->upload_pending,
 +    };
-+    boxdroid_diag_binding_event(BOXDROID_M5_BINDING_SCANOUT,
++    boxdroid_diag_binding_event(BOXDROID_BINDING_SCANOUT,
 +        surface->vram_addr, surface->boxdroid_generation, binding_values);
 diff --git a/hw/xbox/nv2a/pgraph/vk/blit.c b/hw/xbox/nv2a/pgraph/vk/blit.c
 --- a/hw/xbox/nv2a/pgraph/vk/blit.c
@@ -504,7 +504,7 @@ diff --git a/hw/xbox/nv2a/pgraph/vk/blit.c b/hw/xbox/nv2a/pgraph/vk/blit.c
 +            if (old_draw_dirty && (surf_dest->vram_addr == UINT64_C(0x32a4000) ||
 +                                   surf_dest->vram_addr == UINT64_C(0x3628000))) {
 +                uint64_t values[8] = { 1, 0, 4 };
-+                boxdroid_diag_binding_event(BOXDROID_M5_BINDING_DRAW_DIRTY,
++                boxdroid_diag_binding_event(BOXDROID_BINDING_DRAW_DIRTY,
 +                    surf_dest->vram_addr, surf_dest->boxdroid_generation, values);
 +            }
 +#endif
@@ -518,7 +518,7 @@ diff --git a/hw/xbox/nv2a/pgraph/vk/blit.c b/hw/xbox/nv2a/pgraph/vk/blit.c
 +            (surf_dest->vram_addr == UINT64_C(0x32a4000) ||
 +             surf_dest->vram_addr == UINT64_C(0x3628000))) {
 +            uint64_t values[8] = { 0, 1, 3 };
-+            boxdroid_diag_binding_event(BOXDROID_M5_BINDING_UPLOAD_PENDING,
++            boxdroid_diag_binding_event(BOXDROID_BINDING_UPLOAD_PENDING,
 +                surf_dest->vram_addr, surf_dest->boxdroid_generation, values);
 +        }
 +#endif

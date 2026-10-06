@@ -1,4 +1,4 @@
-#ifdef BOXDROID_M53_RUNTIME
+#ifdef BOXDROID_RUNTIME
 #include <chrono>
 #include <pixman.h>
 #endif
@@ -22,7 +22,7 @@
 #include <vector>
 
 namespace {
-constexpr char kTag[] = "BoxDroidM4";
+constexpr char kTag[] = "BoxDroid";
 
 struct AspectFit {
     uint32_t width = 0;
@@ -406,7 +406,7 @@ bool createInstance() {
     }
     const char *extensions[] = {VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_ANDROID_SURFACE_EXTENSION_NAME};
     VkApplicationInfo app{VK_STRUCTURE_TYPE_APPLICATION_INFO};
-    app.pApplicationName = "BoxDroid M4 Presenter";
+    app.pApplicationName = "BoxDroid Presenter";
     app.applicationVersion = VK_MAKE_VERSION(0, 4, 0);
     app.pEngineName = "BoxDroid";
     app.engineVersion = VK_MAKE_VERSION(0, 4, 0);
@@ -655,7 +655,7 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
         static_cast<uint32_t>(std::max(ANativeWindow_getHeight(p.window), 0)) != p.nativeWindowHeight) {
         if (!resizeSurface(p.requestedWidth, p.requestedHeight, false)) return false;
     }
-#ifdef BOXDROID_M53_RUNTIME
+#ifdef BOXDROID_RUNTIME
     using PerfClock = std::chrono::steady_clock;
     auto perfStart = PerfClock::now();
 #endif
@@ -676,7 +676,7 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
     else if (r != VK_SUCCESS) { ++p.failedPresents; check(r, "vkAcquireNextImageKHR"); return false; }
     ++p.acquires;
 
-#ifdef BOXDROID_M53_RUNTIME
+#ifdef BOXDROID_RUNTIME
     auto perfAcquired = PerfClock::now();
 #endif
     VkBuffer stagingBuffer = VK_NULL_HANDLE;
@@ -756,7 +756,7 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
         const size_t destinationBytes = static_cast<size_t>(p.extent.width) * p.extent.height * 4;
         std::memset(dst, 0, destinationBytes);
         for (size_t i = 0; i < destinationBytes / 4; ++i) dst[i * 4 + 3] = 255;
-#ifdef BOXDROID_M53_RUNTIME
+#ifdef BOXDROID_RUNTIME
         // Same aspect-fit rectangle; Pixman's NEON scaler removes per-pixel
         // integer divisions from the refresh/BQL critical path.
         pixman_image_t *srcImage = pixman_image_create_bits(PIXMAN_a8b8g8r8,
@@ -800,7 +800,7 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
 #endif
         vkUnmapMemory(p.device, stagingMemory);
     }
-#ifdef BOXDROID_M53_RUNTIME
+#ifdef BOXDROID_RUNTIME
     auto perfPrepared = PerfClock::now();
 #endif
     if (!check(vkResetCommandBuffer(p.commandBuffer, 0), "vkResetCommandBuffer")) return false;
@@ -850,11 +850,11 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
     present.swapchainCount = 1;
     present.pSwapchains = &p.swapchain;
     present.pImageIndices = &index;
-#ifdef BOXDROID_M53_RUNTIME
+#ifdef BOXDROID_RUNTIME
     auto perfSubmitted = PerfClock::now();
 #endif
     r = vkQueuePresentKHR(p.queue, &present);
-#ifdef BOXDROID_M53_RUNTIME
+#ifdef BOXDROID_RUNTIME
     auto perfPresented = PerfClock::now();
 #endif
     if (r == VK_ERROR_OUT_OF_DATE_KHR) ++p.outOfDate;
@@ -879,14 +879,14 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
         destroySwapchain();
         return createSwapchain() && allowRetry ? presentFrame(false, pixels, sourceWidth, sourceHeight, sourceStride) : false;
     }
-#ifdef BOXDROID_M53_RUNTIME
+#ifdef BOXDROID_RUNTIME
     static uint64_t count=0, acquire=0, prepare=0, submitTime=0, presentTime=0, idle=0;
     auto micros=[](auto a, auto b) { return std::chrono::duration_cast<std::chrono::microseconds>(b-a).count(); };
     acquire+=micros(perfStart,perfAcquired); prepare+=micros(perfAcquired,perfPrepared);
     submitTime+=micros(perfPrepared,perfSubmitted); presentTime+=micros(perfSubmitted,perfPresented);
     idle+=micros(perfPresented,PerfClock::now());
     if (++count == 30) {
-        __android_log_print(ANDROID_LOG_INFO,"BoxDroidM53",
+        __android_log_print(ANDROID_LOG_INFO,"BoxDroid",
             "WSI frames=%llu acquire_us=%llu prepare_us=%llu submit_us=%llu present_us=%llu idle_us=%llu",
             (unsigned long long)count,(unsigned long long)acquire,(unsigned long long)prepare,
             (unsigned long long)submitTime,(unsigned long long)presentTime,(unsigned long long)idle);
@@ -982,7 +982,7 @@ Java_org_boxdroid_MainActivity_nativeSurfaceCreated(JNIEnv *env, jobject, jobjec
     std::lock_guard<std::mutex> guard(presenterLock);
     const bool ok = createSurface(env, surface, static_cast<uint32_t>(std::max(width, 1)),
         static_cast<uint32_t>(std::max(height, 1)), static_cast<uint32_t>(generation));
-    log(ok ? ANDROID_LOG_INFO : ANDROID_LOG_ERROR, std::string("M4_SURFACE_CREATED result=") + (ok ? "PASS" : "FAIL") + " generation=" + std::to_string(generation));
+    log(ok ? ANDROID_LOG_INFO : ANDROID_LOG_ERROR, std::string("SURFACE_CREATED result=") + (ok ? "PASS" : "FAIL") + " generation=" + std::to_string(generation));
     return ok ? JNI_TRUE : JNI_FALSE;
 }
 
@@ -990,7 +990,7 @@ extern "C" JNIEXPORT jboolean JNICALL
 Java_org_boxdroid_MainActivity_nativeSurfaceChanged(JNIEnv *, jobject, jint width, jint height) {
     std::lock_guard<std::mutex> guard(presenterLock);
     const bool ok = resizeSurface(static_cast<uint32_t>(std::max(width, 1)), static_cast<uint32_t>(std::max(height, 1)));
-    log(ok ? ANDROID_LOG_INFO : ANDROID_LOG_ERROR, std::string("M4_SURFACE_CHANGED result=") + (ok ? "PASS" : "FAIL"));
+    log(ok ? ANDROID_LOG_INFO : ANDROID_LOG_ERROR, std::string("SURFACE_CHANGED result=") + (ok ? "PASS" : "FAIL"));
     return ok ? JNI_TRUE : JNI_FALSE;
 }
 
@@ -1010,7 +1010,7 @@ extern "C" JNIEXPORT jstring JNICALL
 Java_org_boxdroid_MainActivity_nativeDiagnostics(JNIEnv *env, jobject) {
     std::lock_guard<std::mutex> guard(presenterLock);
     const std::string result = diagnostics();
-    log(ANDROID_LOG_INFO, "M4_DIAGNOSTICS=" + result);
+    log(ANDROID_LOG_INFO, "DIAGNOSTICS=" + result);
     return env->NewStringUTF(result.c_str());
 }
 
@@ -1042,7 +1042,7 @@ Java_org_boxdroid_MainActivity_nativeShutdown(JNIEnv *, jobject) {
     log(ANDROID_LOG_INFO, "VULKAN_SHUTDOWN_CLEAN instance=destroyed device=destroyed");
 }
 
-#ifdef BOXDROID_M53_RUNTIME
+#ifdef BOXDROID_RUNTIME
 extern "C" JNIEXPORT jlong JNICALL
 Java_org_boxdroid_PerformanceActivity_nativePresentedFrames(JNIEnv *, jobject) {
     return overlayPresentedFrames.load(std::memory_order_relaxed);

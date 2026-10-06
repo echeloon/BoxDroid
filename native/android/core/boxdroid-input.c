@@ -8,7 +8,7 @@
 #include <pthread.h>
 #include <string.h>
 
-#define INPUT_TAG "BoxDroidM62Input"
+#define INPUT_TAG "BoxDroidInput"
 
 typedef struct BoxDroidInputStateSlots {
     BoxDroidInputState slots[BOXDROID_INPUT_SLOTS];

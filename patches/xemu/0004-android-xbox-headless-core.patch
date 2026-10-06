@@ -126,34 +126,34 @@ index 341f97c..96c853c 100644
 @@ -22,0 +23,7 @@
 +#ifdef __ANDROID__
 +#include <android/log.h>
-+#define M5_NV2A_STAGE(s) __android_log_write(ANDROID_LOG_INFO, "BoxDroidM5", "NV2A_VULKAN_STAGE " s)
++#define NV2A_STAGE(s) __android_log_write(ANDROID_LOG_INFO, "BoxDroid", "NV2A_VULKAN_STAGE " s)
 +#else
-+#define M5_NV2A_STAGE(s) ((void)0)
++#define NV2A_STAGE(s) ((void)0)
 +#endif
 +
 @@ -38,0 +46 @@ static void pgraph_vk_init(NV2AState *d, Error **errp)
-+    M5_NV2A_STAGE("begin");
++    NV2A_STAGE("begin");
 @@ -50,0 +59 @@ static void pgraph_vk_init(NV2AState *d, Error **errp)
-+    M5_NV2A_STAGE("instance");
++    NV2A_STAGE("instance");
 @@ -52,0 +62 @@ static void pgraph_vk_init(NV2AState *d, Error **errp)
-+    M5_NV2A_STAGE("command_buffers");
++    NV2A_STAGE("command_buffers");
 @@ -53,0 +64 @@ static void pgraph_vk_init(NV2AState *d, Error **errp)
-+    M5_NV2A_STAGE("buffers");
++    NV2A_STAGE("buffers");
 @@ -54,0 +66 @@ static void pgraph_vk_init(NV2AState *d, Error **errp)
-+    M5_NV2A_STAGE("surfaces");
++    NV2A_STAGE("surfaces");
 @@ -55,0 +68 @@ static void pgraph_vk_init(NV2AState *d, Error **errp)
-+    M5_NV2A_STAGE("shaders");
++    NV2A_STAGE("shaders");
 @@ -56,0 +70 @@ static void pgraph_vk_init(NV2AState *d, Error **errp)
-+    M5_NV2A_STAGE("pipelines");
++    NV2A_STAGE("pipelines");
 @@ -57,0 +72 @@ static void pgraph_vk_init(NV2AState *d, Error **errp)
-+    M5_NV2A_STAGE("textures");
++    NV2A_STAGE("textures");
 @@ -59,0 +75 @@ static void pgraph_vk_init(NV2AState *d, Error **errp)
-+    M5_NV2A_STAGE("compute");
++    NV2A_STAGE("compute");
 @@ -60,0 +77 @@ static void pgraph_vk_init(NV2AState *d, Error **errp)
-+    M5_NV2A_STAGE("display");
++    NV2A_STAGE("display");
 @@ -185,0 +203,4 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
 +#ifdef __ANDROID__
-+        __android_log_write(ANDROID_LOG_INFO, "BoxDroidM5",
++        __android_log_write(ANDROID_LOG_INFO, "BoxDroid",
 +                            "NV2A_SCANOUT_SURFACE_MISSING");
 +#endif
 @@ -186,0 +208,3 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
@@ -164,13 +164,13 @@ index 341f97c..96c853c 100644
 +#endif
 @@ -202,0 +228,5 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
 +#ifdef __ANDROID__
-+    __android_log_print(ANDROID_LOG_INFO, "BoxDroidM5",
++    __android_log_print(ANDROID_LOG_INFO, "BoxDroid",
 +                        "NV2A_SCANOUT_READBACK_BEGIN extent=%dx%d",
 +                        surface->width, surface->height);
 +#endif
 @@ -203,0 +234,4 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
 +#ifdef __ANDROID__
-+    __android_log_write(ANDROID_LOG_INFO, "BoxDroidM5",
++    __android_log_write(ANDROID_LOG_INFO, "BoxDroid",
 +                        "NV2A_SCANOUT_READBACK_COMPLETE");
 +#endif
 diff --git a/hw/xbox/smbus_xbox_smc.c b/hw/xbox/smbus_xbox_smc.c
@@ -193,7 +193,7 @@ index 396d811..a221559 100644
 +++ b/hw/xbox/xid.c
 @@ -40,0 +41,12 @@ const USBDescStrings desc_strings = {
 +#if defined(__ANDROID__)
-+/* Controller input is intentionally deferred for the headless M5 bring-up. */
++/* Controller input is intentionally deferred for the headless bring-up. */
 +void update_output(USBXIDGamepadState *s)
 +{
 +    (void) s;
@@ -277,35 +277,35 @@ index 5340df6..8c795da 100644
 +#endif
 @@ -969,0 +973,3 @@ void qemu_cleanup(int status)
 +#ifdef __ANDROID__
-+    __android_log_write(ANDROID_LOG_INFO, "BoxDroidM5", "QEMU_CLEANUP_STAGE gdb");
++    __android_log_write(ANDROID_LOG_INFO, "BoxDroid", "QEMU_CLEANUP_STAGE gdb");
 +#endif
 @@ -976,0 +983,3 @@ void qemu_cleanup(int status)
 +#ifdef __ANDROID__
-+    __android_log_write(ANDROID_LOG_INFO, "BoxDroidM5", "QEMU_CLEANUP_STAGE migration");
++    __android_log_write(ANDROID_LOG_INFO, "BoxDroid", "QEMU_CLEANUP_STAGE migration");
 +#endif
 @@ -984,0 +994,3 @@ void qemu_cleanup(int status)
 +#ifdef __ANDROID__
-+    __android_log_write(ANDROID_LOG_INFO, "BoxDroidM5", "QEMU_CLEANUP_STAGE exports");
++    __android_log_write(ANDROID_LOG_INFO, "BoxDroid", "QEMU_CLEANUP_STAGE exports");
 +#endif
 @@ -988,0 +1001,3 @@ void qemu_cleanup(int status)
 +#ifdef __ANDROID__
-+    __android_log_write(ANDROID_LOG_INFO, "BoxDroidM5", "QEMU_CLEANUP_STAGE vm_shutdown");
++    __android_log_write(ANDROID_LOG_INFO, "BoxDroid", "QEMU_CLEANUP_STAGE vm_shutdown");
 +#endif
 @@ -989,0 +1005,3 @@ void qemu_cleanup(int status)
 +#ifdef __ANDROID__
-+    __android_log_write(ANDROID_LOG_INFO, "BoxDroidM5", "QEMU_CLEANUP_STAGE replay");
++    __android_log_write(ANDROID_LOG_INFO, "BoxDroid", "QEMU_CLEANUP_STAGE replay");
 +#endif
 @@ -1000,0 +1019,3 @@ void qemu_cleanup(int status)
 +#ifdef __ANDROID__
-+    __android_log_write(ANDROID_LOG_INFO, "BoxDroidM5", "QEMU_CLEANUP_STAGE bdrv_drain");
++    __android_log_write(ANDROID_LOG_INFO, "BoxDroid", "QEMU_CLEANUP_STAGE bdrv_drain");
 +#endif
 @@ -1001,0 +1023,3 @@ void qemu_cleanup(int status)
 +#ifdef __ANDROID__
-+    __android_log_write(ANDROID_LOG_INFO, "BoxDroidM5", "QEMU_CLEANUP_STAGE jobs");
++    __android_log_write(ANDROID_LOG_INFO, "BoxDroid", "QEMU_CLEANUP_STAGE jobs");
 +#endif
 @@ -1002,0 +1027,3 @@ void qemu_cleanup(int status)
 +#ifdef __ANDROID__
-+    __android_log_write(ANDROID_LOG_INFO, "BoxDroidM5", "QEMU_CLEANUP_STAGE block");
++    __android_log_write(ANDROID_LOG_INFO, "BoxDroid", "QEMU_CLEANUP_STAGE block");
 +#endif
 diff --git a/system/vl.c b/system/vl.c
 index d99aaf2..4c1ffeb 100644

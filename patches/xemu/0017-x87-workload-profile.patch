@@ -2,15 +2,15 @@
 +++ b/target/i386/helper.h
 @@ -235,0 +236,4 @@
 +
-+#ifdef BOXDROID_M54_X87_PROFILE
-+DEF_HELPER_3(m54_x87_opcode, void, env, i32, i32)
++#ifdef BOXDROID_X87_PROFILE
++DEF_HELPER_3(x87_opcode, void, env, i32, i32)
 +#endif
 --- a/target/i386/tcg/fpu_helper.c
 +++ b/target/i386/tcg/fpu_helper.c
 @@ -267,0 +268,99 @@
 +
 +
-+#ifdef BOXDROID_M54_X87_PROFILE
++#ifdef BOXDROID_X87_PROFILE
 +#include <android/log.h>
 +extern int64_t boxdroid_x87_start;
 +#define X87_COUNT 2048
@@ -62,7 +62,7 @@
 +    if (e==0x7fff) return x.low==UINT64_C(0x8000000000000000) ? 3 : 4;
 +    return 0; /* normal finite */
 +}
-+void helper_m54_x87_opcode(CPUX86State *env, uint32_t op, uint32_t pc)
++void helper_x87_opcode(CPUX86State *env, uint32_t op, uint32_t pc)
 +{
 +    if (x87_finished) return;
 +    if (!(x87_total++ & 1023)) {
@@ -81,19 +81,19 @@
 +                int64_t t=x87_clock_ns();
 +                floor_ticks+=x87_clock_ns()-t;
 +            }
-+            __android_log_print(ANDROID_LOG_INFO,"BoxDroidM54","X87_WINDOW elapsed_us=%"PRId64" cpu_ns=%"PRId64" tick_hz=%"PRIu64" timer_floor_ns=%.3f sampling=1/2048 costs=inclusive profiler=opt-in",elapsed,cpu_ns,x87_frequency,(double)floor_ticks*1e9/x87_frequency/8192);
++            __android_log_print(ANDROID_LOG_INFO,"BoxDroid","X87_WINDOW elapsed_us=%"PRId64" cpu_ns=%"PRId64" tick_hz=%"PRIu64" timer_floor_ns=%.3f sampling=1/2048 costs=inclusive profiler=opt-in",elapsed,cpu_ns,x87_frequency,(double)floor_ticks*1e9/x87_frequency/8192);
 +            for (unsigned i=0;i<X87_COUNT;i++) if(x87_ops[i])
-+                __android_log_print(ANDROID_LOG_INFO,"BoxDroidM54","X87_OPCODE code=%03x count=%"PRIu64,i,x87_ops[i]);
++                __android_log_print(ANDROID_LOG_INFO,"BoxDroid","X87_OPCODE code=%03x count=%"PRIu64,i,x87_ops[i]);
 +            for(unsigned i=0;i<ARRAY_SIZE(x87_names);i++) if(x87_calls[i]) {
-+                __android_log_print(ANDROID_LOG_INFO,"BoxDroidM54","X87_HELPER name=%s calls=%"PRIu64" samples=%"PRIu64" ns=%"PRIu64,x87_names[i],x87_calls[i],x87_samples[i],(uint64_t)((double)x87_ns[i]*1e9/x87_frequency));
++                __android_log_print(ANDROID_LOG_INFO,"BoxDroid","X87_HELPER name=%s calls=%"PRIu64" samples=%"PRIu64" ns=%"PRIu64,x87_names[i],x87_calls[i],x87_samples[i],(uint64_t)((double)x87_ns[i]*1e9/x87_frequency));
 +                for(unsigned c=0;c<7;c++) if(x87_operands[i][c])
-+                    __android_log_print(ANDROID_LOG_INFO,"BoxDroidM54","X87_OPERAND helper=%s class=%u samples=%"PRIu64,x87_names[i],c,x87_operands[i][c]);
++                    __android_log_print(ANDROID_LOG_INFO,"BoxDroid","X87_OPERAND helper=%s class=%u samples=%"PRIu64,x87_names[i],c,x87_operands[i][c]);
 +                for(unsigned j=0;j<ARRAY_SIZE(x87_names);j++) if(x87_pairs[i][j]>10000)
-+                    __android_log_print(ANDROID_LOG_INFO,"BoxDroidM54","X87_PAIR a=%s b=%s count=%"PRIu64,x87_names[i],x87_names[j],x87_pairs[i][j]);
++                    __android_log_print(ANDROID_LOG_INFO,"BoxDroid","X87_PAIR a=%s b=%s count=%"PRIu64,x87_names[i],x87_names[j],x87_pairs[i][j]);
 +            }
-+            for(unsigned i=0;i<7;i++) __android_log_print(ANDROID_LOG_INFO,"BoxDroidM54","X87_CLASS class=%u samples=%"PRIu64,i,x87_classes[i]);
-+            for(unsigned i=0;i<4096;i++) if(x87_control[i]) __android_log_print(ANDROID_LOG_INFO,"BoxDroidM54","X87_CW word=%03x samples=%"PRIu64,i,x87_control[i]);
-+            for(unsigned i=0;i<1024;i++) if(x87_pc_count[i]>10000) __android_log_print(ANDROID_LOG_INFO,"BoxDroidM54","X87_PC pc=%08x count=%"PRIu64,x87_pc[i],x87_pc_count[i]);
++            for(unsigned i=0;i<7;i++) __android_log_print(ANDROID_LOG_INFO,"BoxDroid","X87_CLASS class=%u samples=%"PRIu64,i,x87_classes[i]);
++            for(unsigned i=0;i<4096;i++) if(x87_control[i]) __android_log_print(ANDROID_LOG_INFO,"BoxDroid","X87_CW word=%03x samples=%"PRIu64,i,x87_control[i]);
++            for(unsigned i=0;i<1024;i++) if(x87_pc_count[i]>10000) __android_log_print(ANDROID_LOG_INFO,"BoxDroid","X87_PC pc=%08x count=%"PRIu64,x87_pc[i],x87_pc_count[i]);
 +        }
 +    }
 +    if(!x87_active) return;
@@ -171,7 +171,7 @@
 +    X87_SCOPE(30);
 @@ -774,0 +905,8 @@
 +    X87_SCOPE(31);
-+#ifdef BOXDROID_M54_X87_PROFILE
++#ifdef BOXDROID_X87_PROFILE
 +    if (x87_active && !(x87_calls[31] & 2047)) {
 +        floatx80 operands[] = {ST0, FT0};
 +        ++x87_operands[31][x87_class(operands[0])];
@@ -180,7 +180,7 @@
 +#endif
 @@ -781,0 +920,8 @@
 +    X87_SCOPE(32);
-+#ifdef BOXDROID_M54_X87_PROFILE
++#ifdef BOXDROID_X87_PROFILE
 +    if (x87_active && !(x87_calls[32] & 2047)) {
 +        floatx80 operands[] = {ST0, FT0};
 +        ++x87_operands[32][x87_class(operands[0])];
@@ -189,7 +189,7 @@
 +#endif
 @@ -788,0 +935,8 @@
 +    X87_SCOPE(33);
-+#ifdef BOXDROID_M54_X87_PROFILE
++#ifdef BOXDROID_X87_PROFILE
 +    if (x87_active && !(x87_calls[33] & 2047)) {
 +        floatx80 operands[] = {ST0, FT0};
 +        ++x87_operands[33][x87_class(operands[0])];
@@ -198,7 +198,7 @@
 +#endif
 @@ -795,0 +950,8 @@
 +    X87_SCOPE(34);
-+#ifdef BOXDROID_M54_X87_PROFILE
++#ifdef BOXDROID_X87_PROFILE
 +    if (x87_active && !(x87_calls[34] & 2047)) {
 +        floatx80 operands[] = {ST0, FT0};
 +        ++x87_operands[34][x87_class(operands[0])];
@@ -207,7 +207,7 @@
 +#endif
 @@ -802,0 +965,8 @@
 +    X87_SCOPE(35);
-+#ifdef BOXDROID_M54_X87_PROFILE
++#ifdef BOXDROID_X87_PROFILE
 +    if (x87_active && !(x87_calls[35] & 2047)) {
 +        floatx80 operands[] = {ST0, FT0};
 +        ++x87_operands[35][x87_class(operands[0])];
@@ -216,7 +216,7 @@
 +#endif
 @@ -807,0 +978,8 @@
 +    X87_SCOPE(36);
-+#ifdef BOXDROID_M54_X87_PROFILE
++#ifdef BOXDROID_X87_PROFILE
 +    if (x87_active && !(x87_calls[36] & 2047)) {
 +        floatx80 operands[] = {ST0, FT0};
 +        ++x87_operands[36][x87_class(operands[0])];
@@ -225,7 +225,7 @@
 +#endif
 @@ -814,0 +993,8 @@
 +    X87_SCOPE(37);
-+#ifdef BOXDROID_M54_X87_PROFILE
++#ifdef BOXDROID_X87_PROFILE
 +    if (x87_active && !(x87_calls[37] & 2047)) {
 +        floatx80 operands[] = {ST(st_index), ST0};
 +        ++x87_operands[37][x87_class(operands[0])];
@@ -234,7 +234,7 @@
 +#endif
 @@ -821,0 +1008,8 @@
 +    X87_SCOPE(38);
-+#ifdef BOXDROID_M54_X87_PROFILE
++#ifdef BOXDROID_X87_PROFILE
 +    if (x87_active && !(x87_calls[38] & 2047)) {
 +        floatx80 operands[] = {ST(st_index), ST0};
 +        ++x87_operands[38][x87_class(operands[0])];
@@ -243,7 +243,7 @@
 +#endif
 @@ -828,0 +1023,8 @@
 +    X87_SCOPE(39);
-+#ifdef BOXDROID_M54_X87_PROFILE
++#ifdef BOXDROID_X87_PROFILE
 +    if (x87_active && !(x87_calls[39] & 2047)) {
 +        floatx80 operands[] = {ST(st_index), ST0};
 +        ++x87_operands[39][x87_class(operands[0])];
@@ -252,7 +252,7 @@
 +#endif
 @@ -835,0 +1038,8 @@
 +    X87_SCOPE(40);
-+#ifdef BOXDROID_M54_X87_PROFILE
++#ifdef BOXDROID_X87_PROFILE
 +    if (x87_active && !(x87_calls[40] & 2047)) {
 +        floatx80 operands[] = {ST(st_index), ST0};
 +        ++x87_operands[40][x87_class(operands[0])];
@@ -261,7 +261,7 @@
 +#endif
 @@ -842,0 +1053,8 @@
 +    X87_SCOPE(41);
-+#ifdef BOXDROID_M54_X87_PROFILE
++#ifdef BOXDROID_X87_PROFILE
 +    if (x87_active && !(x87_calls[41] & 2047)) {
 +        floatx80 operands[] = {ST(st_index), ST0};
 +        ++x87_operands[41][x87_class(operands[0])];
@@ -270,7 +270,7 @@
 +#endif
 @@ -850,0 +1069,8 @@
 +    X87_SCOPE(42);
-+#ifdef BOXDROID_M54_X87_PROFILE
++#ifdef BOXDROID_X87_PROFILE
 +    if (x87_active && !(x87_calls[42] & 2047)) {
 +        floatx80 operands[] = {ST(st_index), ST0};
 +        ++x87_operands[42][x87_class(operands[0])];
@@ -358,8 +358,8 @@
 --- a/target/i386/tcg/translate.c
 +++ b/target/i386/tcg/translate.c
 @@ -2945,0 +2946,5 @@
-+#ifdef BOXDROID_M54_X87_PROFILE
-+    gen_helper_m54_x87_opcode(tcg_env,
++#ifdef BOXDROID_X87_PROFILE
++    gen_helper_x87_opcode(tcg_env,
 +        tcg_constant_i32(((b & 7) << 8) | modrm),
 +        tcg_constant_i32(s->base.pc_next));
 +#endif

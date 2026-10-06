@@ -23,7 +23,7 @@ index a221559..8874a96 100644
 +
 +static void boxdroid_update_input(USBXIDGamepadState *s)
 +{
-+    BoxDroidM62InputState state;
++    BoxDroidInputState state;
 +    uint32_t buttons;
 +    uint16_t dpad = 0;
 +    if (!boxdroid_input_snapshot_primary(&state)) {

@@ -43,7 +43,7 @@ index 42ecfb8..46ae19d 100644
 +    replayWait+=perfReplay-perfMain; bqlWait+=now-perfReplay;
 +    maximumBql=MAX(maximumBql,now-perfReplay); ++count;
 +    if (now-report >= G_USEC_PER_SEC) {
-+        __android_log_print(ANDROID_LOG_INFO,"BoxDroidM53",
++        __android_log_print(ANDROID_LOG_INFO,"BoxDroid",
 +            "MAINLOOP elapsed_us=%lld calls=%u poll_us=%lld main_lock_us=%lld replay_us=%lld bql_us=%lld max_bql_us=%lld last_timeout_ns=%lld",
 +            (long long)(now-report),count,(long long)poll,(long long)mainWait,
 +            (long long)replayWait,(long long)bqlWait,(long long)maximumBql,(long long)timeout);
@@ -60,9 +60,9 @@ index ef2d2f2..7cb80cb 100644
   */
 +#ifdef BOXDROID_RUNTIME
 +#include <android/log.h>
-+static __thread int64_t m53_hold_begin;
-+static __thread const char *m53_hold_file;
-+static __thread int m53_hold_line, m53_hold_logs;
++static __thread int64_t hold_begin;
++static __thread const char *hold_file;
++static __thread int hold_line, hold_logs;
 +#endif
  void bql_lock_impl(const char *file, int line)
  {
@@ -71,8 +71,8 @@ index ef2d2f2..7cb80cb 100644
      g_assert(!bql_locked());
      bql_lock_fn(&bql, file, line);
 +#ifdef BOXDROID_RUNTIME
-+    m53_hold_begin = g_get_monotonic_time();
-+    m53_hold_file = file; m53_hold_line = line;
++    hold_begin = g_get_monotonic_time();
++    hold_file = file; hold_line = line;
 +#endif
  }
 @@ -581,6 +591,15 @@ void rust_bql_mock_lock(void)
@@ -81,13 +81,13 @@ index ef2d2f2..7cb80cb 100644
      g_assert(bql_locked());
      g_assert(!bql_unlock_blocked);
 +#ifdef BOXDROID_RUNTIME
-+    int64_t duration = g_get_monotonic_time() - m53_hold_begin;
-+    if (m53_hold_begin && duration > 10000 && m53_hold_logs++ < 16) {
-+        __android_log_print(ANDROID_LOG_INFO,"BoxDroidM53",
++    int64_t duration = g_get_monotonic_time() - hold_begin;
++    if (hold_begin && duration > 10000 && hold_logs++ < 16) {
++        __android_log_print(ANDROID_LOG_INFO,"BoxDroid",
 +            "BQL_HOLD us=%lld cpu=%d file=%s line=%d",(long long)duration,
-+            current_cpu ? current_cpu->cpu_index : -1,m53_hold_file,m53_hold_line);
++            current_cpu ? current_cpu->cpu_index : -1,hold_file,hold_line);
 +    }
-+    m53_hold_begin=0;
++    hold_begin=0;
 +#endif
      qemu_mutex_unlock(&bql);
  }
@@ -123,7 +123,7 @@ index 2d00828..478e37e 100644
 +    previousPeriod=period; ++callbacks;
 +    timer_mod_ns(ds->gui_timer,deadline);
 +    if (now-reports>=NANOSECONDS_PER_SECOND) {
-+        __android_log_print(ANDROID_LOG_INFO,"BoxDroidM53",
++        __android_log_print(ANDROID_LOG_INFO,"BoxDroid",
 +            "REFRESH_DEADLINE now_ns=%llu next_ns=%llu period_ns=%llu callbacks=%llu missed=%llu",
 +            (unsigned long long)now,(unsigned long long)deadline,(unsigned long long)period,
 +            (unsigned long long)callbacks,(unsigned long long)skipped);
@@ -153,7 +153,7 @@ index b9ae474..0d8ec78 100644
 +    int64_t duration=g_get_monotonic_time()-begin;
 +    static unsigned logs;
 +    if (duration>100000 && logs++<16) {
-+        __android_log_print(ANDROID_LOG_INFO,"BoxDroidM53",
++        __android_log_print(ANDROID_LOG_INFO,"BoxDroid",
 +            "SLOW_MMIO_WRITE region=%s address=0x%llx offset=0x%llx size=%d us=%lld",
 +            mr->name,(unsigned long long)addr,(unsigned long long)mr_offset,size,(long long)duration);
 +    }
@@ -170,10 +170,10 @@ index 3a67760..d7fc523 100644
 @@ -106,3 +106,11 @@ uint64_t pgraph_read(void *opaque, hwaddr addr, unsigned int size)
 +#ifdef BOXDROID_RUNTIME
 +#include <android/log.h>
-+static uint64_t m53_guest_flips;
++static uint64_t guest_flips;
 +uint64_t boxdroid_guest_flips(void)
 +{
-+    return qatomic_read(&m53_guest_flips);
++    return qatomic_read(&guest_flips);
 +}
 +#endif
  void pgraph_write(void *opaque, hwaddr addr, uint64_t val, unsigned int size)
@@ -192,7 +192,7 @@ index 3a67760..d7fc523 100644
 +    int64_t graph=g_get_monotonic_time();
 +    static unsigned logs;
 +    if (graph-begin>100000 && logs++<16) {
-+        __android_log_print(ANDROID_LOG_INFO,"BoxDroidM53",
++        __android_log_print(ANDROID_LOG_INFO,"BoxDroid",
 +            "PGRAPH_MMIO_WAIT addr=0x%llx value=0x%llx fifo_us=%lld graph_us=%lld bql=%d",
 +            (unsigned long long)addr,(unsigned long long)val,
 +            (long long)(fifo-begin),(long long)(graph-fifo),bql_locked());
@@ -202,7 +202,7 @@ index 3a67760..d7fc523 100644
      trace_nv2a_pgraph_flip_increment_write(old, new);
      pg->frame_time++;
 +#ifdef BOXDROID_RUNTIME
-+    qatomic_inc(&m53_guest_flips);
++    qatomic_inc(&guest_flips);
 +#endif
  }
 diff --git a/hw/xbox/mcpx/apu/apu.c b/hw/xbox/mcpx/apu/apu.c
@@ -247,7 +247,7 @@ index c6bffb5..7562ddc 100644
  {
      assert(v < MCPX_HW_MAX_VOICES);
 +#ifdef BOXDROID_RUNTIME
-+    int64_t m53_begin = g_get_monotonic_time();
++    int64_t timing_begin = g_get_monotonic_time();
 +    qatomic_inc(&boxdroid_voice_lock_waiters);
 +#endif
      qemu_mutex_lock(&d->lock);
@@ -257,10 +257,10 @@ index c6bffb5..7562ddc 100644
 +    static int64_t report;
 +    int64_t now = g_get_monotonic_time();
 +    if (!report) report = now;
-+    uint64_t elapsed = now - m53_begin;
++    uint64_t elapsed = now - timing_begin;
 +    ++calls; wait_us += elapsed; maximum = MAX(maximum, elapsed);
 +    if (now - report >= G_USEC_PER_SEC) {
-+        __android_log_print(ANDROID_LOG_INFO, "BoxDroidM53",
++        __android_log_print(ANDROID_LOG_INFO, "BoxDroid",
 +            "APU_VOICE_WAIT interval_us=%lld calls=%llu wait_us=%llu maximum_us=%llu",
 +            (long long)(now-report), (unsigned long long)calls,
 +            (unsigned long long)wait_us, (unsigned long long)maximum);
@@ -277,7 +277,7 @@ index 714e8f8..1876f3e 100644
  #include "hw/xbox/nv2a/boxdroid-diagnostics.h"
 +#ifdef BOXDROID_RUNTIME
 +#include <android/log.h>
-+static void m53_render_metric(unsigned kind, int64_t elapsed)
++static void render_metric(unsigned kind, int64_t elapsed)
 +{
 +    static struct { uint64_t calls, total, maximum; } stats[12];
 +    static int64_t report;
@@ -288,7 +288,7 @@ index 714e8f8..1876f3e 100644
 +    if (now-report<G_USEC_PER_SEC) return;
 +    for (unsigned i=0;i<12;++i) {
 +        if (!stats[i].calls) continue;
-+        __android_log_print(ANDROID_LOG_INFO,"BoxDroidM53",
++        __android_log_print(ANDROID_LOG_INFO,"BoxDroid",
 +            "NV_RENDER kind=%u interval_us=%lld calls=%llu total_us=%llu maximum_us=%llu",
 +            i,(long long)(now-report),(unsigned long long)stats[i].calls,
 +            (unsigned long long)stats[i].total,(unsigned long long)stats[i].maximum);
@@ -303,12 +303,12 @@ index 714e8f8..1876f3e 100644
 -    VK_CHECK(vkCreateGraphicsPipelines(r->device, r->vk_pipeline_cache, 1,
 +    {
 +#ifdef BOXDROID_RUNTIME
-+        int64_t m53_begin=g_get_monotonic_time();
++        int64_t timing_begin=g_get_monotonic_time();
 +#endif
 +        VK_CHECK(vkCreateGraphicsPipelines(r->device, r->vk_pipeline_cache, 1,
                                         &pipeline_info, NULL, &pipeline));
 +#ifdef BOXDROID_RUNTIME
-+        m53_render_metric(0,g_get_monotonic_time()-m53_begin);
++        render_metric(0,g_get_monotonic_time()-timing_begin);
 +#endif
 +    }
 @@ -1147,5 +1178,13 @@ static void create_pipeline(PGRAPHState *pg)
@@ -318,44 +318,44 @@ index 714e8f8..1876f3e 100644
 -    VK_CHECK(vkCreateGraphicsPipelines(r->device, r->vk_pipeline_cache, 1,
 +    {
 +#ifdef BOXDROID_RUNTIME
-+        int64_t m53_begin=g_get_monotonic_time();
++        int64_t timing_begin=g_get_monotonic_time();
 +#endif
 +        VK_CHECK(vkCreateGraphicsPipelines(r->device, r->vk_pipeline_cache, 1,
                                         &pipeline_create_info, NULL, &pipeline));
 +#ifdef BOXDROID_RUNTIME
-+        m53_render_metric(0,g_get_monotonic_time()-m53_begin);
++        render_metric(0,g_get_monotonic_time()-timing_begin);
 +#endif
 +    }
 @@ -1402,2 +1441,5 @@ void pgraph_vk_finish(PGRAPHState *pg, FinishReason finish_reason)
      if (r->in_command_buffer) {
          nv2a_profile_inc_counter(finish_reason_to_counter_enum[finish_reason]);
 +#ifdef BOXDROID_RUNTIME
-+        m53_render_metric(3 + finish_reason, 0);
++        render_metric(3 + finish_reason, 0);
 +#endif
 @@ -1441,9 +1483,15 @@ void pgraph_vk_finish(PGRAPHState *pg, FinishReason finish_reason)
          };
          nv2a_profile_inc_counter(NV2A_PROF_QUEUE_SUBMIT);
          vkResetFences(r->device, 1, &r->command_buffer_fence);
 +        #ifdef BOXDROID_RUNTIME
-+        int64_t m53_submit_result_begin=g_get_monotonic_time();
++        int64_t submit_result_begin=g_get_monotonic_time();
 +#endif
          VkResult submit_result = vkQueueSubmit(
              r->queue, ARRAY_SIZE(submit_infos), submit_infos,
              r->command_buffer_fence);
 +#ifdef BOXDROID_RUNTIME
-+        m53_render_metric(1,g_get_monotonic_time()-m53_submit_result_begin);
++        render_metric(1,g_get_monotonic_time()-submit_result_begin);
 +#endif
  #ifdef BOXDROID_XBOX_RUNTIME
          if (boxdroid_target_draw_queued) {
              if (!boxdroid_logged_vk32_first_render_submit) {
 @@ -1484,5 +1532,11 @@ void pgraph_vk_finish(PGRAPHState *pg, FinishReason finish_reason)
 +        #ifdef BOXDROID_RUNTIME
-+        int64_t m53_fence_result_begin=g_get_monotonic_time();
++        int64_t fence_result_begin=g_get_monotonic_time();
 +#endif
          VkResult fence_result = vkWaitForFences(
              r->device, 1, &r->command_buffer_fence, VK_TRUE, UINT64_MAX);
 +#ifdef BOXDROID_RUNTIME
-+        m53_render_metric(2,g_get_monotonic_time()-m53_fence_result_begin);
++        render_metric(2,g_get_monotonic_time()-fence_result_begin);
 +#endif
          VK_CHECK(fence_result);
  #ifdef BOXDROID_XBOX_RUNTIME

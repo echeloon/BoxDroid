@@ -24,36 +24,36 @@
 #ifdef BOXDROID_INPUT
 #include "boxdroid-input.h"
 #endif
-#ifdef BOXDROID_Android3_RUNTIME
+#ifdef BOXDROID_RUNTIME
 #include "qemu/bswap.h"
-static void m53_video_mode_probe(CPUState *cpu, uint64_t pc);
-static void m53_sample_progress(uint64_t pc, uintptr_t tb, uint16_t instructions);
-static int64_t m53_pc_start;
+static void timing_video_mode_probe(CPUState *cpu, uint64_t pc);
+static void timing_sample_progress(uint64_t pc, uintptr_t tb, uint16_t instructions);
+static int64_t timing_pc_start;
 #ifdef BOXDROID_X87_PROFILE
-int64_t boxdroid_m54_x87_start;
+int64_t boxdroid_x87_start;
 #endif
 #endif
 
 #define ARG(value) ((char *)(value))
-#define Android_RAW_FB_BASE UINT64_C(0x3c00000)
-#define Android_BOOT_VGA_BASE UINT64_C(0x3e86040)
-#define Android_RAW_FB_PITCH 2560U
-#define Android_RAW_FB_WIDTH 640U
-#define Android_RAW_FB_HEIGHT 480U
-#define Android_RAW_FB_SIZE ((size_t) Android_RAW_FB_PITCH * Android_RAW_FB_HEIGHT)
-#define Android_BOOT_VGA_GREEN_MIN 1024U
-#define Android_FB_WRITE_LOG_CAP 16
-#define Android_VALUE_LOG_CAP 64
-#define Android_PROGRESS_PC_SLOTS 4096
-#define Android_PROGRESS_TB_SLOTS 2048
-#define Android_PROGRESS_DEVICE_SLOTS 64
-#define Android_VIDEO_TIMELINE_LOG_CAP 128
+#define BOXDROID_RAW_FB_BASE UINT64_C(0x3c00000)
+#define BOXDROID_BOOT_VGA_BASE UINT64_C(0x3e86040)
+#define BOXDROID_RAW_FB_PITCH 2560U
+#define BOXDROID_RAW_FB_WIDTH 640U
+#define BOXDROID_RAW_FB_HEIGHT 480U
+#define BOXDROID_RAW_FB_SIZE ((size_t) BOXDROID_RAW_FB_PITCH * BOXDROID_RAW_FB_HEIGHT)
+#define BOXDROID_BOOT_VGA_GREEN_MIN 1024U
+#define BOXDROID_FB_WRITE_LOG_CAP 16
+#define BOXDROID_VALUE_LOG_CAP 64
+#define BOXDROID_PROGRESS_PC_SLOTS 4096
+#define BOXDROID_PROGRESS_TB_SLOTS 2048
+#define BOXDROID_PROGRESS_DEVICE_SLOTS 64
+#define BOXDROID_VIDEO_TIMELINE_LOG_CAP 128
 
 extern bool boxdroid_android_present_rgba(const uint8_t *pixels,
                                          uint32_t width, uint32_t height,
                                          uint32_t stride);
 
-#define TAG "BoxDroidAndroid"
+#define TAG "BoxDroid"
 
 static pthread_mutex_t state_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t state_changed = PTHREAD_COND_INITIALIZER;
@@ -87,7 +87,7 @@ static uint64_t m5_vram_write_event_log_count;
 static int64_t m5_fb_first_write_us;
 static char m5_fb_first_writer[32], m5_fb_last_writer[32];
 static uint64_t m5_vram_read_count, m5_vram_read_bytes;
-typedef struct BoxDroidAndroidFramebufferWrite {
+typedef struct BoxDroidFramebufferWrite {
     uint64_t sequence;
     int64_t timestamp_us;
     uint64_t address;
@@ -96,24 +96,24 @@ typedef struct BoxDroidAndroidFramebufferWrite {
     uint64_t guest_pc;
     uint64_t overlap_bytes;
     char writer[32];
-} BoxDroidAndroidFramebufferWrite;
-static BoxDroidAndroidFramebufferWrite m5_fb_first_writes[Android_FB_WRITE_LOG_CAP];
-static BoxDroidAndroidFramebufferWrite m5_fb_last_writes[Android_FB_WRITE_LOG_CAP];
-typedef struct BoxDroidAndroidFramebufferSamples {
+} BoxDroidFramebufferWrite;
+static BoxDroidFramebufferWrite m5_fb_first_writes[BOXDROID_FB_WRITE_LOG_CAP];
+static BoxDroidFramebufferWrite m5_fb_last_writes[BOXDROID_FB_WRITE_LOG_CAP];
+typedef struct BoxDroidFramebufferSamples {
     uint64_t samples, nonzero_samples, rgb_samples;
     int64_t first_nonzero_us, first_rgb_us, last_sample_us;
     uint64_t last_nonzero_bytes, last_rgb_pixels;
-} BoxDroidAndroidFramebufferSamples;
-static BoxDroidAndroidFramebufferSamples m5_fb_samples[2];
+} BoxDroidFramebufferSamples;
+static BoxDroidFramebufferSamples m5_fb_samples[2];
 static pthread_mutex_t m5_fb_sample_lock = PTHREAD_MUTEX_INITIALIZER;
 static int64_t m5_fb_periodic_sample_us;
 static bool m5_fb_first_pcrtc_sampled;
-typedef struct BoxDroidAndroidValueWrite {
+typedef struct BoxDroidValueWrite {
     uint64_t sequence, address, guest_pc, before, after;
     int64_t pre_store_us;
     uint8_t size;
     uint8_t change;
-} BoxDroidAndroidValueWrite;
+} BoxDroidValueWrite;
 static uint64_t m5_value_count, m5_value_zero, m5_value_nonzero;
 static uint64_t m5_value_zero_bytes, m5_value_nonzero_bytes;
 static uint64_t m5_value_large, m5_value_after_switch;
@@ -122,13 +122,13 @@ static uint64_t m5_value_first_nonzero_us;
 static uint64_t m5_value_first_after_count, m5_value_first_nonzero_count;
 static uint64_t m5_value_last_nonzero_count;
 static uint64_t m5_value_unique_bytes, m5_value_unique_words;
-static uint8_t m5_value_byte_seen[(Android_RAW_FB_SIZE + 7) / 8];
-static uint8_t m5_value_word_seen[(Android_RAW_FB_SIZE / 4 + 7) / 8];
-static BoxDroidAndroidValueWrite m5_value_first_after[Android_VALUE_LOG_CAP];
-static BoxDroidAndroidValueWrite m5_value_first_nonzero[Android_VALUE_LOG_CAP];
-static BoxDroidAndroidValueWrite m5_value_last_nonzero[Android_VALUE_LOG_CAP];
-static uint64_t diagnostic_counts[BOXDROID_Android_DIAG_COUNT];
-static uint64_t diagnostic_sample_counts[BOXDROID_Android_SAMPLE_COUNT];
+static uint8_t m5_value_byte_seen[(BOXDROID_RAW_FB_SIZE + 7) / 8];
+static uint8_t m5_value_word_seen[(BOXDROID_RAW_FB_SIZE / 4 + 7) / 8];
+static BoxDroidValueWrite m5_value_first_after[BOXDROID_VALUE_LOG_CAP];
+static BoxDroidValueWrite m5_value_first_nonzero[BOXDROID_VALUE_LOG_CAP];
+static BoxDroidValueWrite m5_value_last_nonzero[BOXDROID_VALUE_LOG_CAP];
+static uint64_t diagnostic_counts[BOXDROID_DIAG_COUNT];
+static uint64_t diagnostic_sample_counts[BOXDROID_SAMPLE_COUNT];
 static const void *diagnostic_scanout_surface;
 static bool diagnostic_binding_logged;
 static bool diagnostic_late_miss_logged;
@@ -203,33 +203,33 @@ static uint64_t m5_progress_interrupt_samples;
 static uint64_t m5_progress_device_reads, m5_progress_device_writes;
 static uint64_t m5_progress_device_overflow;
 static struct { uint64_t pc, count; bool used; }
-    m5_progress_pcs[Android_PROGRESS_PC_SLOTS];
+    m5_progress_pcs[BOXDROID_PROGRESS_PC_SLOTS];
 static struct { uintptr_t id; bool used; }
-    m5_progress_tbs[Android_PROGRESS_TB_SLOTS];
+    m5_progress_tbs[BOXDROID_PROGRESS_TB_SLOTS];
 static struct {
     char name[48];
     uint64_t offset, reads, writes, last_value, last_pc;
     bool used;
-} m5_progress_devices[Android_PROGRESS_DEVICE_SLOTS];
+} m5_progress_devices[BOXDROID_PROGRESS_DEVICE_SLOTS];
 
-typedef struct BoxDroidAndroidBindingJournal {
+typedef struct BoxDroidBindingJournal {
     uint64_t base;
     uint64_t generation;
-    uint64_t counts[BOXDROID_Android_BINDING_EVENT_COUNT];
-    uint64_t last_values[BOXDROID_Android_BINDING_EVENT_COUNT][8];
-    BoxDroidAndroidBindingEvent last_event;
+    uint64_t counts[BOXDROID_BINDING_EVENT_COUNT];
+    uint64_t last_values[BOXDROID_BINDING_EVENT_COUNT][8];
+    BoxDroidBindingEvent last_event;
     uint64_t last_operation[8];
-    BoxDroidAndroidBindingEvent before_scanout_event;
+    BoxDroidBindingEvent before_scanout_event;
     uint64_t before_scanout_operation[8];
     uint32_t first_logged;
     uint32_t after_switch_logged;
-} BoxDroidAndroidBindingJournal;
+} BoxDroidBindingJournal;
 
 static pthread_mutex_t binding_journal_lock = PTHREAD_MUTEX_INITIALIZER;
-static BoxDroidAndroidBindingJournal binding_journal[16];
+static BoxDroidBindingJournal binding_journal[16];
 static size_t binding_journal_count;
 
-static const char *const binding_event_names[BOXDROID_Android_BINDING_EVENT_COUNT] = {
+static const char *const binding_event_names[BOXDROID_BINDING_EVENT_COUNT] = {
     "create", "reuse", "upload_pending", "upload", "draw_dirty", "clear",
     "guest_draw", "gpu_probe", "staging_compare", "scanout",
 };
@@ -287,7 +287,7 @@ uint64_t boxdroid_diag_record(const char *event, uint64_t a, uint64_t b,
         return sequence;
     }
     __android_log_print(ANDROID_LOG_INFO, TAG,
-        "Android_ORDER seq=%" PRIu64 " mono_us=%" PRId64 " event=%s"
+        "BOXDROID_ORDER seq=%" PRIu64 " mono_us=%" PRId64 " event=%s"
         " a=0x%" PRIx64 " b=0x%" PRIx64 " c=0x%" PRIx64
         " d=0x%" PRIx64 " e=0x%" PRIx64 " f=0x%" PRIx64,
         sequence, timestamp, event, a, b, c, d, e, f);
@@ -295,7 +295,7 @@ uint64_t boxdroid_diag_record(const char *event, uint64_t a, uint64_t b,
         b == UINT64_C(0x3c00000)) {
         if (have_target) {
             __android_log_print(ANDROID_LOG_INFO, TAG,
-                "Android_ORDER_CORRELATED pcrtc_seq=%" PRIu64
+                "BOXDROID_ORDER_CORRELATED pcrtc_seq=%" PRIu64
                 " pgraph_target_seq=%" PRIu64 " pgraph_mono_us=%" PRId64
                 " method=0x%" PRIx64 " raw=0x%" PRIx64
                 " dma_base=0x%" PRIx64 " target=0x%" PRIx64
@@ -305,7 +305,7 @@ uint64_t boxdroid_diag_record(const char *event, uint64_t a, uint64_t b,
         }
         if (have_extent) {
             __android_log_print(ANDROID_LOG_INFO, TAG,
-                "Android_ORDER_CORRELATED_EXTENT pcrtc_seq=%" PRIu64
+                "BOXDROID_ORDER_CORRELATED_EXTENT pcrtc_seq=%" PRIu64
                 " pgraph_extent_seq=%" PRIu64 " pgraph_mono_us=%" PRId64
                 " width=%" PRIu64 " height=%" PRIu64
                 " type=%" PRIu64 " dma_limit=0x%" PRIx64,
@@ -357,7 +357,7 @@ void boxdroid_diag_vram_sample(const char *boundary, uint64_t start,
                             ((uint64_t)(uint32_t)depth << 32) | bytes_per_pixel,
                             hash);
     __android_log_print(ANDROID_LOG_INFO, TAG,
-        "Android_MEMORY_SAMPLE boundary=%s start=0x%" PRIx64
+        "BOXDROID_MEMORY_SAMPLE boundary=%s start=0x%" PRIx64
         " line_offset=%u pitch=%u extent=%ux%u depth=%d bpp=%u"
         " sample_bytes=%zu total_bytes=%zu nonzero_bytes=%" PRIu64
         " nonzero_pixels=%" PRIu64 " rgb_nonblack_pixels=%" PRIu64
@@ -371,11 +371,11 @@ void boxdroid_diag_vram_write(const char *writer, uint64_t address,
                                 uint64_t bytes, uint64_t source,
                                 uint64_t guest_pc)
 {
-    const uint64_t watch_start = Android_RAW_FB_BASE;
-    const uint64_t watch_end = Android_RAW_FB_BASE + Android_RAW_FB_SIZE;
+    const uint64_t watch_start = BOXDROID_RAW_FB_BASE;
+    const uint64_t watch_end = BOXDROID_RAW_FB_BASE + BOXDROID_RAW_FB_SIZE;
     uint64_t end, overlap_start, overlap_end, overlap_bytes, sequence;
     int64_t timestamp_us;
-    BoxDroidAndroidFramebufferWrite record;
+    BoxDroidFramebufferWrite record;
     uint64_t write_number;
 
     if (!writer || !bytes || address > UINT64_MAX - bytes) {
@@ -391,7 +391,7 @@ void boxdroid_diag_vram_write(const char *writer, uint64_t address,
     timestamp_us = g_get_monotonic_time();
     sequence = __atomic_add_fetch(&m5_diagnostic_sequence, 1,
                                   __ATOMIC_RELAXED);
-    record = (BoxDroidAndroidFramebufferWrite) {
+    record = (BoxDroidFramebufferWrite) {
         .sequence = sequence,
         .timestamp_us = timestamp_us,
         .address = address,
@@ -409,15 +409,15 @@ void boxdroid_diag_vram_write(const char *writer, uint64_t address,
         g_strlcpy(m5_fb_first_writer, writer, sizeof(m5_fb_first_writer));
     }
     g_strlcpy(m5_fb_last_writer, writer, sizeof(m5_fb_last_writer));
-    if (write_number <= Android_FB_WRITE_LOG_CAP) {
+    if (write_number <= BOXDROID_FB_WRITE_LOG_CAP) {
         m5_fb_first_writes[write_number - 1] = record;
     }
-    m5_fb_last_writes[(write_number - 1) % Android_FB_WRITE_LOG_CAP] = record;
+    m5_fb_last_writes[(write_number - 1) % BOXDROID_FB_WRITE_LOG_CAP] = record;
     pthread_mutex_unlock(&m5_vram_write_lock);
 
-    if (write_number <= Android_FB_WRITE_LOG_CAP) {
+    if (write_number <= BOXDROID_FB_WRITE_LOG_CAP) {
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_FB_WRITE seq=%" PRIu64 " mono_us=%" PRId64
+            "BOXDROID_FB_WRITE seq=%" PRIu64 " mono_us=%" PRId64
             " writer=%s address=0x%" PRIx64 " bytes=%" PRIu64
             " overlap_bytes=%" PRIu64 " source=0x%" PRIx64
             " guest_pc=0x%" PRIx64 " count=%" PRIu64,
@@ -437,13 +437,13 @@ void boxdroid_diag_cpu_store_value(uint64_t address, size_t size,
     uint64_t begin, end;
     uint64_t before_word = 0, after_word = 0;
     bool before_nonzero = false, after_nonzero = false;
-    BoxDroidAndroidValueWrite record;
+    BoxDroidValueWrite record;
 
     if (!before || !after || !size || address > UINT64_MAX - size) {
         return;
     }
-    begin = MAX(address, Android_RAW_FB_BASE);
-    end = MIN(address + size, Android_RAW_FB_BASE + Android_RAW_FB_SIZE);
+    begin = MAX(address, BOXDROID_RAW_FB_BASE);
+    end = MIN(address + size, BOXDROID_RAW_FB_BASE + BOXDROID_RAW_FB_SIZE);
     if (begin >= end) {
         return;
     }
@@ -462,7 +462,7 @@ void boxdroid_diag_cpu_store_value(uint64_t address, size_t size,
         before_nonzero |= before[i] != 0;
         after_nonzero |= after[i] != 0;
     }
-    record = (BoxDroidAndroidValueWrite) {
+    record = (BoxDroidValueWrite) {
         .sequence = __atomic_add_fetch(&m5_diagnostic_sequence, 1,
                                         __ATOMIC_RELAXED),
         .address = address, .guest_pc = guest_pc,
@@ -479,7 +479,7 @@ void boxdroid_diag_cpu_store_value(uint64_t address, size_t size,
     m5_value_nonzero += after_nonzero;
     for (uint64_t offset = begin; offset < end; ++offset) {
         size_t i = offset - address;
-        uint64_t relative = offset - Android_RAW_FB_BASE;
+        uint64_t relative = offset - BOXDROID_RAW_FB_BASE;
         uint64_t word = relative / 4;
         uint8_t bit = 1u << (relative & 7);
         uint8_t word_bit = 1u << (word & 7);
@@ -494,11 +494,11 @@ void boxdroid_diag_cpu_store_value(uint64_t address, size_t size,
             m5_value_unique_words++;
         }
     }
-    if (pcrtc_start == Android_RAW_FB_BASE) {
+    if (pcrtc_start == BOXDROID_RAW_FB_BASE) {
         m5_value_after_switch++;
         m5_value_after_zero += !after_nonzero;
         m5_value_after_nonzero += after_nonzero;
-        if (m5_value_first_after_count < Android_VALUE_LOG_CAP) {
+        if (m5_value_first_after_count < BOXDROID_VALUE_LOG_CAP) {
             m5_value_first_after[m5_value_first_after_count++] = record;
         }
         if (after_nonzero) {
@@ -509,11 +509,11 @@ void boxdroid_diag_cpu_store_value(uint64_t address, size_t size,
             if (!m5_value_first_nonzero_us) {
                 m5_value_first_nonzero_us = pre_store_us;
             }
-            if (m5_value_first_nonzero_count < Android_VALUE_LOG_CAP) {
+            if (m5_value_first_nonzero_count < BOXDROID_VALUE_LOG_CAP) {
                 m5_value_first_nonzero[m5_value_first_nonzero_count++] = record;
             }
             m5_value_last_nonzero[m5_value_last_nonzero_count++ %
-                                  Android_VALUE_LOG_CAP] = record;
+                                  BOXDROID_VALUE_LOG_CAP] = record;
         }
     }
     pthread_mutex_unlock(&m5_vram_write_lock);
@@ -527,28 +527,28 @@ static struct {
     uint64_t reads, writes, samples, execution_us;
     int64_t sample_begin, report_us;
     bool decoded;
-} m54_exec;
+} x87_exec;
 
-void boxdroid_m54_tcg_event(unsigned kind)
+void boxdroid_tcg_event(unsigned kind)
 {
-    if (kind < G_N_ELEMENTS(m54_exec.events)) ++m54_exec.events[kind];
+    if (kind < G_N_ELEMENTS(x87_exec.events)) ++x87_exec.events[kind];
 }
 
 /* Sample indirect-chain lookups as well as outer C dispatches. The latter
  * disproportionately sample STI's interrupt-shadow exits in the idle loop. */
-void boxdroid_m54_lookup_pc(uint64_t pc)
+void boxdroid_lookup_pc(uint64_t pc)
 {
     static uint64_t ticks, samples, overflow;
     static bool done;
     static struct { uint64_t pc, hits; } pcs[512];
-    ++m54_exec.events[0];
+    ++x87_exec.events[0];
     if ((++ticks & 1023) || done) return;
-    int64_t begin = __atomic_load_n(&m53_pc_start, __ATOMIC_RELAXED);
+    int64_t begin = __atomic_load_n(&timing_pc_start, __ATOMIC_RELAXED);
     if (!begin) return;
     int64_t now = g_get_monotonic_time();
     if (now - begin >= 5 * G_USEC_PER_SEC) {
         done = true;
-        __android_log_print(ANDROID_LOG_INFO, "BoxDroidAndroid4",
+        __android_log_print(ANDROID_LOG_INFO, "BoxDroid4",
             "LOOKUP_SAMPLE elapsed_us=%lld samples=%llu overflow=%llu stride=1024",
             (long long)(now-begin), (unsigned long long)samples,
             (unsigned long long)overflow);
@@ -557,7 +557,7 @@ void boxdroid_m54_lookup_pc(uint64_t pc)
             for (unsigned i = 0; i < G_N_ELEMENTS(pcs); ++i)
                 if (pcs[i].hits && (best < 0 || pcs[i].hits > pcs[best].hits)) best = i;
             if (best < 0) break;
-            __android_log_print(ANDROID_LOG_INFO, "BoxDroidAndroid4",
+            __android_log_print(ANDROID_LOG_INFO, "BoxDroid4",
                 "LOOKUP_PC rank=%u pc=0x%llx samples=%llu", rank,
                 (unsigned long long)pcs[best].pc, (unsigned long long)pcs[best].hits);
             pcs[best].hits = 0;
@@ -575,27 +575,27 @@ void boxdroid_m54_lookup_pc(uint64_t pc)
     ++overflow;
 }
 
-void boxdroid_m54_tb_return(bool chained, unsigned exit_index)
+void boxdroid_tb_return(bool chained, unsigned exit_index)
 {
-    ++m54_exec.returns;
-    m54_exec.chains += chained;
-    if (exit_index < G_N_ELEMENTS(m54_exec.exits)) ++m54_exec.exits[exit_index];
-    if (m54_exec.sample_begin) {
-        m54_exec.execution_us += g_get_monotonic_time() - m54_exec.sample_begin;
-        m54_exec.sample_begin = 0;
-        ++m54_exec.samples;
+    ++x87_exec.returns;
+    x87_exec.chains += chained;
+    if (exit_index < G_N_ELEMENTS(x87_exec.exits)) ++x87_exec.exits[exit_index];
+    if (x87_exec.sample_begin) {
+        x87_exec.execution_us += g_get_monotonic_time() - x87_exec.sample_begin;
+        x87_exec.sample_begin = 0;
+        ++x87_exec.samples;
     }
 }
 
-static void m54_tb_profile(CPUState *cpu, uint64_t pc)
+static void x87_tb_profile(CPUState *cpu, uint64_t pc)
 {
-    ++m54_exec.dispatches;
-    m54_exec.idle += pc == 0x8001b02f || pc == 0x8001b030;
-    if ((m54_exec.dispatches & 4095) != 0) return;
+    ++x87_exec.dispatches;
+    x87_exec.idle += pc == 0x8001b02f || pc == 0x8001b030;
+    if ((x87_exec.dispatches & 4095) != 0) return;
     int64_t now = g_get_monotonic_time();
     CPUX86State *env = &X86_CPU(cpu)->env;
-    if (!m54_exec.report_us) m54_exec.report_us = now;
-    if (now - m54_exec.report_us >= G_USEC_PER_SEC) {
+    if (!x87_exec.report_us) x87_exec.report_us = now;
+    if (now - x87_exec.report_us >= G_USEC_PER_SEC) {
         uint32_t queue = 0, next = 0;
         uint8_t bytes[4];
         /* These offsets describe the idle-loop KPCR, not arbitrary EBX/EBP
@@ -610,23 +610,23 @@ static void m54_tb_profile(CPUState *cpu, uint64_t pc)
         bool next_ok = idle_context &&
             !cpu_memory_rw_debug(cpu, env->regs[R_EBX] + 0x2c, bytes, 4, false);
         if (next_ok) next = ldl_le_p(bytes);
-        __android_log_print(ANDROID_LOG_INFO, "BoxDroidAndroid4",
+        __android_log_print(ANDROID_LOG_INFO, "BoxDroid4",
             "EXEC_WINDOW mono_us=%lld elapsed_us=%lld dispatch=%llu idle=%llu returns=%llu chain_returns=%llu exit0=%llu exit1=%llu requested=%llu lookup_hit=%llu lookup_miss=%llu mmio_reads=%llu mmio_writes=%llu samples=%llu execution_us=%llu pc=0x%llx queue_addr=0x%llx queue=0x%x queue_ok=%d next_addr=0x%llx next=0x%x next_ok=%d eflags=0x%x hflags=0x%x",
-            (long long)now, (long long)(now-m54_exec.report_us),
-            (unsigned long long)m54_exec.dispatches, (unsigned long long)m54_exec.idle,
-            (unsigned long long)m54_exec.returns, (unsigned long long)m54_exec.chains,
-            (unsigned long long)m54_exec.exits[0], (unsigned long long)m54_exec.exits[1],
-            (unsigned long long)m54_exec.exits[3], (unsigned long long)m54_exec.events[0],
-            (unsigned long long)m54_exec.events[1], (unsigned long long)m54_exec.reads,
-            (unsigned long long)m54_exec.writes, (unsigned long long)m54_exec.samples,
-            (unsigned long long)m54_exec.execution_us, (unsigned long long)pc,
+            (long long)now, (long long)(now-x87_exec.report_us),
+            (unsigned long long)x87_exec.dispatches, (unsigned long long)x87_exec.idle,
+            (unsigned long long)x87_exec.returns, (unsigned long long)x87_exec.chains,
+            (unsigned long long)x87_exec.exits[0], (unsigned long long)x87_exec.exits[1],
+            (unsigned long long)x87_exec.exits[3], (unsigned long long)x87_exec.events[0],
+            (unsigned long long)x87_exec.events[1], (unsigned long long)x87_exec.reads,
+            (unsigned long long)x87_exec.writes, (unsigned long long)x87_exec.samples,
+            (unsigned long long)x87_exec.execution_us, (unsigned long long)pc,
             (unsigned long long)env->regs[R_EBP], queue, queue_ok,
             (unsigned long long)(env->regs[R_EBX]+0x2c), next, next_ok,
             env->eflags, env->hflags);
-        memset(&m54_exec, 0, sizeof(m54_exec));
-        m54_exec.report_us = now;
+        memset(&x87_exec, 0, sizeof(x87_exec));
+        x87_exec.report_us = now;
     }
-    m54_exec.sample_begin = g_get_monotonic_time();
+    x87_exec.sample_begin = g_get_monotonic_time();
 }
 #endif
 
@@ -636,11 +636,11 @@ void boxdroid_diag_tb_exec(CPUState *cpu, uint64_t pc,
                               uintptr_t tb_id, uint16_t guest_insns)
 {
 #ifdef BOXDROID_XBOX_RUNTIME
-    m54_tb_profile(cpu, pc);
+    x87_tb_profile(cpu, pc);
 #endif
-#ifdef BOXDROID_Android3_RUNTIME
-    m53_video_mode_probe(cpu, pc);
-    m53_sample_progress(pc, tb_id, guest_insns);
+#ifdef BOXDROID_RUNTIME
+    timing_video_mode_probe(cpu, pc);
+    timing_sample_progress(pc, tb_id, guest_insns);
 #endif
     int64_t last_change = __atomic_load_n(&m5_progress_last_change_us,
                                            __ATOMIC_RELAXED);
@@ -650,7 +650,7 @@ void boxdroid_diag_tb_exec(CPUState *cpu, uint64_t pc,
     if (!m5_progress_first_tb_logged) {
         m5_progress_first_tb_logged = true;
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_TCG_TB_EXEC_FIRST pc=0x%" PRIx64 " guest_insns=%u",
+            "BOXDROID_TCG_TB_EXEC_FIRST pc=0x%" PRIx64 " guest_insns=%u",
             pc, guest_insns);
     }
 
@@ -667,14 +667,14 @@ void boxdroid_diag_tb_exec(CPUState *cpu, uint64_t pc,
         }
         m5_progress_started_us = now;
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_PROGRESS_START mono_us=%" PRId64 " last_change_us=%" PRId64
+            "BOXDROID_PROGRESS_START mono_us=%" PRId64 " last_change_us=%" PRId64
             " quiet_us=%" PRId64 " pc=0x%" PRIx64,
             now, last_change, now - last_change, pc);
     }
 
     m5_progress_tb_count++;
     m5_progress_guest_insns += guest_insns;
-    slot = (pc ^ (pc >> 12)) & (Android_PROGRESS_PC_SLOTS - 1);
+    slot = (pc ^ (pc >> 12)) & (BOXDROID_PROGRESS_PC_SLOTS - 1);
     if (!m5_progress_pcs[slot].used) {
         m5_progress_pcs[slot].used = true;
         m5_progress_pcs[slot].pc = pc;
@@ -685,7 +685,7 @@ void boxdroid_diag_tb_exec(CPUState *cpu, uint64_t pc,
     } else {
         m5_progress_pc_collisions++;
     }
-    slot = ((tb_id >> 4) ^ (tb_id >> 15)) & (Android_PROGRESS_TB_SLOTS - 1);
+    slot = ((tb_id >> 4) ^ (tb_id >> 15)) & (BOXDROID_PROGRESS_TB_SLOTS - 1);
     if (!m5_progress_tbs[slot].used) {
         m5_progress_tbs[slot].used = true;
         m5_progress_tbs[slot].id = tb_id;
@@ -722,7 +722,7 @@ void boxdroid_diag_tb_exec(CPUState *cpu, uint64_t pc,
             ((uint32_t)flag_bytes[3] << 24);
         m5_progress_last_sample_us = g_get_monotonic_time();
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_PROGRESS_SAMPLE mono_us=%" PRId64 " tb=%" PRIu64
+            "BOXDROID_PROGRESS_SAMPLE mono_us=%" PRId64 " tb=%" PRIu64
             " pc=0x%" PRIx64 " eax=0x%" PRIx64 " ecx=0x%" PRIx64
             " edx=0x%" PRIx64 " ebx=0x%" PRIx64 " ebp=0x%" PRIx64
             " queue_word=0x%x queue_status=%d flag_word=0x%x"
@@ -746,7 +746,7 @@ void boxdroid_diag_cpu_exit(int result, bool halted, uint32_t interrupts)
     m5_progress_interrupt_samples += interrupts != 0;
     if (m5_progress_halt_exits + m5_progress_other_exits <= 8) {
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_PROGRESS_CPU_EXIT result=%d halted=%d interrupts=0x%x",
+            "BOXDROID_PROGRESS_CPU_EXIT result=%d halted=%d interrupts=0x%x",
             result, halted, interrupts);
     }
 }
@@ -760,8 +760,8 @@ void boxdroid_diag_device_access(bool write, const char *region,
     size_t i;
 #ifdef BOXDROID_XBOX_RUNTIME
     if (cpu) {
-        if (write) ++m54_exec.writes;
-        else ++m54_exec.reads;
+        if (write) ++x87_exec.writes;
+        else ++x87_exec.reads;
     }
 #endif
 
@@ -771,14 +771,14 @@ void boxdroid_diag_device_access(bool write, const char *region,
     pc = cpu->cc->get_pc ? cpu->cc->get_pc(cpu) : 0;
     if (write) m5_progress_device_writes++;
     else m5_progress_device_reads++;
-    for (i = 0; i < Android_PROGRESS_DEVICE_SLOTS; ++i) {
+    for (i = 0; i < BOXDROID_PROGRESS_DEVICE_SLOTS; ++i) {
         if (!m5_progress_devices[i].used ||
             (m5_progress_devices[i].offset == offset &&
              strcmp(m5_progress_devices[i].name, region) == 0)) {
             break;
         }
     }
-    if (i < Android_PROGRESS_DEVICE_SLOTS) {
+    if (i < BOXDROID_PROGRESS_DEVICE_SLOTS) {
         if (!m5_progress_devices[i].used) {
             m5_progress_devices[i].used = true;
             g_strlcpy(m5_progress_devices[i].name, region,
@@ -794,7 +794,7 @@ void boxdroid_diag_device_access(bool write, const char *region,
     }
     if (m5_progress_device_reads + m5_progress_device_writes <= 16) {
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_PROGRESS_DEVICE %s region=%s offset=0x%" PRIx64
+            "BOXDROID_PROGRESS_DEVICE %s region=%s offset=0x%" PRIx64
             " size=%u value=0x%" PRIx64 " result=%d pc=0x%" PRIx64,
             write ? "write" : "read", region, offset, size, value,
             result, pc);
@@ -804,7 +804,7 @@ void boxdroid_diag_device_access(bool write, const char *region,
 void boxdroid_diag_progress_summary(void)
 {
     __android_log_print(ANDROID_LOG_INFO, TAG,
-        "Android_PROGRESS_SUMMARY last_change_us=%" PRId64
+        "BOXDROID_PROGRESS_SUMMARY last_change_us=%" PRId64
         " start_us=%" PRId64 " end_us=%" PRId64
         " tb=%" PRIu64 " guest_insns=%" PRIu64
         " unique_pc_slots=%" PRIu64 " pc_collisions=%" PRIu64
@@ -821,25 +821,25 @@ void boxdroid_diag_progress_summary(void)
         m5_progress_device_reads, m5_progress_device_writes,
         m5_progress_device_overflow);
     for (unsigned rank = 0; rank < 8; ++rank) {
-        size_t best = Android_PROGRESS_PC_SLOTS;
-        for (size_t i = 0; i < Android_PROGRESS_PC_SLOTS; ++i) {
+        size_t best = BOXDROID_PROGRESS_PC_SLOTS;
+        for (size_t i = 0; i < BOXDROID_PROGRESS_PC_SLOTS; ++i) {
             if (!m5_progress_pcs[i].used || !m5_progress_pcs[i].count) continue;
-            if (best == Android_PROGRESS_PC_SLOTS ||
+            if (best == BOXDROID_PROGRESS_PC_SLOTS ||
                 m5_progress_pcs[i].count > m5_progress_pcs[best].count) {
                 best = i;
             }
         }
-        if (best == Android_PROGRESS_PC_SLOTS) break;
+        if (best == BOXDROID_PROGRESS_PC_SLOTS) break;
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_PROGRESS_TOP_PC rank=%u pc=0x%" PRIx64 " tb=%" PRIu64,
+            "BOXDROID_PROGRESS_TOP_PC rank=%u pc=0x%" PRIx64 " tb=%" PRIu64,
             rank + 1, m5_progress_pcs[best].pc,
             m5_progress_pcs[best].count);
         m5_progress_pcs[best].count = 0;
     }
-    for (size_t i = 0; i < Android_PROGRESS_DEVICE_SLOTS; ++i) {
+    for (size_t i = 0; i < BOXDROID_PROGRESS_DEVICE_SLOTS; ++i) {
         if (!m5_progress_devices[i].used) continue;
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_PROGRESS_DEVICE_SUMMARY region=%s offset=0x%" PRIx64
+            "BOXDROID_PROGRESS_DEVICE_SUMMARY region=%s offset=0x%" PRIx64
             " reads=%" PRIu64 " writes=%" PRIu64
             " last_value=0x%" PRIx64 " last_pc=0x%" PRIx64,
             m5_progress_devices[i].name, m5_progress_devices[i].offset,
@@ -852,8 +852,8 @@ void boxdroid_diag_progress_summary(void)
 void boxdroid_diag_vram_read(const char *reader, uint64_t address,
                                uint64_t bytes)
 {
-    const uint64_t watch_start = Android_RAW_FB_BASE;
-    const uint64_t watch_end = Android_RAW_FB_BASE + Android_RAW_FB_SIZE;
+    const uint64_t watch_start = BOXDROID_RAW_FB_BASE;
+    const uint64_t watch_end = BOXDROID_RAW_FB_BASE + BOXDROID_RAW_FB_SIZE;
     uint64_t end, overlap_start, overlap_end, read_number;
     if (!reader || !bytes || address > UINT64_MAX - bytes) {
         return;
@@ -872,7 +872,7 @@ void boxdroid_diag_vram_read(const char *reader, uint64_t address,
         boxdroid_diag_record("VRAM_READ", address, bytes,
                                 overlap_end - overlap_start, 0, 0, 0);
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_VRAM_READ seq=%" PRIu64 " reader=%s address=0x%" PRIx64
+            "BOXDROID_VRAM_READ seq=%" PRIu64 " reader=%s address=0x%" PRIx64
             " bytes=%" PRIu64, __atomic_load_n(&m5_diagnostic_sequence,
                                                 __ATOMIC_RELAXED),
             reader, address, bytes);
@@ -920,7 +920,7 @@ void boxdroid_diag_target_vram_sample(const char *boundary,
         sequence_event = __atomic_load_n(&m5_diagnostic_sequence,
                                          __ATOMIC_RELAXED);
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_TARGET_VRAM_SAMPLE event=%s seq=%" PRIu64
+            "BOXDROID_TARGET_VRAM_SAMPLE event=%s seq=%" PRIu64
             " target=0x%" PRIx64 " bytes=%zu nonzero_bytes=%" PRIu64
             " rgb_nonblack_32bpp=%" PRIu64 " hash=%016" PRIx64,
             boundary, sequence_event, start, length, nonzero, rgb_nonblack,
@@ -933,18 +933,18 @@ void boxdroid_diag_framebuffer_sample(const char *boundary,
                                         const uint8_t *data,
                                         size_t length)
 {
-    size_t sample_bytes = MIN(length, Android_RAW_FB_SIZE);
+    size_t sample_bytes = MIN(length, BOXDROID_RAW_FB_SIZE);
     uint64_t hash = UINT64_C(1469598103934665603);
     uint64_t nonzero_bytes = 0, rgb_nonblack_pixels = 0;
     uint64_t packed16_nonzero = 0, packed24_nonzero = 0;
     uint64_t alpha_only_pixels = 0, white_rgb_pixels = 0;
-    uint32_t min_x = Android_RAW_FB_WIDTH, min_y = Android_RAW_FB_HEIGHT;
+    uint32_t min_x = BOXDROID_RAW_FB_WIDTH, min_y = BOXDROID_RAW_FB_HEIGHT;
     uint32_t max_x = 0, max_y = 0, active_rows = 0;
-    bool row_active[Android_RAW_FB_HEIGHT] = { 0 };
+    bool row_active[BOXDROID_RAW_FB_HEIGHT] = { 0 };
     int64_t timestamp_us = g_get_monotonic_time();
     uint64_t sequence;
 
-    if (!boundary || !data || sample_bytes < Android_RAW_FB_SIZE) {
+    if (!boundary || !data || sample_bytes < BOXDROID_RAW_FB_SIZE) {
         return;
     }
     for (size_t i = 0; i < sample_bytes; ++i) {
@@ -960,8 +960,8 @@ void boxdroid_diag_framebuffer_sample(const char *boundary,
                             data[i + 2] == 0xff;
         if (rgb) {
             uint32_t pixel = i / 4;
-            uint32_t x = pixel % Android_RAW_FB_WIDTH;
-            uint32_t y = pixel / Android_RAW_FB_WIDTH;
+            uint32_t x = pixel % BOXDROID_RAW_FB_WIDTH;
+            uint32_t y = pixel / BOXDROID_RAW_FB_WIDTH;
             min_x = MIN(min_x, x);
             min_y = MIN(min_y, y);
             max_x = MAX(max_x, x);
@@ -979,8 +979,8 @@ void boxdroid_diag_framebuffer_sample(const char *boundary,
         packed24_nonzero += data[i] || data[i + 1] || data[i + 2];
     }
     sequence = boxdroid_diag_record("FRAMEBUFFER_SAMPLE", pcrtc_start,
-        Android_RAW_FB_BASE, Android_RAW_FB_PITCH,
-        ((uint64_t)Android_RAW_FB_WIDTH << 32) | Android_RAW_FB_HEIGHT,
+        BOXDROID_RAW_FB_BASE, BOXDROID_RAW_FB_PITCH,
+        ((uint64_t)BOXDROID_RAW_FB_WIDTH << 32) | BOXDROID_RAW_FB_HEIGHT,
         nonzero_bytes, rgb_nonblack_pixels);
 
     if (g_strcmp0(boundary, "raw-vram-pcrtc-entry") == 0 &&
@@ -989,7 +989,7 @@ void boxdroid_diag_framebuffer_sample(const char *boundary,
         return;
     }
     size_t sample_index = g_str_has_prefix(boundary, "raw-vram") ? 0 : 1;
-    BoxDroidAndroidFramebufferSamples *samples = &m5_fb_samples[sample_index];
+    BoxDroidFramebufferSamples *samples = &m5_fb_samples[sample_index];
     pthread_mutex_lock(&m5_fb_sample_lock);
     samples->samples++;
     if (nonzero_bytes) {
@@ -1010,18 +1010,18 @@ void boxdroid_diag_framebuffer_sample(const char *boundary,
     pthread_mutex_unlock(&m5_fb_sample_lock);
 
     __android_log_print(ANDROID_LOG_INFO, TAG,
-        "Android_FRAMEBUFFER_SAMPLE seq=%" PRIu64 " mono_us=%" PRId64
+        "BOXDROID_FRAMEBUFFER_SAMPLE seq=%" PRIu64 " mono_us=%" PRId64
         " boundary=%s pcrtc=0x%" PRIx64 " base=0x%" PRIx64
         " pitch=%u extent=%ux%u bytes=%zu nonzero_bytes=%" PRIu64
         " rgb_nonblack_pixels=%" PRIu64 " hash=%016" PRIx64,
-        sequence, timestamp_us, boundary, pcrtc_start, Android_RAW_FB_BASE,
-        Android_RAW_FB_PITCH, Android_RAW_FB_WIDTH, Android_RAW_FB_HEIGHT, sample_bytes,
+        sequence, timestamp_us, boundary, pcrtc_start, BOXDROID_RAW_FB_BASE,
+        BOXDROID_RAW_FB_PITCH, BOXDROID_RAW_FB_WIDTH, BOXDROID_RAW_FB_HEIGHT, sample_bytes,
         nonzero_bytes, rgb_nonblack_pixels, hash);
-    if (pcrtc_start == Android_RAW_FB_BASE &&
+    if (pcrtc_start == BOXDROID_RAW_FB_BASE &&
         (g_strcmp0(boundary, "raw-vram-stop") == 0 ||
          (rgb_nonblack_pixels && !m5_fb_samples[0].rgb_samples))) {
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_FRAMEBUFFER_GEOMETRY boundary=%s rgb_bbox=%u,%u-%u,%u"
+            "BOXDROID_FRAMEBUFFER_GEOMETRY boundary=%s rgb_bbox=%u,%u-%u,%u"
             " active_rows=%u rgb_white=%" PRIu64 " alpha_only=%" PRIu64
             " packed16_nonzero=%" PRIu64 " packed24_nonzero=%" PRIu64,
             boundary, min_x, min_y, max_x, max_y, active_rows,
@@ -1032,13 +1032,13 @@ void boxdroid_diag_framebuffer_sample(const char *boundary,
             for (unsigned y = 25; y <= 31; ++y) {
                 char row[257];
                 for (unsigned x = 25; x <= 280; ++x) {
-                    size_t i = (size_t)y * Android_RAW_FB_PITCH + x * 4;
+                    size_t i = (size_t)y * BOXDROID_RAW_FB_PITCH + x * 4;
                     row[x - 25] = data[i] || data[i + 1] || data[i + 2] ?
                         '#' : '.';
                 }
                 row[256] = '\0';
                 __android_log_print(ANDROID_LOG_INFO, TAG,
-                    "Android_TEXT_BAND y=%u x=25..280 %s", y, row);
+                    "BOXDROID_TEXT_BAND y=%u x=25..280 %s", y, row);
             }
         }
     }
@@ -1054,7 +1054,7 @@ Java_org_boxdroid_MainActivity_nativeXboxStart(JNIEnv *env, jobject self,
 JNIEXPORT jint JNICALL
 Java_org_boxdroid_MainActivity_nativeXboxStop(JNIEnv *env, jobject self);
 
-typedef struct BoxDroidAndroidVideoStats {
+typedef struct BoxDroidVideoStats {
     uint64_t hash;
     uint64_t nonblack;
     uint64_t green;
@@ -1063,10 +1063,10 @@ typedef struct BoxDroidAndroidVideoStats {
     int green_min_y;
     int green_max_x;
     int green_max_y;
-} BoxDroidAndroidVideoStats;
+} BoxDroidVideoStats;
 
 static void m5_video_measure_rgba(const uint8_t *rgba, int width, int height,
-                                  int stride, BoxDroidAndroidVideoStats *stats)
+                                  int stride, BoxDroidVideoStats *stats)
 {
     stats->hash = UINT64_C(1469598103934665603);
     stats->nonblack = 0;
@@ -1106,7 +1106,7 @@ static void m5_video_measure_rgba(const uint8_t *rgba, int width, int height,
  * strict NV2A/VGA presenter paths reject. It observes Pixman output without
  * changing guest VRAM or presenting the frame. */
 static bool m5_video_measure_unpresented_surface(DisplaySurface *surface,
-                                                  BoxDroidAndroidVideoStats *stats)
+                                                  BoxDroidVideoStats *stats)
 {
     int width = surface_width(surface);
     int height = surface_height(surface);
@@ -1168,7 +1168,7 @@ static void m5_video_timeline_record(uint64_t pcrtc_start,
                                      uint8_t cr28, uint32_t pramdac_control,
                                      const char *path, unsigned int path_id,
                                      bool nv2a_hit,
-                                     const BoxDroidAndroidVideoStats *stats,
+                                     const BoxDroidVideoStats *stats,
                                      bool present_called,
                                      bool present_succeeded)
 {
@@ -1238,7 +1238,7 @@ static void m5_video_timeline_record(uint64_t pcrtc_start,
     m5_video_last_present_called = present_called;
     m5_video_last_present_succeeded = present_succeeded;
     if (__atomic_load_n(&m5_video_timeline_logged, __ATOMIC_RELAXED) >=
-        Android_VIDEO_TIMELINE_LOG_CAP) {
+        BOXDROID_VIDEO_TIMELINE_LOG_CAP) {
         __atomic_add_fetch(&m5_video_timeline_suppressed, 1, __ATOMIC_RELAXED);
         return;
     }
@@ -1250,7 +1250,7 @@ static void m5_video_timeline_record(uint64_t pcrtc_start,
     reason = first ? "first" : config_changed ? "scanout-config" :
              hash_changed ? "new-frame-hash" : "present-result-change";
     __android_log_print(ANDROID_LOG_INFO, TAG,
-        "Android_VIDEO_TIMELINE seq=%" PRIu64 " callback=%" PRIu64
+        "BOXDROID_VIDEO_TIMELINE seq=%" PRIu64 " callback=%" PRIu64
         " mono_us=%" PRId64 " reason=%s pcrtc=0x%" PRIx64
         " vga_start=0x%" PRIx64 " line_offset=%u vga_bpp=%d"
         " surface=%dx%d stride=%d format=0x%x path=%s"
@@ -1269,11 +1269,11 @@ static void m5_video_timeline_record(uint64_t pcrtc_start,
 /* Display callbacks run with the BQL held. Accelerated scanout waits for
  * PFIFO; that worker may need the BQL to deliver NV097 notification/context
  * interrupts. Desktop's render loop acquires scanout outside the BQL. */
-#ifdef BOXDROID_Android3_RUNTIME
+#ifdef BOXDROID_RUNTIME
 /* The guest kernel ABI (export ordinal 3) carries the actively selected
  * Xbox AV mode. Observe it without editing firmware or emulated registers.
  * Mode definitions: XboxDev/nxdk lib/hal/video.c; unknown modes stay unknown. */
-static const struct { uint32_t mode; unsigned hz; } m53_av_modes[] = {
+static const struct { uint32_t mode; unsigned hz; } timing_av_modes[] = {
     { 0x04010101, 60 },
     { 0x04010103, 60 },
     { 0x0401010b, 60 },
@@ -1304,79 +1304,79 @@ static const struct { uint32_t mode; unsigned hz; } m53_av_modes[] = {
     { 0xc0040404, 60 },
     { 0xc0060601, 60 },
 };
-static uint32_t m53_av_entry, m53_av_mode;
-static uint64_t m53_probe_ticks;
-static unsigned m53_target_hz;
-uint64_t boxdroid_m53_guest_refresh_period_ns(void)
+static uint32_t timing_av_entry, timing_av_mode;
+static uint64_t timing_probe_ticks;
+static unsigned timing_target_hz;
+uint64_t boxdroid_guest_refresh_period_ns(void)
 {
-    unsigned hz=__atomic_load_n(&m53_target_hz,__ATOMIC_RELAXED);
+    unsigned hz=__atomic_load_n(&timing_target_hz,__ATOMIC_RELAXED);
     return hz ? UINT64_C(1000000000)/hz : 0;
 }
-static bool m53_read32(CPUState *cpu, uint32_t address, uint32_t *value)
+static bool timing_read32(CPUState *cpu, uint32_t address, uint32_t *value)
 {
     uint8_t bytes[4];
     if (cpu_memory_rw_debug(cpu,address,bytes,4,false)) return false;
     *value=ldl_le_p(bytes); return true;
 }
-static void m53_video_mode_probe(CPUState *cpu, uint64_t pc)
+static void timing_video_mode_probe(CPUState *cpu, uint64_t pc)
 {
-    if (!m53_av_entry) {
-        if (++m53_probe_ticks % 4096) return;
+    if (!timing_av_entry) {
+        if (++timing_probe_ticks % 4096) return;
         const uint32_t base=0x80010000;
         uint32_t mz,pe,signature,exportRva,ordinalBase,functions,count,rva;
-        if (!m53_read32(cpu,base,&mz) || (mz&0xffff)!=0x5a4d ||
-            !m53_read32(cpu,base+0x3c,&pe) || pe>0x1000 ||
-            !m53_read32(cpu,base+pe,&signature) || signature!=0x4550 ||
-            !m53_read32(cpu,base+pe+0x78,&exportRva) || exportRva>0x400000 ||
-            !m53_read32(cpu,base+exportRva+16,&ordinalBase) || ordinalBase>3 ||
-            !m53_read32(cpu,base+exportRva+20,&count) || count<4-ordinalBase || count>4096 ||
-            !m53_read32(cpu,base+exportRva+28,&functions) || functions>0x400000 ||
-            !m53_read32(cpu,base+functions+4*(3-ordinalBase),&rva) || !rva || rva>0x400000) return;
-        m53_av_entry=base+rva;
-        __android_log_print(ANDROID_LOG_INFO,"BoxDroidAndroid3","AV_MODE_OBSERVER entry=0x%x ordinal=3",m53_av_entry);
+        if (!timing_read32(cpu,base,&mz) || (mz&0xffff)!=0x5a4d ||
+            !timing_read32(cpu,base+0x3c,&pe) || pe>0x1000 ||
+            !timing_read32(cpu,base+pe,&signature) || signature!=0x4550 ||
+            !timing_read32(cpu,base+pe+0x78,&exportRva) || exportRva>0x400000 ||
+            !timing_read32(cpu,base+exportRva+16,&ordinalBase) || ordinalBase>3 ||
+            !timing_read32(cpu,base+exportRva+20,&count) || count<4-ordinalBase || count>4096 ||
+            !timing_read32(cpu,base+exportRva+28,&functions) || functions>0x400000 ||
+            !timing_read32(cpu,base+functions+4*(3-ordinalBase),&rva) || !rva || rva>0x400000) return;
+        timing_av_entry=base+rva;
+        __android_log_print(ANDROID_LOG_INFO,"BoxDroid3","AV_MODE_OBSERVER entry=0x%x ordinal=3",timing_av_entry);
     }
-    if (pc!=m53_av_entry) return;
+    if (pc!=timing_av_entry) return;
     CPUX86State *env=&X86_CPU(cpu)->env;
     uint32_t mode, step, pitch, framebuffer;
     uint32_t sp=env->regs[R_ESP]+env->segs[R_SS].base;
-    if (!m53_read32(cpu,sp+12,&mode) || !m53_read32(cpu,sp+8,&step) ||
-        !m53_read32(cpu,sp+20,&pitch) || !m53_read32(cpu,sp+24,&framebuffer)) return;
-    if (mode==m53_av_mode) return;
-    m53_av_mode=mode;
+    if (!timing_read32(cpu,sp+12,&mode) || !timing_read32(cpu,sp+8,&step) ||
+        !timing_read32(cpu,sp+20,&pitch) || !timing_read32(cpu,sp+24,&framebuffer)) return;
+    if (mode==timing_av_mode) return;
+    timing_av_mode=mode;
     unsigned hz=0;
-    for (size_t i=0;i<G_N_ELEMENTS(m53_av_modes);++i) {
-        if (m53_av_modes[i].mode==mode) { hz=m53_av_modes[i].hz; break; }
+    for (size_t i=0;i<G_N_ELEMENTS(timing_av_modes);++i) {
+        if (timing_av_modes[i].mode==mode) { hz=timing_av_modes[i].hz; break; }
     }
-    __atomic_store_n(&m53_target_hz,hz,__ATOMIC_RELAXED);
-    __android_log_print(ANDROID_LOG_INFO,"BoxDroidAndroid3",
+    __atomic_store_n(&timing_target_hz,hz,__ATOMIC_RELAXED);
+    __android_log_print(ANDROID_LOG_INFO,"BoxDroid3",
         "ACTIVE_GUEST_MODE mode=0x%x step=%u pitch=%u framebuffer=0x%x target_hz=%u budget_ns=%llu source=guest-AvSetDisplayMode",
         mode,step,pitch,framebuffer,hz,hz ? (unsigned long long)(1000000000ULL/hz) : 0);
 }
 /* Sample 1/1024 TB entries for five wall-clock seconds after first green
  * scanout. No instruction logging, guest memory edits, or per-TB clock read. */
-static bool m53_pc_done;
-static uint64_t m53_pc_ticks, m53_pc_overflow;
-static struct { uint64_t pc, hits, instructions; uintptr_t tb; } m53_pcs[512];
-static void m53_sample_progress(uint64_t pc, uintptr_t tb, uint16_t instructions)
+static bool timing_pc_done;
+static uint64_t timing_pc_ticks, timing_pc_overflow;
+static struct { uint64_t pc, hits, instructions; uintptr_t tb; } timing_pcs[512];
+static void timing_sample_progress(uint64_t pc, uintptr_t tb, uint16_t instructions)
 {
-    int64_t begin=__atomic_load_n(&m53_pc_start,__ATOMIC_RELAXED);
-    if (!begin || m53_pc_done || (++m53_pc_ticks & 1023)) return;
+    int64_t begin=__atomic_load_n(&timing_pc_start,__ATOMIC_RELAXED);
+    if (!begin || timing_pc_done || (++timing_pc_ticks & 1023)) return;
     if (g_get_monotonic_time()-begin>5*G_USEC_PER_SEC) {
-        m53_pc_done=true;
-        __android_log_print(ANDROID_LOG_INFO,"BoxDroidAndroid3",
+        timing_pc_done=true;
+        __android_log_print(ANDROID_LOG_INFO,"BoxDroid3",
             "TB_SAMPLE entries=%llu interval_us=%lld stride=1024 overflow=%llu",
-            (unsigned long long)m53_pc_ticks,(long long)(g_get_monotonic_time()-begin),
-            (unsigned long long)m53_pc_overflow);
+            (unsigned long long)timing_pc_ticks,(long long)(g_get_monotonic_time()-begin),
+            (unsigned long long)timing_pc_overflow);
         for (int top=0;top<16;++top) {
             int best=-1;
-            for (int i=0;i<512;++i) if (m53_pcs[i].hits &&
-                (best<0 || m53_pcs[i].hits>m53_pcs[best].hits)) best=i;
+            for (int i=0;i<512;++i) if (timing_pcs[i].hits &&
+                (best<0 || timing_pcs[i].hits>timing_pcs[best].hits)) best=i;
             if (best<0) break;
-            __android_log_print(ANDROID_LOG_INFO,"BoxDroidAndroid3",
+            __android_log_print(ANDROID_LOG_INFO,"BoxDroid3",
                 "TB_TOP pc=0x%llx tb=0x%llx samples=%llu guest_instructions=%llu",
-                (unsigned long long)m53_pcs[best].pc,(unsigned long long)m53_pcs[best].tb,
-                (unsigned long long)m53_pcs[best].hits,(unsigned long long)m53_pcs[best].instructions);
-            m53_pcs[best].hits=0;
+                (unsigned long long)timing_pcs[best].pc,(unsigned long long)timing_pcs[best].tb,
+                (unsigned long long)timing_pcs[best].hits,(unsigned long long)timing_pcs[best].instructions);
+            timing_pcs[best].hits=0;
         }
         return;
     }
@@ -1384,32 +1384,32 @@ static void m53_sample_progress(uint64_t pc, uintptr_t tb, uint16_t instructions
     bool stored = false;
     for (unsigned i=0;i<512;++i) {
         unsigned n=(slot+i)%512;
-        if (!m53_pcs[n].hits || m53_pcs[n].pc==pc) {
-            m53_pcs[n].pc=pc; m53_pcs[n].tb=tb;
-            ++m53_pcs[n].hits; m53_pcs[n].instructions+=instructions;
+        if (!timing_pcs[n].hits || timing_pcs[n].pc==pc) {
+            timing_pcs[n].pc=pc; timing_pcs[n].tb=tb;
+            ++timing_pcs[n].hits; timing_pcs[n].instructions+=instructions;
             stored = true; break;
         }
     }
-    if (!stored) ++m53_pc_overflow;
+    if (!stored) ++timing_pc_overflow;
 }
-static uint64_t m53_unique, m53_last_hash, m53_frames, m53_green, m53_refreshes;
-static int64_t m53_report_us, m53_period_us, m53_last_start_us;
-static int64_t m53_scanout_us, m53_bql_us, m53_refresh_us, m53_present_us;
-static int64_t m53_conversion_us;
+static uint64_t timing_unique, timing_last_hash, timing_frames, timing_green, timing_refreshes;
+static int64_t timing_report_us, timing_period_us, timing_last_start_us;
+static int64_t timing_scanout_us, timing_bql_us, timing_refresh_us, timing_present_us;
+static int64_t timing_conversion_us;
 JNIEXPORT jlong JNICALL
 Java_org_boxdroid_PerformanceActivity_nativeUniqueFrames(JNIEnv *env, jobject self)
 {
-    return __atomic_load_n(&m53_unique, __ATOMIC_RELAXED);
+    return __atomic_load_n(&timing_unique, __ATOMIC_RELAXED);
 }
-extern uint64_t boxdroid_m53_guest_flips(void);
-static void m53_report(int64_t now)
+extern uint64_t boxdroid_guest_flips(void);
+static void timing_report(int64_t now)
 {
-    if (!m53_report_us) m53_report_us = now;
-    if (now - m53_report_us < G_USEC_PER_SEC) return;
+    if (!timing_report_us) timing_report_us = now;
+    if (now - timing_report_us < G_USEC_PER_SEC) return;
     VGACommonState *v = &g_nv2a->vga;
     static uint64_t last_unique, last_flips;
-    uint64_t flips = boxdroid_m53_guest_flips();
-    __android_log_print(ANDROID_LOG_INFO, "BoxDroidAndroid3",
+    uint64_t flips = boxdroid_guest_flips();
+    __android_log_print(ANDROID_LOG_INFO, "BoxDroid3",
         "PERF mono_us=%" PRId64 " elapsed_us=%" PRId64
         " unique=%" PRIu64 " frames=%" PRIu64 " green=%" PRIu64 " guest_flips=%" PRIu64
         " refresh=%" PRIu64 " period_us=%" PRId64 " callback_us=%" PRId64
@@ -1417,15 +1417,15 @@ static void m53_report(int64_t now)
         " conversion_us=%" PRId64 " presenter_us=%" PRId64
         " vpll=0x%x htotal=0x%x vtotal=0x%x overflow=0x%x cr25=0x%x"
         " sr1=0x%x msr=0x%x fp_h=%u fp_v=%u pcrtc=0x%" PRIx64,
-        now, now-m53_report_us, m53_unique-last_unique, m53_frames, m53_green, flips-last_flips,
-        m53_refreshes, m53_period_us, m53_refresh_us, m53_scanout_us, m53_bql_us,
-        m53_conversion_us, m53_present_us, g_nv2a->pramdac.video_clock_coeff,
+        now, now-timing_report_us, timing_unique-last_unique, timing_frames, timing_green, flips-last_flips,
+        timing_refreshes, timing_period_us, timing_refresh_us, timing_scanout_us, timing_bql_us,
+        timing_conversion_us, timing_present_us, g_nv2a->pramdac.video_clock_coeff,
         v->cr[0],v->cr[6],v->cr[7],v->cr[0x25],v->sr[1],v->msr,
         g_nv2a->pramdac.fp_hcrtc,g_nv2a->pramdac.fp_vcrtc,g_nv2a->pcrtc.start);
-    last_unique=m53_unique; last_flips=flips; m53_report_us=now;
-    m53_frames=m53_green=m53_refreshes=0;
-    m53_period_us=m53_scanout_us=m53_bql_us=m53_refresh_us=0;
-    m53_conversion_us=m53_present_us=0;
+    last_unique=timing_unique; last_flips=flips; timing_report_us=now;
+    timing_frames=timing_green=timing_refreshes=0;
+    timing_period_us=timing_scanout_us=timing_bql_us=timing_refresh_us=0;
+    timing_conversion_us=timing_present_us=0;
 }
 #endif
 
@@ -1434,17 +1434,17 @@ static int xbox_acquire_scanout(void)
     int result;
     assert(bql_locked());
     bql_unlock();
-#ifdef BOXDROID_Android3_RUNTIME
+#ifdef BOXDROID_RUNTIME
     int64_t begin = g_get_monotonic_time();
 #endif
     result = nv2a_get_framebuffer_surface();
-#ifdef BOXDROID_Android3_RUNTIME
+#ifdef BOXDROID_RUNTIME
     int64_t done = g_get_monotonic_time();
-    m53_scanout_us += done - begin;
+    timing_scanout_us += done - begin;
 #endif
     bql_lock();
-#ifdef BOXDROID_Android3_RUNTIME
-    m53_bql_us += g_get_monotonic_time() - done;
+#ifdef BOXDROID_RUNTIME
+    timing_bql_us += g_get_monotonic_time() - done;
 #endif
     return result;
 }
@@ -1479,7 +1479,7 @@ static void xbox_display_update(DisplayChangeListener *dcl,
     (void) y;
     (void) width;
     (void) height;
-    boxdroid_diag_event(BOXDROID_Android_DIAG_DISPLAY_CALLBACK,
+    boxdroid_diag_event(BOXDROID_DIAG_DISPLAY_CALLBACK,
                            (uint64_t) x, (uint64_t) y,
                            (uint64_t) width, (uint64_t) height, 0, 0);
 
@@ -1488,7 +1488,7 @@ static void xbox_display_update(DisplayChangeListener *dcl,
         if (!__atomic_exchange_n(&m5_video_surface_missing_logged, true,
                                  __ATOMIC_RELAXED)) {
             __android_log_print(ANDROID_LOG_WARN, TAG,
-                "Android_VIDEO_SURFACE_UNAVAILABLE first=1 console=%p", dcl->con);
+                "BOXDROID_VIDEO_SURFACE_UNAVAILABLE first=1 console=%p", dcl->con);
         }
         return;
     }
@@ -1549,7 +1549,7 @@ static void xbox_display_update(DisplayChangeListener *dcl,
         if (!__atomic_exchange_n(&diagnostic_nv2a_miss_logged, true,
                                  __ATOMIC_RELAXED)) {
             __android_log_print(ANDROID_LOG_INFO, TAG,
-                "Android_DISPLAY_NV2A_PATH=MISS pcrtc=0x%" PRIx64
+                "BOXDROID_DISPLAY_NV2A_PATH=MISS pcrtc=0x%" PRIx64
                 " surface=%dx%d pitch=%d format=0x%x",
                 g_nv2a ? g_nv2a->pcrtc.start : UINT64_C(0),
                 surface_width_px, surface_height_px, stride,
@@ -1560,11 +1560,11 @@ static void xbox_display_update(DisplayChangeListener *dcl,
          * Keep this intentionally narrow: the active PCRTC address, VGA
          * start/pitch/depth, DisplaySurface geometry/format, and backing
          * pointer must all identify the proven 640x480x32 scanout. */
-        if (g_nv2a && g_nv2a->pcrtc.start == Android_RAW_FB_BASE) {
+        if (g_nv2a && g_nv2a->pcrtc.start == BOXDROID_RAW_FB_BASE) {
             VGADisplayParams params;
             uint64_t vram_size = memory_region_size(g_nv2a->vram);
-            uintptr_t expected_data = vram_begin + Android_RAW_FB_BASE;
-            uint64_t required_bytes = Android_RAW_FB_SIZE;
+            uintptr_t expected_data = vram_begin + BOXDROID_RAW_FB_BASE;
+            uint64_t required_bytes = BOXDROID_RAW_FB_SIZE;
             const uint8_t *source = surface_data(surface);
             bool range_valid;
 
@@ -1572,15 +1572,15 @@ static void xbox_display_update(DisplayChangeListener *dcl,
             vga_framebuffer_start = (uint64_t) params.start_addr * 4;
             vga_pitch = params.line_offset;
             vga_bpp = g_nv2a->vga.get_bpp(&g_nv2a->vga);
-            range_valid = Android_RAW_FB_BASE <= vram_size &&
-                          required_bytes <= vram_size - Android_RAW_FB_BASE;
+            range_valid = BOXDROID_RAW_FB_BASE <= vram_size &&
+                          required_bytes <= vram_size - BOXDROID_RAW_FB_BASE;
 
             if (source && direct_vram && range_valid &&
                 vga_framebuffer_start == g_nv2a->pcrtc.start &&
-                vga_framebuffer_start == Android_RAW_FB_BASE &&
-                vga_pitch == Android_RAW_FB_PITCH && stride == (int) vga_pitch &&
-                surface_width_px == (int) Android_RAW_FB_WIDTH &&
-                surface_height_px == (int) Android_RAW_FB_HEIGHT &&
+                vga_framebuffer_start == BOXDROID_RAW_FB_BASE &&
+                vga_pitch == BOXDROID_RAW_FB_PITCH && stride == (int) vga_pitch &&
+                surface_width_px == (int) BOXDROID_RAW_FB_WIDTH &&
+                surface_height_px == (int) BOXDROID_RAW_FB_HEIGHT &&
                 vga_bpp == 32 &&
                 PIXMAN_FORMAT_BPP(surface_format(surface)) == 32 &&
                 surface_format(surface) == PIXMAN_x8r8g8b8 &&
@@ -1590,17 +1590,17 @@ static void xbox_display_update(DisplayChangeListener *dcl,
                     &diagnostic_vga_fallback_logged, true,
                     __ATOMIC_RELAXED);
                 if (log_selection) {
-                    for (uint32_t row = 0; row < Android_RAW_FB_HEIGHT; ++row) {
+                    for (uint32_t row = 0; row < BOXDROID_RAW_FB_HEIGHT; ++row) {
                         const uint32_t *pixels = (const uint32_t *)
                             (source + (size_t) row * stride);
-                        for (uint32_t col = 0; col < Android_RAW_FB_WIDTH; ++col) {
+                        for (uint32_t col = 0; col < BOXDROID_RAW_FB_WIDTH; ++col) {
                             if (pixels[col] & UINT32_C(0x00ffffff)) {
                                 fallback_nonblack_pixels++;
                             }
                         }
                     }
                     __android_log_print(ANDROID_LOG_INFO, TAG,
-                        "Android_DISPLAY_VGA_FALLBACK=SELECTED"
+                        "BOXDROID_DISPLAY_VGA_FALLBACK=SELECTED"
                         " source=%dx%d pitch=%d depth=%d format=0x%x"
                         " pcrtc=0x%" PRIx64 " vga_start=0x%" PRIx64
                         " backing=direct_vram nonblack_pixels=%" PRIu64,
@@ -1613,7 +1613,7 @@ static void xbox_display_update(DisplayChangeListener *dcl,
                            &diagnostic_vga_fallback_rejected_logged, true,
                            __ATOMIC_RELAXED)) {
                 __android_log_print(ANDROID_LOG_WARN, TAG,
-                    "Android_DISPLAY_VGA_FALLBACK=REJECTED"
+                    "BOXDROID_DISPLAY_VGA_FALLBACK=REJECTED"
                     " source=%dx%d pitch=%d depth=%d format=0x%x"
                     " pcrtc=0x%" PRIx64 " vga_start=0x%" PRIx64
                     " vga_pitch=%u direct_vram=%d range_valid=%d"
@@ -1626,25 +1626,25 @@ static void xbox_display_update(DisplayChangeListener *dcl,
             }
         }
         if (!vga_fallback) {
-            BoxDroidAndroidVideoStats stats;
+            BoxDroidVideoStats stats;
             if (m5_video_measure_unpresented_surface(surface, &stats)) {
                 uint64_t vram_size = g_nv2a ?
                     memory_region_size(g_nv2a->vram) : 0;
                 bool boot_vga_range_valid =
-                    Android_BOOT_VGA_BASE <= vram_size &&
-                    Android_RAW_FB_SIZE <= vram_size - Android_BOOT_VGA_BASE;
+                    BOXDROID_BOOT_VGA_BASE <= vram_size &&
+                    BOXDROID_RAW_FB_SIZE <= vram_size - BOXDROID_BOOT_VGA_BASE;
                 bool exact_boot_vga_mode = g_nv2a && direct_vram &&
-                    g_nv2a->pcrtc.start == Android_BOOT_VGA_BASE &&
-                    vga_framebuffer_start == Android_BOOT_VGA_BASE &&
-                    vga_pitch == Android_RAW_FB_PITCH && stride == (int)vga_pitch &&
-                    surface_width_px == (int)Android_RAW_FB_WIDTH &&
-                    surface_height_px == (int)Android_RAW_FB_HEIGHT &&
+                    g_nv2a->pcrtc.start == BOXDROID_BOOT_VGA_BASE &&
+                    vga_framebuffer_start == BOXDROID_BOOT_VGA_BASE &&
+                    vga_pitch == BOXDROID_RAW_FB_PITCH && stride == (int)vga_pitch &&
+                    surface_width_px == (int)BOXDROID_RAW_FB_WIDTH &&
+                    surface_height_px == (int)BOXDROID_RAW_FB_HEIGHT &&
                     vga_bpp == 32 && vga_cr28 == 0x83 &&
                     pramdac_gc == 0x100030 &&
                     surface_format(surface) == PIXMAN_x8r8g8b8 &&
-                    display_surface_bytes == Android_RAW_FB_SIZE &&
+                    display_surface_bytes == BOXDROID_RAW_FB_SIZE &&
                     boot_vga_range_valid &&
-                    surface_data_address == vram_begin + Android_BOOT_VGA_BASE;
+                    surface_data_address == vram_begin + BOXDROID_BOOT_VGA_BASE;
 
                 /* Bridge only the exact pre-dashboard direct-VRAM mode
                  * observed on-device, and only after its guest surface
@@ -1652,7 +1652,7 @@ static void xbox_display_update(DisplayChangeListener *dcl,
                  * boot timeline. The earlier base-zero surface remains
                  * diagnostic-only because presenting it showed corruption. */
                 if (exact_boot_vga_mode &&
-                    stats.green >= Android_BOOT_VGA_GREEN_MIN) {
+                    stats.green >= BOXDROID_BOOT_VGA_GREEN_MIN) {
                     startup_vga_fallback = true;
                     vga_fallback = true;
                     __atomic_add_fetch(&m5_boot_vga_fallback_candidates, 1,
@@ -1661,7 +1661,7 @@ static void xbox_display_update(DisplayChangeListener *dcl,
                             &diagnostic_boot_vga_fallback_logged, true,
                             __ATOMIC_RELAXED)) {
                         __android_log_print(ANDROID_LOG_INFO, TAG,
-                            "Android_DISPLAY_VGA_PREDASH_FALLBACK=SELECTED"
+                            "BOXDROID_DISPLAY_VGA_PREDASH_FALLBACK=SELECTED"
                             " source=%dx%d pitch=%d depth=%d format=0x%x"
                             " pcrtc=0x%" PRIx64 " vga_start=0x%" PRIx64
                             " backing=direct_vram range_valid=%d"
@@ -1673,7 +1673,7 @@ static void xbox_display_update(DisplayChangeListener *dcl,
                             boot_vga_range_valid, stats.green,
                             stats.green_min_x, stats.green_min_y,
                             stats.green_max_x, stats.green_max_y,
-                            Android_BOOT_VGA_GREEN_MIN);
+                            BOXDROID_BOOT_VGA_GREEN_MIN);
                     }
                 } else {
                     const char *path = direct_vram ?
@@ -1687,7 +1687,7 @@ static void xbox_display_update(DisplayChangeListener *dcl,
                 }
             } else {
                 __android_log_print(ANDROID_LOG_WARN, TAG,
-                    "Android_VIDEO_UNPRESENTED_SAMPLE_FAILED surface=%dx%d format=0x%x",
+                    "BOXDROID_VIDEO_UNPRESENTED_SAMPLE_FAILED surface=%dx%d format=0x%x",
                     surface_width_px, surface_height_px, surface_format(surface));
             }
             if (!vga_fallback) {
@@ -1697,7 +1697,7 @@ static void xbox_display_update(DisplayChangeListener *dcl,
     } else if (!__atomic_exchange_n(&diagnostic_nv2a_hit_logged, true,
                                     __ATOMIC_RELAXED)) {
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_DISPLAY_NV2A_PATH=HIT pcrtc=0x%" PRIx64
+            "BOXDROID_DISPLAY_NV2A_PATH=HIT pcrtc=0x%" PRIx64
             " surface=%dx%d pitch=%d format=0x%x",
             g_nv2a ? g_nv2a->pcrtc.start : UINT64_C(0),
             surface_width_px, surface_height_px, stride,
@@ -1705,7 +1705,7 @@ static void xbox_display_update(DisplayChangeListener *dcl,
     }
     if (!__atomic_exchange_n(&diagnostic_display_surface_logged, true, __ATOMIC_RELAXED)) {
         __android_log_print(ANDROID_LOG_INFO, TAG,
-                            "Android_DISPLAY_SURFACE_FIRST format=0x%x stride=%d extent=%dx%d"
+                            "BOXDROID_DISPLAY_SURFACE_FIRST format=0x%x stride=%d extent=%dx%d"
                             " flags=0x%x allocated=%d backing=%s share_handle=%d",
                             surface_format(surface), stride, surface_width_px,
                             surface_height_px, surface->flags,
@@ -1714,13 +1714,13 @@ static void xbox_display_update(DisplayChangeListener *dcl,
                                 (surface_is_allocated(surface) ? "allocated_shadow" : "external"),
                             (int) surface->share_handle);
     }
-    boxdroid_diag_sample(BOXDROID_Android_SAMPLE_DISPLAY_SURFACE,
+    boxdroid_diag_sample(BOXDROID_SAMPLE_DISPLAY_SURFACE,
                             surface_data(surface), display_surface_bytes,
                             UINT64_MAX, direct_vram ? "direct-vram-before-pixman" :
                             "surface-before-pixman");
 
-#ifdef BOXDROID_Android3_RUNTIME
-    int64_t m53_convert_begin = g_get_monotonic_time();
+#ifdef BOXDROID_RUNTIME
+    int64_t timing_convert_begin = g_get_monotonic_time();
 #endif
     rgba = g_malloc((size_t) surface_width_px * surface_height_px * 4);
     stride = surface_width_px * 4;
@@ -1770,7 +1770,7 @@ static void xbox_display_update(DisplayChangeListener *dcl,
             }
         }
     }
-    boxdroid_diag_sample(BOXDROID_Android_SAMPLE_PIXMAN_RGBA, rgba,
+    boxdroid_diag_sample(BOXDROID_SAMPLE_PIXMAN_RGBA, rgba,
                             (size_t) stride * surface_height_px,
                             nonblack_pixels, "after-pixman-copy");
     if (vga_fallback) {
@@ -1814,25 +1814,25 @@ static void xbox_display_update(DisplayChangeListener *dcl,
         __atomic_store_n(&m5_vga_fallback_last_nonblack_pixels,
                          nonblack_pixels, __ATOMIC_RELAXED);
     }
-#ifdef BOXDROID_Android3_RUNTIME
-    int64_t m53_present_begin = g_get_monotonic_time();
-    m53_conversion_us += m53_present_begin - m53_convert_begin;
-    ++m53_frames;
-    if (frame_hash != m53_last_hash) {
-        __atomic_add_fetch(&m53_unique, 1, __ATOMIC_RELAXED);
+#ifdef BOXDROID_RUNTIME
+    int64_t timing_present_begin = g_get_monotonic_time();
+    timing_conversion_us += timing_present_begin - timing_convert_begin;
+    ++timing_frames;
+    if (frame_hash != timing_last_hash) {
+        __atomic_add_fetch(&timing_unique, 1, __ATOMIC_RELAXED);
         if (green_pixels > 1024) {
-            ++m53_green;
-            if (!__atomic_load_n(&m53_pc_start,__ATOMIC_RELAXED))
-                __atomic_store_n(&m53_pc_start,g_get_monotonic_time(),__ATOMIC_RELAXED);
+            ++timing_green;
+            if (!__atomic_load_n(&timing_pc_start,__ATOMIC_RELAXED))
+                __atomic_store_n(&timing_pc_start,g_get_monotonic_time(),__ATOMIC_RELAXED);
 #ifdef BOXDROID_X87_PROFILE
-            if (!__atomic_load_n(&boxdroid_m54_x87_start,__ATOMIC_RELAXED))
-                __atomic_store_n(&boxdroid_m54_x87_start,g_get_monotonic_time(),__ATOMIC_RELAXED);
+            if (!__atomic_load_n(&boxdroid_x87_start,__ATOMIC_RELAXED))
+                __atomic_store_n(&boxdroid_x87_start,g_get_monotonic_time(),__ATOMIC_RELAXED);
 #endif
         }
-        m53_last_hash = frame_hash;
+        timing_last_hash = frame_hash;
     }
 #endif
-#ifdef BOXDROID_Android3_RUNTIME
+#ifdef BOXDROID_RUNTIME
     /* rgba is an owned CPU copy and the NV2A scanout binding is released.
      * Presenter/window lifetime is serialized by its own mutex. Let vCPU and
      * device IRQ delivery proceed during CPU fitting and WSI queue waits. */
@@ -1841,13 +1841,13 @@ static void xbox_display_update(DisplayChangeListener *dcl,
 #endif
     bool presented = boxdroid_android_present_rgba(rgba, surface_width_px,
                                                    surface_height_px, stride);
-#ifdef BOXDROID_Android3_RUNTIME
-    int64_t m53_present_end = g_get_monotonic_time();
-    m53_present_us += m53_present_end - m53_present_begin;
+#ifdef BOXDROID_RUNTIME
+    int64_t timing_present_end = g_get_monotonic_time();
+    timing_present_us += timing_present_end - timing_present_begin;
     bql_lock();
-    m53_bql_us += g_get_monotonic_time() - m53_present_end;
+    timing_bql_us += g_get_monotonic_time() - timing_present_end;
 #endif
-    BoxDroidAndroidVideoStats video_stats = {
+    BoxDroidVideoStats video_stats = {
         .hash = frame_hash,
         .nonblack = nonblack_pixels,
         .green = green_pixels,
@@ -1875,7 +1875,7 @@ static void xbox_display_update(DisplayChangeListener *dcl,
         if (!__atomic_exchange_n(&diagnostic_boot_vga_fallback_result_logged,
                                  true, __ATOMIC_RELAXED)) {
             __android_log_print(ANDROID_LOG_INFO, TAG,
-                "Android_DISPLAY_VGA_PREDASH_FALLBACK_PRESENT"
+                "BOXDROID_DISPLAY_VGA_PREDASH_FALLBACK_PRESENT"
                 " presenter_called=1 vk_present_succeeded=%d"
                 " source=%dx%d green_pixels=%" PRIu64
                 " nonblack_pixels=%" PRIu64 " rgba_hash=%016" PRIx64,
@@ -1893,7 +1893,7 @@ static void xbox_display_update(DisplayChangeListener *dcl,
         }
         if (log_fallback_frame_state) {
             __android_log_print(ANDROID_LOG_INFO, TAG,
-                "Android_VGA_FRAME seq=%" PRIu64 " mono_us=%" PRId64
+                "BOXDROID_VGA_FRAME seq=%" PRIu64 " mono_us=%" PRId64
                 " state=%s nonblack_pixels=%" PRIu64
                 " hash=%016" PRIx64 " content_changed=%d"
                 " presented=%d guest_frame=%" PRIu64,
@@ -1907,7 +1907,7 @@ static void xbox_display_update(DisplayChangeListener *dcl,
         !__atomic_exchange_n(&diagnostic_vga_fallback_result_logged, true,
                              __ATOMIC_RELAXED)) {
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_DISPLAY_VGA_FALLBACK_PRESENT present_called=1"
+            "BOXDROID_DISPLAY_VGA_FALLBACK_PRESENT present_called=1"
             " vk_present_succeeded=%d source=%dx%d nonblack_pixels=%" PRIu64
             " rgba_hash=%016" PRIx64,
             presented, surface_width_px, surface_height_px,
@@ -1917,7 +1917,7 @@ static void xbox_display_update(DisplayChangeListener *dcl,
         !__atomic_exchange_n(&diagnostic_vga_fallback_success_logged, true,
                              __ATOMIC_RELAXED)) {
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_DISPLAY_VGA_FALLBACK_FIRST_SUCCESS frame=%" PRIu64
+            "BOXDROID_DISPLAY_VGA_FALLBACK_FIRST_SUCCESS frame=%" PRIu64
             " source=%dx%d nonblack_pixels=%" PRIu64
             " rgba_hash=%016" PRIx64,
             guest_frame_count + 1, surface_width_px, surface_height_px,
@@ -1927,7 +1927,7 @@ static void xbox_display_update(DisplayChangeListener *dcl,
         !__atomic_exchange_n(&diagnostic_vga_fallback_nonblack_logged, true,
                              __ATOMIC_RELAXED)) {
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_DISPLAY_VGA_FALLBACK_NONBLACK presenter_called=1"
+            "BOXDROID_DISPLAY_VGA_FALLBACK_NONBLACK presenter_called=1"
             " vk_present_succeeded=%d source=%dx%d"
             " nonblack_pixels=%" PRIu64 " rgba_hash=%016" PRIx64,
             presented, surface_width_px, surface_height_px,
@@ -1938,7 +1938,7 @@ static void xbox_display_update(DisplayChangeListener *dcl,
             &diagnostic_vga_fallback_nonblack_success_logged, true,
             __ATOMIC_RELAXED)) {
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_DISPLAY_VGA_FALLBACK_NONBLACK_PRESENTED frame=%" PRIu64
+            "BOXDROID_DISPLAY_VGA_FALLBACK_NONBLACK_PRESENTED frame=%" PRIu64
             " source=%dx%d nonblack_pixels=%" PRIu64
             " rgba_hash=%016" PRIx64,
             guest_frame_count + 1, surface_width_px, surface_height_px,
@@ -1946,7 +1946,7 @@ static void xbox_display_update(DisplayChangeListener *dcl,
     }
     if (presented) {
         guest_frame_count++;
-        boxdroid_diag_event(BOXDROID_Android_DIAG_FRAME_PRESENT,
+        boxdroid_diag_event(BOXDROID_DIAG_FRAME_PRESENT,
                                guest_frame_count, frame_hash,
                                surface_width_px, surface_height_px,
                                nonblack_pixels, 0);
@@ -1965,14 +1965,14 @@ static void xbox_display_update(DisplayChangeListener *dcl,
 
 static void xbox_display_refresh(DisplayChangeListener *dcl)
 {
-#ifdef BOXDROID_Android3_RUNTIME
-    int64_t m53_begin = g_get_monotonic_time();
-    if (m53_last_start_us) m53_period_us += m53_begin - m53_last_start_us;
-    m53_last_start_us = m53_begin;
-    ++m53_refreshes;
+#ifdef BOXDROID_RUNTIME
+    int64_t timing_begin = g_get_monotonic_time();
+    if (timing_last_start_us) timing_period_us += timing_begin - timing_last_start_us;
+    timing_last_start_us = timing_begin;
+    ++timing_refreshes;
 #endif
     int64_t now_us;
-    boxdroid_diag_event(BOXDROID_Android_DIAG_REFRESH_CALLBACK,
+    boxdroid_diag_event(BOXDROID_DIAG_REFRESH_CALLBACK,
                            qemu_clock_get_ms(QEMU_CLOCK_REALTIME), 0, 0, 0, 0, 0);
     /* GPU rendering does not dirty QEMU's CPU VRAM bitmap. Desktop Xemu
      * requests accelerated scanout from its render loop independently of
@@ -1984,7 +1984,7 @@ static void xbox_display_refresh(DisplayChangeListener *dcl)
         nv2a_release_framebuffer_surface();
     }
     graphic_hw_update(dcl->con);
-    boxdroid_diag_event(BOXDROID_Android_DIAG_GRAPHIC_HW_UPDATE,
+    boxdroid_diag_event(BOXDROID_DIAG_GRAPHIC_HW_UPDATE,
                            qemu_clock_get_ms(QEMU_CLOCK_REALTIME), 0, 0, 0, 0, 0);
     now_us = g_get_monotonic_time();
     if (now_us - m5_fb_periodic_sample_us >= G_USEC_PER_SEC) {
@@ -1993,11 +1993,11 @@ static void xbox_display_refresh(DisplayChangeListener *dcl)
             DisplaySurface *surface = qemu_console_surface(dcl->con);
             VGADisplayParams params;
             boxdroid_diag_framebuffer_sample("raw-vram",
-                g_nv2a->pcrtc.start, g_nv2a->vram_ptr + Android_RAW_FB_BASE,
-                Android_RAW_FB_SIZE);
+                g_nv2a->pcrtc.start, g_nv2a->vram_ptr + BOXDROID_RAW_FB_BASE,
+                BOXDROID_RAW_FB_SIZE);
             g_nv2a->vga.get_params(&g_nv2a->vga, &params);
             __android_log_print(ANDROID_LOG_INFO, TAG,
-                "Android_VGA_MODE pcrtc=0x%" PRIx64 " start=0x%x"
+                "BOXDROID_VGA_MODE pcrtc=0x%" PRIx64 " start=0x%x"
                 " pitch=%u depth=%d cr28=0x%x extent=%dx%d",
                 g_nv2a->pcrtc.start, params.start_addr * 4,
                 params.line_offset, g_nv2a->vga.get_bpp(&g_nv2a->vga),
@@ -2005,18 +2005,18 @@ static void xbox_display_refresh(DisplayChangeListener *dcl)
                 surface ? surface_width(surface) : 0,
                 surface ? surface_height(surface) : 0);
             if (surface && surface->image &&
-                (uint64_t)params.start_addr * 4 == Android_RAW_FB_BASE &&
+                (uint64_t)params.start_addr * 4 == BOXDROID_RAW_FB_BASE &&
                 surface_stride(surface) * surface_height(surface) >=
-                    (int)Android_RAW_FB_SIZE) {
+                    (int)BOXDROID_RAW_FB_SIZE) {
                 boxdroid_diag_framebuffer_sample("qemu-vga",
                     g_nv2a->pcrtc.start, surface_data(surface),
                     (size_t)surface_stride(surface) * surface_height(surface));
             }
         }
     }
-#ifdef BOXDROID_Android3_RUNTIME
-    m53_refresh_us += g_get_monotonic_time() - m53_begin;
-    m53_report(g_get_monotonic_time());
+#ifdef BOXDROID_RUNTIME
+    timing_refresh_us += g_get_monotonic_time() - timing_begin;
+    timing_report(g_get_monotonic_time());
 #endif
 }
 
@@ -2030,13 +2030,13 @@ static DisplayChangeListener xbox_display_listener = {
     .ops = &xbox_display_ops,
 };
 
-void boxdroid_diag_event(BoxDroidAndroidDiagnostic event,
+void boxdroid_diag_event(BoxDroidDiagnostic event,
                             uint64_t a, uint64_t b, uint64_t c,
                             uint64_t d, uint64_t e, uint64_t f)
 {
     uint64_t previous;
 
-    if ((unsigned) event >= BOXDROID_Android_DIAG_COUNT) {
+    if ((unsigned) event >= BOXDROID_DIAG_COUNT) {
         return;
     }
     previous = __atomic_fetch_add(&diagnostic_counts[event], 1, __ATOMIC_RELAXED);
@@ -2045,52 +2045,52 @@ void boxdroid_diag_event(BoxDroidAndroidDiagnostic event,
     }
 
     switch (event) {
-    case BOXDROID_Android_DIAG_REFRESH_CALLBACK:
-        __android_log_print(ANDROID_LOG_INFO, TAG, "Android_REFRESH_FIRST time_ms=%" PRIu64, a);
+    case BOXDROID_DIAG_REFRESH_CALLBACK:
+        __android_log_print(ANDROID_LOG_INFO, TAG, "BOXDROID_REFRESH_FIRST time_ms=%" PRIu64, a);
         break;
-    case BOXDROID_Android_DIAG_GRAPHIC_HW_UPDATE:
-        __android_log_print(ANDROID_LOG_INFO, TAG, "Android_GRAPHIC_HW_UPDATE_FIRST time_ms=%" PRIu64, a);
+    case BOXDROID_DIAG_GRAPHIC_HW_UPDATE:
+        __android_log_print(ANDROID_LOG_INFO, TAG, "BOXDROID_GRAPHIC_HW_UPDATE_FIRST time_ms=%" PRIu64, a);
         break;
-    case BOXDROID_Android_DIAG_PCRTC_START:
-        __android_log_print(ANDROID_LOG_INFO, TAG, "Android_PCRTC_START_FIRST value=0x%" PRIx64, a);
+    case BOXDROID_DIAG_PCRTC_START:
+        __android_log_print(ANDROID_LOG_INFO, TAG, "BOXDROID_PCRTC_START_FIRST value=0x%" PRIx64, a);
         break;
-    case BOXDROID_Android_DIAG_VGA_CRTC_WRITE:
+    case BOXDROID_DIAG_VGA_CRTC_WRITE:
         __android_log_print(ANDROID_LOG_INFO, TAG,
-                            "Android_VGA_CRTC_WRITE_FIRST register=0x%" PRIx64 " value=0x%" PRIx64, a, b);
+                            "BOXDROID_VGA_CRTC_WRITE_FIRST register=0x%" PRIx64 " value=0x%" PRIx64, a, b);
         break;
-    case BOXDROID_Android_DIAG_PGRAPH_COLOR_DMA:
-    case BOXDROID_Android_DIAG_PGRAPH_SURFACE_FORMAT:
-    case BOXDROID_Android_DIAG_PGRAPH_SURFACE_PITCH:
-    case BOXDROID_Android_DIAG_PGRAPH_COLOR_OFFSET:
+    case BOXDROID_DIAG_PGRAPH_COLOR_DMA:
+    case BOXDROID_DIAG_PGRAPH_SURFACE_FORMAT:
+    case BOXDROID_DIAG_PGRAPH_SURFACE_PITCH:
+    case BOXDROID_DIAG_PGRAPH_COLOR_OFFSET:
     {
-        const char *name = event == BOXDROID_Android_DIAG_PGRAPH_COLOR_DMA ? "color_dma" :
-                           event == BOXDROID_Android_DIAG_PGRAPH_SURFACE_FORMAT ? "surface_format" :
-                           event == BOXDROID_Android_DIAG_PGRAPH_SURFACE_PITCH ? "surface_pitch" :
+        const char *name = event == BOXDROID_DIAG_PGRAPH_COLOR_DMA ? "color_dma" :
+                           event == BOXDROID_DIAG_PGRAPH_SURFACE_FORMAT ? "surface_format" :
+                           event == BOXDROID_DIAG_PGRAPH_SURFACE_PITCH ? "surface_pitch" :
                            "color_offset";
         __android_log_print(ANDROID_LOG_INFO, TAG,
-                            "Android_PGRAPH_SETUP_FIRST event=%s method=0x%" PRIx64 " value=0x%" PRIx64,
+                            "BOXDROID_PGRAPH_SETUP_FIRST event=%s method=0x%" PRIx64 " value=0x%" PRIx64,
                             name, a, b);
         break;
     }
-    case BOXDROID_Android_DIAG_COLOR_BINDING:
+    case BOXDROID_DIAG_COLOR_BINDING:
         __android_log_print(ANDROID_LOG_INFO, TAG,
-                            "Android_COLOR_BINDING_FIRST address=0x%" PRIx64 " size=%" PRIu64
+                            "BOXDROID_COLOR_BINDING_FIRST address=0x%" PRIx64 " size=%" PRIu64
                             " pitch=%" PRIu64 " width=%" PRIu64 " height=%" PRIu64,
                             a, b, c, d, e);
         break;
-    case BOXDROID_Android_DIAG_FRAMEBUFFER_LOOKUP:
+    case BOXDROID_DIAG_FRAMEBUFFER_LOOKUP:
         __android_log_print(ANDROID_LOG_INFO, TAG,
-                            "Android_FRAMEBUFFER_LOOKUP_FIRST address=0x%" PRIx64
+                            "BOXDROID_FRAMEBUFFER_LOOKUP_FIRST address=0x%" PRIx64
                             " pitch=%" PRIu64 " width=%" PRIu64 " height=%" PRIu64,
                             a, b, c, d);
         break;
-    case BOXDROID_Android_DIAG_FRAMEBUFFER_HIT:
+    case BOXDROID_DIAG_FRAMEBUFFER_HIT:
         __android_log_print(ANDROID_LOG_INFO, TAG,
-                            "Android_FRAMEBUFFER_HIT_FIRST address=0x%" PRIx64 " binding=0x%" PRIx64
+                            "BOXDROID_FRAMEBUFFER_HIT_FIRST address=0x%" PRIx64 " binding=0x%" PRIx64
                             "+0x%" PRIx64 " pitch=%" PRIu64 " extent=%" PRIu64 "x%" PRIu64,
                             a, b, c, d, e, f);
         break;
-    case BOXDROID_Android_DIAG_FRAMEBUFFER_MISS:
+    case BOXDROID_DIAG_FRAMEBUFFER_MISS:
         if (b == UINT64_MAX) {
             __android_log_print(ANDROID_LOG_WARN, TAG,
                                 "NV2A_SCANOUT_SURFACE_MISSING first=1 address=0x%" PRIx64
@@ -2104,51 +2104,51 @@ void boxdroid_diag_event(BoxDroidAndroidDiagnostic event,
                                 a, b, c, d, e, f);
         }
         break;
-    case BOXDROID_Android_DIAG_READBACK_BEGIN:
-    case BOXDROID_Android_DIAG_READBACK_COMPLETE:
+    case BOXDROID_DIAG_READBACK_BEGIN:
+    case BOXDROID_DIAG_READBACK_COMPLETE:
         __android_log_print(ANDROID_LOG_INFO, TAG,
                             "%s first=1 extent=%" PRIu64 "x%" PRIu64,
-                            event == BOXDROID_Android_DIAG_READBACK_BEGIN ?
+                            event == BOXDROID_DIAG_READBACK_BEGIN ?
                                 "NV2A_SCANOUT_READBACK_BEGIN" :
                                 "NV2A_SCANOUT_READBACK_COMPLETE", a, b);
         break;
-    case BOXDROID_Android_DIAG_DISPLAY_CALLBACK:
+    case BOXDROID_DIAG_DISPLAY_CALLBACK:
         __android_log_print(ANDROID_LOG_INFO, TAG,
-                            "Android_DISPLAY_CALLBACK_FIRST rect=%" PRIu64 ",%" PRIu64 ",%" PRIu64 "x%" PRIu64,
+                            "BOXDROID_DISPLAY_CALLBACK_FIRST rect=%" PRIu64 ",%" PRIu64 ",%" PRIu64 "x%" PRIu64,
                             a, b, c, d);
         break;
-    case BOXDROID_Android_DIAG_FRAME_PRESENT:
+    case BOXDROID_DIAG_FRAME_PRESENT:
         __android_log_print(ANDROID_LOG_INFO, TAG,
-                            "Android_REAL_FRAME_PRESENT_FIRST count=%" PRIu64
+                            "BOXDROID_REAL_FRAME_PRESENT_FIRST count=%" PRIu64
                             " hash=%016" PRIx64 " extent=%" PRIu64 "x%" PRIu64
                             " nonblack_pixels=%" PRIu64,
                             a, b, c, d, e);
         break;
-    case BOXDROID_Android_DIAG_DOWNLOAD_WAIT:
-        __android_log_print(ANDROID_LOG_INFO, TAG, "Android_DOWNLOAD_WAIT_FIRST");
+    case BOXDROID_DIAG_DOWNLOAD_WAIT:
+        __android_log_print(ANDROID_LOG_INFO, TAG, "BOXDROID_DOWNLOAD_WAIT_FIRST");
         break;
-    case BOXDROID_Android_DIAG_DOWNLOAD_DIRTY:
-        __android_log_print(ANDROID_LOG_INFO, TAG, "Android_DOWNLOAD_DIRTY_FIRST");
+    case BOXDROID_DIAG_DOWNLOAD_DIRTY:
+        __android_log_print(ANDROID_LOG_INFO, TAG, "BOXDROID_DOWNLOAD_DIRTY_FIRST");
         break;
-    case BOXDROID_Android_DIAG_DOWNLOAD_REQUESTED:
-        __android_log_print(ANDROID_LOG_INFO, TAG, "Android_DOWNLOAD_REQUESTED_FIRST");
+    case BOXDROID_DIAG_DOWNLOAD_REQUESTED:
+        __android_log_print(ANDROID_LOG_INFO, TAG, "BOXDROID_DOWNLOAD_REQUESTED_FIRST");
         break;
-    case BOXDROID_Android_DIAG_DOWNLOAD_SKIPPED:
-        __android_log_print(ANDROID_LOG_INFO, TAG, "Android_DOWNLOAD_SKIPPED_FIRST");
+    case BOXDROID_DIAG_DOWNLOAD_SKIPPED:
+        __android_log_print(ANDROID_LOG_INFO, TAG, "BOXDROID_DOWNLOAD_SKIPPED_FIRST");
         break;
-    case BOXDROID_Android_DIAG_DOWNLOAD_PERFORMED:
-        __android_log_print(ANDROID_LOG_INFO, TAG, "Android_DOWNLOAD_PERFORMED_FIRST");
+    case BOXDROID_DIAG_DOWNLOAD_PERFORMED:
+        __android_log_print(ANDROID_LOG_INFO, TAG, "BOXDROID_DOWNLOAD_PERFORMED_FIRST");
         break;
-    case BOXDROID_Android_DIAG_COUNT:
+    case BOXDROID_DIAG_COUNT:
         break;
     }
 }
 
 static void boxdroid_diag_value_summary(void)
 {
-    BoxDroidAndroidValueWrite first_after[Android_VALUE_LOG_CAP];
-    BoxDroidAndroidValueWrite first_nonzero[Android_VALUE_LOG_CAP];
-    BoxDroidAndroidValueWrite last_nonzero[Android_VALUE_LOG_CAP];
+    BoxDroidValueWrite first_after[BOXDROID_VALUE_LOG_CAP];
+    BoxDroidValueWrite first_nonzero[BOXDROID_VALUE_LOG_CAP];
+    BoxDroidValueWrite last_nonzero[BOXDROID_VALUE_LOG_CAP];
     uint64_t count, zero, nonzero, zero_bytes, nonzero_bytes, large;
     uint64_t after_switch, after_zero, after_nonzero;
     uint64_t first_nonzero_us, unique_bytes, unique_words;
@@ -2176,7 +2176,7 @@ static void boxdroid_diag_value_summary(void)
     pthread_mutex_unlock(&m5_vram_write_lock);
 
     __android_log_print(ANDROID_LOG_INFO, TAG,
-        "Android_VALUE_SUMMARY classified=%" PRIu64 " zero=%" PRIu64
+        "BOXDROID_VALUE_SUMMARY classified=%" PRIu64 " zero=%" PRIu64
         " nonzero=%" PRIu64 " zero_bytes=%" PRIu64
         " nonzero_bytes=%" PRIu64 " large_unclassified=%" PRIu64
         " after_pcrtc_3c=%" PRIu64 " after_zero=%" PRIu64
@@ -2186,29 +2186,29 @@ static void boxdroid_diag_value_summary(void)
         after_switch, after_zero, after_nonzero,
         unique_bytes, unique_words, first_nonzero_us);
     __android_log_print(ANDROID_LOG_INFO, TAG,
-        "Android_VALUE_RECORD_COUNTS first_after=%" PRIu64
+        "BOXDROID_VALUE_RECORD_COUNTS first_after=%" PRIu64
         " first_nonzero=%" PRIu64 " last_nonzero_total=%" PRIu64,
         first_after_count, first_nonzero_count, last_nonzero_count);
     for (unsigned int group = 0; group < 3; ++group) {
-        BoxDroidAndroidValueWrite *entries = group == 0 ? first_after :
+        BoxDroidValueWrite *entries = group == 0 ? first_after :
             (group == 1 ? first_nonzero : last_nonzero);
         uint64_t total = group == 0 ? first_after_count :
             (group == 1 ? first_nonzero_count : last_nonzero_count);
-        uint64_t count_to_log = MIN(total, Android_VALUE_LOG_CAP);
-        uint64_t start = group == 2 && total > Android_VALUE_LOG_CAP ?
-            total % Android_VALUE_LOG_CAP : 0;
+        uint64_t count_to_log = MIN(total, BOXDROID_VALUE_LOG_CAP);
+        uint64_t start = group == 2 && total > BOXDROID_VALUE_LOG_CAP ?
+            total % BOXDROID_VALUE_LOG_CAP : 0;
         const char *label = group == 0 ? "FIRST_AFTER_PCRTC" :
             (group == 1 ? "FIRST_NONZERO" : "LAST_NONZERO");
         for (uint64_t i = 0; i < count_to_log; i += 4) {
             char message[2048];
             size_t used = g_snprintf(message, sizeof(message),
-                                     "Android_VALUE_%s", label);
+                                     "BOXDROID_VALUE_%s", label);
             for (uint64_t j = i; j < MIN(i + 4, count_to_log); ++j) {
-                BoxDroidAndroidValueWrite *entry =
-                    &entries[(start + j) % Android_VALUE_LOG_CAP];
-                uint64_t relative = entry->address - Android_RAW_FB_BASE;
-                uint64_t x = (relative % Android_RAW_FB_PITCH) / 4;
-                uint64_t y = relative / Android_RAW_FB_PITCH;
+                BoxDroidValueWrite *entry =
+                    &entries[(start + j) % BOXDROID_VALUE_LOG_CAP];
+                uint64_t relative = entry->address - BOXDROID_RAW_FB_BASE;
+                uint64_t x = (relative % BOXDROID_RAW_FB_PITCH) / 4;
+                uint64_t y = relative / BOXDROID_RAW_FB_PITCH;
                 int written = g_snprintf(message + used, sizeof(message) - used,
                     " [%" PRIu64 ",s=%" PRIu64 ",t=%" PRId64
                     ",pc=%" PRIx64 ",a=%" PRIx64 ",n=%u,o=%" PRIx64
@@ -2231,14 +2231,14 @@ static void boxdroid_diag_value_summary(void)
 void boxdroid_diag_summary(void)
 {
     __android_log_print(ANDROID_LOG_INFO, TAG,
-        "Android_DIAG_SUMMARY refresh=%" PRIu64 " gfx_update=%" PRIu64
+        "BOXDROID_DIAG_SUMMARY refresh=%" PRIu64 " gfx_update=%" PRIu64
         " display_callback=%" PRIu64 " real_present=%" PRIu64,
-        __atomic_load_n(&diagnostic_counts[BOXDROID_Android_DIAG_REFRESH_CALLBACK], __ATOMIC_RELAXED),
-        __atomic_load_n(&diagnostic_counts[BOXDROID_Android_DIAG_GRAPHIC_HW_UPDATE], __ATOMIC_RELAXED),
-        __atomic_load_n(&diagnostic_counts[BOXDROID_Android_DIAG_DISPLAY_CALLBACK], __ATOMIC_RELAXED),
-        __atomic_load_n(&diagnostic_counts[BOXDROID_Android_DIAG_FRAME_PRESENT], __ATOMIC_RELAXED));
+        __atomic_load_n(&diagnostic_counts[BOXDROID_DIAG_REFRESH_CALLBACK], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_DIAG_GRAPHIC_HW_UPDATE], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_DIAG_DISPLAY_CALLBACK], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_DIAG_FRAME_PRESENT], __ATOMIC_RELAXED));
     __android_log_print(ANDROID_LOG_INFO, TAG,
-        "Android_VGA_FALLBACK_SUMMARY callbacks=%" PRIu64 " black=%" PRIu64
+        "BOXDROID_VGA_FALLBACK_SUMMARY callbacks=%" PRIu64 " black=%" PRIu64
         " nonblack=%" PRIu64 " presents_ok=%" PRIu64 " presents_failed=%" PRIu64
         " first_nonblack_us=%" PRId64 " first_nonblack_hash=%016" PRIx64
         " last_nonblack_us=%" PRId64 " last_hash=%016" PRIx64
@@ -2254,7 +2254,7 @@ void boxdroid_diag_summary(void)
         __atomic_load_n(&m5_vga_fallback_last_hash, __ATOMIC_RELAXED),
         __atomic_load_n(&m5_vga_fallback_last_nonblack_pixels, __ATOMIC_RELAXED));
     __android_log_print(ANDROID_LOG_INFO, TAG,
-        "Android_VIDEO_SUMMARY callbacks=%" PRIu64 " state_or_hash_changes=%" PRIu64
+        "BOXDROID_VIDEO_SUMMARY callbacks=%" PRIu64 " state_or_hash_changes=%" PRIu64
         " logged=%" PRIu64 " suppressed=%" PRIu64
         " nv2a_hits=%" PRIu64 " nv2a_misses=%" PRIu64
         " present_calls=%" PRIu64 " present_success=%" PRIu64
@@ -2278,7 +2278,7 @@ void boxdroid_diag_summary(void)
         __atomic_load_n(&m5_video_first_green_us, __ATOMIC_RELAXED),
         __atomic_load_n(&m5_video_missing_surfaces, __ATOMIC_RELAXED));
     __android_log_print(ANDROID_LOG_INFO, TAG,
-        "Android_VIDEO_BOOT_VGA_SUMMARY candidates=%" PRIu64
+        "BOXDROID_VIDEO_BOOT_VGA_SUMMARY candidates=%" PRIu64
         " present_success=%" PRIu64 " present_failures=%" PRIu64
         " min_green_pixels=%u",
         __atomic_load_n(&m5_boot_vga_fallback_candidates, __ATOMIC_RELAXED),
@@ -2286,45 +2286,45 @@ void boxdroid_diag_summary(void)
                         __ATOMIC_RELAXED),
         __atomic_load_n(&m5_boot_vga_fallback_present_failures,
                         __ATOMIC_RELAXED),
-        Android_BOOT_VGA_GREEN_MIN);
+        BOXDROID_BOOT_VGA_GREEN_MIN);
     __android_log_print(ANDROID_LOG_INFO, TAG,
-        "Android_DIAG_NV2A pcrtc_start=%" PRIu64 " vga_crtc=%" PRIu64
+        "BOXDROID_DIAG_NV2A pcrtc_start=%" PRIu64 " vga_crtc=%" PRIu64
         " color_dma=%" PRIu64 " format=%" PRIu64 " pitch=%" PRIu64
         " color_offset=%" PRIu64 " color_binding=%" PRIu64,
-        __atomic_load_n(&diagnostic_counts[BOXDROID_Android_DIAG_PCRTC_START], __ATOMIC_RELAXED),
-        __atomic_load_n(&diagnostic_counts[BOXDROID_Android_DIAG_VGA_CRTC_WRITE], __ATOMIC_RELAXED),
-        __atomic_load_n(&diagnostic_counts[BOXDROID_Android_DIAG_PGRAPH_COLOR_DMA], __ATOMIC_RELAXED),
-        __atomic_load_n(&diagnostic_counts[BOXDROID_Android_DIAG_PGRAPH_SURFACE_FORMAT], __ATOMIC_RELAXED),
-        __atomic_load_n(&diagnostic_counts[BOXDROID_Android_DIAG_PGRAPH_SURFACE_PITCH], __ATOMIC_RELAXED),
-        __atomic_load_n(&diagnostic_counts[BOXDROID_Android_DIAG_PGRAPH_COLOR_OFFSET], __ATOMIC_RELAXED),
-        __atomic_load_n(&diagnostic_counts[BOXDROID_Android_DIAG_COLOR_BINDING], __ATOMIC_RELAXED));
+        __atomic_load_n(&diagnostic_counts[BOXDROID_DIAG_PCRTC_START], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_DIAG_VGA_CRTC_WRITE], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_DIAG_PGRAPH_COLOR_DMA], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_DIAG_PGRAPH_SURFACE_FORMAT], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_DIAG_PGRAPH_SURFACE_PITCH], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_DIAG_PGRAPH_COLOR_OFFSET], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_DIAG_COLOR_BINDING], __ATOMIC_RELAXED));
     __android_log_print(ANDROID_LOG_INFO, TAG,
-        "Android_DIAG_SCANOUT lookup=%" PRIu64 " hit=%" PRIu64 " miss=%" PRIu64
+        "BOXDROID_DIAG_SCANOUT lookup=%" PRIu64 " hit=%" PRIu64 " miss=%" PRIu64
         " readback_begin=%" PRIu64 " readback_complete=%" PRIu64,
-        __atomic_load_n(&diagnostic_counts[BOXDROID_Android_DIAG_FRAMEBUFFER_LOOKUP], __ATOMIC_RELAXED),
-        __atomic_load_n(&diagnostic_counts[BOXDROID_Android_DIAG_FRAMEBUFFER_HIT], __ATOMIC_RELAXED),
-        __atomic_load_n(&diagnostic_counts[BOXDROID_Android_DIAG_FRAMEBUFFER_MISS], __ATOMIC_RELAXED),
-        __atomic_load_n(&diagnostic_counts[BOXDROID_Android_DIAG_READBACK_BEGIN], __ATOMIC_RELAXED),
-        __atomic_load_n(&diagnostic_counts[BOXDROID_Android_DIAG_READBACK_COMPLETE], __ATOMIC_RELAXED));
+        __atomic_load_n(&diagnostic_counts[BOXDROID_DIAG_FRAMEBUFFER_LOOKUP], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_DIAG_FRAMEBUFFER_HIT], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_DIAG_FRAMEBUFFER_MISS], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_DIAG_READBACK_BEGIN], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_DIAG_READBACK_COMPLETE], __ATOMIC_RELAXED));
     __android_log_print(ANDROID_LOG_INFO, TAG,
-        "Android_DIAG_DOWNLOAD wait=%" PRIu64 " dirty=%" PRIu64
+        "BOXDROID_DIAG_DOWNLOAD wait=%" PRIu64 " dirty=%" PRIu64
         " requested=%" PRIu64 " skipped=%" PRIu64 " performed=%" PRIu64,
-        __atomic_load_n(&diagnostic_counts[BOXDROID_Android_DIAG_DOWNLOAD_WAIT], __ATOMIC_RELAXED),
-        __atomic_load_n(&diagnostic_counts[BOXDROID_Android_DIAG_DOWNLOAD_DIRTY], __ATOMIC_RELAXED),
-        __atomic_load_n(&diagnostic_counts[BOXDROID_Android_DIAG_DOWNLOAD_REQUESTED], __ATOMIC_RELAXED),
-        __atomic_load_n(&diagnostic_counts[BOXDROID_Android_DIAG_DOWNLOAD_SKIPPED], __ATOMIC_RELAXED),
-        __atomic_load_n(&diagnostic_counts[BOXDROID_Android_DIAG_DOWNLOAD_PERFORMED], __ATOMIC_RELAXED));
+        __atomic_load_n(&diagnostic_counts[BOXDROID_DIAG_DOWNLOAD_WAIT], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_DIAG_DOWNLOAD_DIRTY], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_DIAG_DOWNLOAD_REQUESTED], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_DIAG_DOWNLOAD_SKIPPED], __ATOMIC_RELAXED),
+        __atomic_load_n(&diagnostic_counts[BOXDROID_DIAG_DOWNLOAD_PERFORMED], __ATOMIC_RELAXED));
     if (g_nv2a) {
         boxdroid_diag_target_vram_sample("45s-stop",
             g_nv2a->vram_ptr, memory_region_size(g_nv2a->vram),
             __atomic_load_n(&m5_diagnostic_sequence, __ATOMIC_RELAXED));
         boxdroid_diag_framebuffer_sample("raw-vram-stop",
-            g_nv2a->pcrtc.start, g_nv2a->vram_ptr + Android_RAW_FB_BASE,
-            Android_RAW_FB_SIZE);
+            g_nv2a->pcrtc.start, g_nv2a->vram_ptr + BOXDROID_RAW_FB_BASE,
+            BOXDROID_RAW_FB_SIZE);
     }
-    BoxDroidAndroidFramebufferWrite first_writes[Android_FB_WRITE_LOG_CAP];
-    BoxDroidAndroidFramebufferWrite last_writes[Android_FB_WRITE_LOG_CAP];
-    BoxDroidAndroidFramebufferSamples samples[2];
+    BoxDroidFramebufferWrite first_writes[BOXDROID_FB_WRITE_LOG_CAP];
+    BoxDroidFramebufferWrite last_writes[BOXDROID_FB_WRITE_LOG_CAP];
+    BoxDroidFramebufferSamples samples[2];
     uint64_t write_count, write_bytes;
     int64_t first_write_us;
     char first_writer[32], last_writer[32];
@@ -2341,17 +2341,17 @@ void boxdroid_diag_summary(void)
     memcpy(samples, m5_fb_samples, sizeof(samples));
     pthread_mutex_unlock(&m5_fb_sample_lock);
     __android_log_print(ANDROID_LOG_INFO, TAG,
-        "Android_FB_WRITE_SUMMARY range=[0x%" PRIx64 ",0x%" PRIx64 ")"
+        "BOXDROID_FB_WRITE_SUMMARY range=[0x%" PRIx64 ",0x%" PRIx64 ")"
         " pitch=%u extent=%ux%u count=%" PRIu64 " overlap_bytes=%" PRIu64
         " first_writer=%s first_mono_us=%" PRId64 " last_writer=%s",
-        Android_RAW_FB_BASE, Android_RAW_FB_BASE + Android_RAW_FB_SIZE, Android_RAW_FB_PITCH,
-        Android_RAW_FB_WIDTH, Android_RAW_FB_HEIGHT, write_count, write_bytes,
+        BOXDROID_RAW_FB_BASE, BOXDROID_RAW_FB_BASE + BOXDROID_RAW_FB_SIZE, BOXDROID_RAW_FB_PITCH,
+        BOXDROID_RAW_FB_WIDTH, BOXDROID_RAW_FB_HEIGHT, write_count, write_bytes,
         first_writer[0] ? first_writer : "none", first_write_us,
         last_writer[0] ? last_writer : "none");
-    for (size_t i = 0; i < MIN(write_count, Android_FB_WRITE_LOG_CAP); ++i) {
-        const BoxDroidAndroidFramebufferWrite *event = &first_writes[i];
+    for (size_t i = 0; i < MIN(write_count, BOXDROID_FB_WRITE_LOG_CAP); ++i) {
+        const BoxDroidFramebufferWrite *event = &first_writes[i];
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_FB_WRITE_FIRST index=%zu seq=%" PRIu64
+            "BOXDROID_FB_WRITE_FIRST index=%zu seq=%" PRIu64
             " mono_us=%" PRId64 " writer=%s address=0x%" PRIx64
             " bytes=%" PRIu64 " overlap_bytes=%" PRIu64
             " source=0x%" PRIx64 " guest_pc=0x%" PRIx64,
@@ -2359,14 +2359,14 @@ void boxdroid_diag_summary(void)
             event->address, event->bytes, event->overlap_bytes,
             event->source, event->guest_pc);
     }
-    size_t last_count = MIN(write_count, Android_FB_WRITE_LOG_CAP);
-    size_t last_start = write_count >= Android_FB_WRITE_LOG_CAP ?
-        write_count % Android_FB_WRITE_LOG_CAP : 0;
+    size_t last_count = MIN(write_count, BOXDROID_FB_WRITE_LOG_CAP);
+    size_t last_start = write_count >= BOXDROID_FB_WRITE_LOG_CAP ?
+        write_count % BOXDROID_FB_WRITE_LOG_CAP : 0;
     for (size_t i = 0; i < last_count; ++i) {
-        const BoxDroidAndroidFramebufferWrite *event =
-            &last_writes[(last_start + i) % Android_FB_WRITE_LOG_CAP];
+        const BoxDroidFramebufferWrite *event =
+            &last_writes[(last_start + i) % BOXDROID_FB_WRITE_LOG_CAP];
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_FB_WRITE_LAST index=%zu seq=%" PRIu64
+            "BOXDROID_FB_WRITE_LAST index=%zu seq=%" PRIu64
             " mono_us=%" PRId64 " writer=%s address=0x%" PRIx64
             " bytes=%" PRIu64 " overlap_bytes=%" PRIu64
             " source=0x%" PRIx64 " guest_pc=0x%" PRIx64,
@@ -2376,7 +2376,7 @@ void boxdroid_diag_summary(void)
     }
     for (size_t i = 0; i < ARRAY_SIZE(samples); ++i) {
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_FB_SAMPLE_SUMMARY boundary=%s samples=%" PRIu64
+            "BOXDROID_FB_SAMPLE_SUMMARY boundary=%s samples=%" PRIu64
             " nonzero_samples=%" PRIu64 " rgb_samples=%" PRIu64
             " first_nonzero_mono_us=%" PRId64
             " first_rgb_mono_us=%" PRId64 " last_mono_us=%" PRId64
@@ -2391,7 +2391,7 @@ void boxdroid_diag_summary(void)
     pthread_mutex_lock(&m5_order_lock);
     if (m5_have_pgraph_target) {
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_PGRAPH_LAST_TARGET seq=%" PRIu64 " mono_us=%" PRId64
+            "BOXDROID_PGRAPH_LAST_TARGET seq=%" PRIu64 " mono_us=%" PRId64
             " method=0x%" PRIx64 " raw=0x%" PRIx64
             " dma_base=0x%" PRIx64 " target=0x%" PRIx64
             " pitch=0x%" PRIx64 " format=0x%" PRIx64,
@@ -2402,7 +2402,7 @@ void boxdroid_diag_summary(void)
     }
     if (m5_have_pgraph_extent) {
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_PGRAPH_LAST_EXTENT seq=%" PRIu64 " mono_us=%" PRId64
+            "BOXDROID_PGRAPH_LAST_EXTENT seq=%" PRIu64 " mono_us=%" PRId64
             " width=%" PRIu64 " height=%" PRIu64 " type=%" PRIu64
             " dma_limit=0x%" PRIx64,
             m5_last_pgraph_extent_seq, m5_last_pgraph_extent_time,
@@ -2413,13 +2413,13 @@ void boxdroid_diag_summary(void)
     boxdroid_diag_binding_summary_all();
 }
 
-void boxdroid_diag_binding(const BoxDroidAndroidBindingInfo *info)
+void boxdroid_diag_binding(const BoxDroidBindingInfo *info)
 {
     if (__atomic_exchange_n(&diagnostic_binding_logged, true, __ATOMIC_RELAXED)) {
         return;
     }
     __android_log_print(ANDROID_LOG_INFO, TAG,
-        "Android_SCANOUT_BINDING_FIRST pcrtc=0x%" PRIx64 " line_offset=0x%" PRIx64
+        "BOXDROID_SCANOUT_BINDING_FIRST pcrtc=0x%" PRIx64 " line_offset=0x%" PRIx64
         " lookup=0x%" PRIx64 " range=[0x%" PRIx64 ",0x%" PRIx64 ")"
         " delta=0x%" PRIx64 " pitch=%" PRIu64 " extent=%" PRIu64 "x%" PRIu64
         " format=0x%" PRIx64 " vk_format=%" PRIu64
@@ -2437,16 +2437,16 @@ void boxdroid_diag_binding(const BoxDroidAndroidBindingInfo *info)
 
 void boxdroid_diag_late_miss(uint64_t pcrtc_start, uint64_t line_offset,
                                 uint64_t lookup_address,
-                                const BoxDroidAndroidBindingInfo *nearest,
-                                const BoxDroidAndroidBindingInfo *binding_32a4000,
-                                const BoxDroidAndroidBindingInfo *binding_3628000)
+                                const BoxDroidBindingInfo *nearest,
+                                const BoxDroidBindingInfo *binding_32a4000,
+                                const BoxDroidBindingInfo *binding_3628000)
 {
     if (__atomic_exchange_n(&diagnostic_late_miss_logged, true, __ATOMIC_RELAXED)) {
         return;
     }
     if (nearest) {
         __android_log_print(ANDROID_LOG_WARN, TAG,
-            "Android_SCANOUT_LATE_MISS_FIRST pcrtc=0x%" PRIx64 " line_offset=0x%" PRIx64
+            "BOXDROID_SCANOUT_LATE_MISS_FIRST pcrtc=0x%" PRIx64 " line_offset=0x%" PRIx64
             " lookup=0x%" PRIx64 " nearest=[0x%" PRIx64 ",0x%" PRIx64 ")"
             " pitch=%" PRIu64 " extent=%" PRIu64 "x%" PRIu64 " format=0x%" PRIx64,
             pcrtc_start, line_offset, lookup_address, nearest->binding_base,
@@ -2454,13 +2454,13 @@ void boxdroid_diag_late_miss(uint64_t pcrtc_start, uint64_t line_offset,
             nearest->color_format);
     } else {
         __android_log_print(ANDROID_LOG_WARN, TAG,
-            "Android_SCANOUT_LATE_MISS_FIRST pcrtc=0x%" PRIx64 " line_offset=0x%" PRIx64
+            "BOXDROID_SCANOUT_LATE_MISS_FIRST pcrtc=0x%" PRIx64 " line_offset=0x%" PRIx64
             " lookup=0x%" PRIx64 " nearest=none",
             pcrtc_start, line_offset, lookup_address);
     }
     if (binding_32a4000) {
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_SCANOUT_MISS_BINDING base=0x32a4000 generation=%" PRIu64
+            "BOXDROID_SCANOUT_MISS_BINDING base=0x32a4000 generation=%" PRIu64
             " range=[0x%" PRIx64 ",0x%" PRIx64 ") pitch=%" PRIu64
             " extent=%" PRIu64 "x%" PRIu64 " format=0x%" PRIx64
             " image=0x%" PRIx64 " draw_dirty=%d upload_pending=%d",
@@ -2472,7 +2472,7 @@ void boxdroid_diag_late_miss(uint64_t pcrtc_start, uint64_t line_offset,
     }
     if (binding_3628000) {
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_SCANOUT_MISS_BINDING base=0x3628000 generation=%" PRIu64
+            "BOXDROID_SCANOUT_MISS_BINDING base=0x3628000 generation=%" PRIu64
             " range=[0x%" PRIx64 ",0x%" PRIx64 ") pitch=%" PRIu64
             " extent=%" PRIu64 "x%" PRIu64 " format=0x%" PRIx64
             " image=0x%" PRIx64 " draw_dirty=%d upload_pending=%d",
@@ -2494,12 +2494,12 @@ bool boxdroid_diag_is_tracked_surface(const void *surface)
     return __atomic_load_n(&diagnostic_scanout_surface, __ATOMIC_RELAXED) == surface;
 }
 
-void boxdroid_diag_sample(BoxDroidAndroidSampleBoundary boundary,
+void boxdroid_diag_sample(BoxDroidSampleBoundary boundary,
                              const void *data, size_t size,
                              uint64_t nonblack_pixels,
                              const char *copy_status)
 {
-    static const char *const names[BOXDROID_Android_SAMPLE_COUNT] = {
+    static const char *const names[BOXDROID_SAMPLE_COUNT] = {
         "nv2a_staging", "xbox_vram", "display_surface", "pixman_rgba",
     };
     const size_t limit = 4 * 1024 * 1024;
@@ -2508,7 +2508,7 @@ void boxdroid_diag_sample(BoxDroidAndroidSampleBoundary boundary,
     uint64_t nonzero_bytes = 0;
     const uint8_t *bytes = data;
 
-    if ((unsigned) boundary >= BOXDROID_Android_SAMPLE_COUNT || !data ||
+    if ((unsigned) boundary >= BOXDROID_SAMPLE_COUNT || !data ||
         __atomic_exchange_n(&diagnostic_sample_counts[boundary], 1, __ATOMIC_RELAXED)) {
         return;
     }
@@ -2519,13 +2519,13 @@ void boxdroid_diag_sample(BoxDroidAndroidSampleBoundary boundary,
     }
     if (nonblack_pixels == UINT64_MAX) {
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_SAMPLE_FIRST boundary=%s sample_bytes=%zu total_bytes=%zu"
+            "BOXDROID_SAMPLE_FIRST boundary=%s sample_bytes=%zu total_bytes=%zu"
             " nonzero_bytes=%" PRIu64 " nonblack_pixels=n/a"
             " hash=%016" PRIx64 " status=%s",
             names[boundary], sample_size, size, nonzero_bytes, hash, copy_status);
     } else {
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_SAMPLE_FIRST boundary=%s sample_bytes=%zu total_bytes=%zu"
+            "BOXDROID_SAMPLE_FIRST boundary=%s sample_bytes=%zu total_bytes=%zu"
             " nonzero_bytes=%" PRIu64 " nonblack_pixels=%" PRIu64
             " hash=%016" PRIx64 " status=%s",
             names[boundary], sample_size, size, nonzero_bytes, nonblack_pixels,
@@ -2533,11 +2533,11 @@ void boxdroid_diag_sample(BoxDroidAndroidSampleBoundary boundary,
     }
 }
 
-void boxdroid_diag_binding_event(BoxDroidAndroidBindingEvent event,
+void boxdroid_diag_binding_event(BoxDroidBindingEvent event,
                                     uint64_t base, uint64_t generation,
                                     const uint64_t values[8])
 {
-    BoxDroidAndroidBindingJournal *journal = NULL;
+    BoxDroidBindingJournal *journal = NULL;
     bool first, order_log = false, after_switch = false;
     uint64_t event_count = 0;
     bool scanout_draw_snapshot = false;
@@ -2545,7 +2545,7 @@ void boxdroid_diag_binding_event(BoxDroidAndroidBindingEvent event,
     uint64_t scanout_draw_count = 0;
     uint64_t scanout_last_draw[8] = {0};
 
-    if ((unsigned) event >= BOXDROID_Android_BINDING_EVENT_COUNT || !values ||
+    if ((unsigned) event >= BOXDROID_BINDING_EVENT_COUNT || !values ||
         (base != UINT64_C(0x32a4000) && base != UINT64_C(0x3628000) &&
          base != UINT64_C(0x3d00000))) {
         return;
@@ -2570,18 +2570,18 @@ void boxdroid_diag_binding_event(BoxDroidAndroidBindingEvent event,
         return;
     }
 
-    if (event == BOXDROID_Android_BINDING_SCANOUT &&
+    if (event == BOXDROID_BINDING_SCANOUT &&
         base == UINT64_C(0x32a4000) &&
-        journal->counts[BOXDROID_Android_BINDING_SCANOUT] < 2) {
+        journal->counts[BOXDROID_BINDING_SCANOUT] < 2) {
         journal->before_scanout_event = journal->last_event;
         memcpy(journal->before_scanout_operation, journal->last_operation,
                sizeof(journal->before_scanout_operation));
         scanout_draw_snapshot = true;
-        scanout_ordinal = journal->counts[BOXDROID_Android_BINDING_SCANOUT] + 1;
+        scanout_ordinal = journal->counts[BOXDROID_BINDING_SCANOUT] + 1;
         scanout_draw_count =
-            journal->counts[BOXDROID_Android_BINDING_GUEST_DRAW];
+            journal->counts[BOXDROID_BINDING_GUEST_DRAW];
         memcpy(scanout_last_draw,
-               journal->last_values[BOXDROID_Android_BINDING_GUEST_DRAW],
+               journal->last_values[BOXDROID_BINDING_GUEST_DRAW],
                sizeof(scanout_last_draw));
     }
 
@@ -2591,7 +2591,7 @@ void boxdroid_diag_binding_event(BoxDroidAndroidBindingEvent event,
     event_count = journal->counts[event];
     memcpy(journal->last_values[event], values, sizeof(journal->last_values[event]));
 
-    if (base == UINT64_C(0x3d00000) && event != BOXDROID_Android_BINDING_SCANOUT) {
+    if (base == UINT64_C(0x3d00000) && event != BOXDROID_BINDING_SCANOUT) {
         after_switch = __atomic_load_n(&m5_pcrtc_3c_seen, __ATOMIC_RELAXED);
         if (first || (after_switch &&
             !(journal->after_switch_logged & (UINT32_C(1) << event)))) {
@@ -2602,7 +2602,7 @@ void boxdroid_diag_binding_event(BoxDroidAndroidBindingEvent event,
         }
     }
 
-    if (event != BOXDROID_Android_BINDING_SCANOUT) {
+    if (event != BOXDROID_BINDING_SCANOUT) {
         journal->last_event = event;
         memcpy(journal->last_operation, values, sizeof(journal->last_operation));
     }
@@ -2620,7 +2620,7 @@ void boxdroid_diag_binding_event(BoxDroidAndroidBindingEvent event,
             scanout_ordinal, scanout_draw_count, scanout_last_draw[0],
             scanout_last_draw[2]);
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_VK32_LAST_DRAW_AT_SCANOUT seq=%" PRIu64
+            "BOXDROID_VK32_LAST_DRAW_AT_SCANOUT seq=%" PRIu64
             " scanout=%" PRIu64 " draw_count=%" PRIu64 " api=%" PRIu64
             " primitive=%" PRIu64
             " vertices=%" PRIu64 " indices=%" PRIu64
@@ -2632,43 +2632,43 @@ void boxdroid_diag_binding_event(BoxDroidAndroidBindingEvent event,
             scanout_last_draw[5], scanout_last_draw[6], scanout_last_draw[7]);
     }
 
-    if (!first || event == BOXDROID_Android_BINDING_SCANOUT) {
+    if (!first || event == BOXDROID_BINDING_SCANOUT) {
         return;
     }
 
     switch (event) {
-    case BOXDROID_Android_BINDING_CREATE:
-    case BOXDROID_Android_BINDING_REUSE:
+    case BOXDROID_BINDING_CREATE:
+    case BOXDROID_BINDING_REUSE:
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_BINDING_%s_FIRST base=0x%" PRIx64 " generation=%" PRIu64
+            "BOXDROID_BINDING_%s_FIRST base=0x%" PRIx64 " generation=%" PRIu64
             " image=0x%" PRIx64 " view=0x%" PRIx64 " extent=%" PRIu64 "x%" PRIu64
             " pitch=%" PRIu64 " format=%" PRIu64 " image_reused=%" PRIu64
             " initialized=%" PRIu64,
             binding_event_names[event], base, generation, values[0], values[1],
             values[2], values[3], values[4], values[5], values[6], values[7]);
         break;
-    case BOXDROID_Android_BINDING_UPLOAD_PENDING:
+    case BOXDROID_BINDING_UPLOAD_PENDING:
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_BINDING_UPLOAD_PENDING_FIRST base=0x%" PRIx64 " generation=%" PRIu64
+            "BOXDROID_BINDING_UPLOAD_PENDING_FIRST base=0x%" PRIx64 " generation=%" PRIu64
             " old=%" PRIu64 " new=%" PRIu64 " cause=%" PRIu64,
             base, generation, values[0], values[1], values[2]);
         break;
-    case BOXDROID_Android_BINDING_UPLOAD:
+    case BOXDROID_BINDING_UPLOAD:
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_BINDING_UPLOAD_FIRST base=0x%" PRIx64 " generation=%" PRIu64
+            "BOXDROID_BINDING_UPLOAD_FIRST base=0x%" PRIx64 " generation=%" PRIu64
             " source_hash=%016" PRIx64 " hashed_bytes=%" PRIu64
             " bytes_per_pixel=%" PRIu64 " swizzle=%" PRIu64,
             base, generation, values[0], values[1], values[2], values[3]);
         break;
-    case BOXDROID_Android_BINDING_DRAW_DIRTY:
+    case BOXDROID_BINDING_DRAW_DIRTY:
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_BINDING_DRAW_DIRTY_FIRST base=0x%" PRIx64 " generation=%" PRIu64
+            "BOXDROID_BINDING_DRAW_DIRTY_FIRST base=0x%" PRIx64 " generation=%" PRIu64
             " old=%" PRIu64 " new=%" PRIu64 " source=%" PRIu64,
             base, generation, values[0], values[1], values[2]);
         break;
-    case BOXDROID_Android_BINDING_CLEAR:
+    case BOXDROID_BINDING_CLEAR:
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_BINDING_CLEAR_FIRST base=0x%" PRIx64 " generation=%" PRIu64
+            "BOXDROID_BINDING_CLEAR_FIRST base=0x%" PRIx64 " generation=%" PRIu64
             " raw=0x%08" PRIx64 " rgba_bits=%08" PRIx64 ",%08" PRIx64 ",%08" PRIx64 ",%08" PRIx64
             " rect=%" PRIu64 ",%" PRIu64 "+%" PRIu64 "x%" PRIu64
             " channels=0x%" PRIx64,
@@ -2676,9 +2676,9 @@ void boxdroid_diag_binding_event(BoxDroidAndroidBindingEvent event,
             values[5] >> 32, values[5] & UINT32_MAX, values[6] >> 32,
             values[6] & UINT32_MAX, values[7]);
         break;
-    case BOXDROID_Android_BINDING_GUEST_DRAW:
+    case BOXDROID_BINDING_GUEST_DRAW:
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_BINDING_GUEST_DRAW_FIRST base=0x%" PRIx64 " generation=%" PRIu64
+            "BOXDROID_BINDING_GUEST_DRAW_FIRST base=0x%" PRIx64 " generation=%" PRIu64
             " api=%" PRIu64 " primitive=%" PRIu64 " vertices=%" PRIu64
             " indices=%" PRIu64 " color_mask=0x%" PRIx64
             " scissor=%" PRIu64 ",%" PRIu64 "+%" PRIu64 "x%" PRIu64
@@ -2689,26 +2689,26 @@ void boxdroid_diag_binding_event(BoxDroidAndroidBindingEvent event,
             values[6] & UINT32_MAX, values[7] & 0xff, (values[7] >> 8) & 0xff,
             (values[7] >> 16) & 0xff, (values[7] >> 24) & 0xff);
         break;
-    case BOXDROID_Android_BINDING_GPU_PROBE:
-    case BOXDROID_Android_BINDING_STAGING_COMPARE:
+    case BOXDROID_BINDING_GPU_PROBE:
+    case BOXDROID_BINDING_STAGING_COMPARE:
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_BINDING_%s_FIRST base=0x%" PRIx64 " generation=%" PRIu64
+            "BOXDROID_BINDING_%s_FIRST base=0x%" PRIx64 " generation=%" PRIu64
             " patch=%" PRIu64 "x%" PRIu64 " samples=%" PRIu64
             " nonblack=%" PRIu64 " hash=%016" PRIx64
             " format=%" PRIu64 " layout=%" PRIu64 " nonzero=%" PRIu64,
             binding_event_names[event], base, generation, values[0], values[1],
             values[2], values[3], values[4], values[5], values[6], values[7]);
         break;
-    case BOXDROID_Android_BINDING_SCANOUT:
+    case BOXDROID_BINDING_SCANOUT:
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_BINDING_SCANOUT_FIRST base=0x%" PRIx64 " generation=%" PRIu64
+            "BOXDROID_BINDING_SCANOUT_FIRST base=0x%" PRIx64 " generation=%" PRIu64
             " image=0x%" PRIx64 " view=0x%" PRIx64 " extent=%" PRIu64 "x%" PRIu64
             " pitch=%" PRIu64 " format=%" PRIu64 " draw_dirty=%" PRIu64
             " upload_pending=%" PRIu64 " layout=color_attachment_optimal(2)",
             base, generation, values[0], values[1], values[2], values[3],
             values[4], values[5], values[6], values[7]);
         break;
-    case BOXDROID_Android_BINDING_EVENT_COUNT:
+    case BOXDROID_BINDING_EVENT_COUNT:
         break;
     }
 }
@@ -2717,9 +2717,9 @@ static void boxdroid_diag_binding_summary_all(void)
 {
     pthread_mutex_lock(&binding_journal_lock);
     for (size_t i = 0; i < binding_journal_count; i++) {
-        const BoxDroidAndroidBindingJournal *j = &binding_journal[i];
+        const BoxDroidBindingJournal *j = &binding_journal[i];
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_BINDING_SUMMARY base=0x%" PRIx64 " generation=%" PRIu64
+            "BOXDROID_BINDING_SUMMARY base=0x%" PRIx64 " generation=%" PRIu64
             " create=%" PRIu64 " reuse=%" PRIu64 " upload_pending=%" PRIu64
             " uploads=%" PRIu64 " draw_dirty=%" PRIu64 " clears=%" PRIu64
             " guest_draws=%" PRIu64 " probes=%" PRIu64
@@ -2731,28 +2731,28 @@ static void boxdroid_diag_binding_summary_all(void)
             " color_mask=0x%" PRIx64 " scissor_xy=%016" PRIx64
             " scissor_wh=%016" PRIx64 " draw_state=0x%" PRIx64,
             j->base, j->generation,
-            j->counts[BOXDROID_Android_BINDING_CREATE],
-            j->counts[BOXDROID_Android_BINDING_REUSE],
-            j->counts[BOXDROID_Android_BINDING_UPLOAD_PENDING],
-            j->counts[BOXDROID_Android_BINDING_UPLOAD],
-            j->counts[BOXDROID_Android_BINDING_DRAW_DIRTY],
-            j->counts[BOXDROID_Android_BINDING_CLEAR],
-            j->counts[BOXDROID_Android_BINDING_GUEST_DRAW],
-            j->counts[BOXDROID_Android_BINDING_GPU_PROBE],
-            j->counts[BOXDROID_Android_BINDING_STAGING_COMPARE],
-            j->counts[BOXDROID_Android_BINDING_SCANOUT],
-            j->last_values[BOXDROID_Android_BINDING_UPLOAD][0],
+            j->counts[BOXDROID_BINDING_CREATE],
+            j->counts[BOXDROID_BINDING_REUSE],
+            j->counts[BOXDROID_BINDING_UPLOAD_PENDING],
+            j->counts[BOXDROID_BINDING_UPLOAD],
+            j->counts[BOXDROID_BINDING_DRAW_DIRTY],
+            j->counts[BOXDROID_BINDING_CLEAR],
+            j->counts[BOXDROID_BINDING_GUEST_DRAW],
+            j->counts[BOXDROID_BINDING_GPU_PROBE],
+            j->counts[BOXDROID_BINDING_STAGING_COMPARE],
+            j->counts[BOXDROID_BINDING_SCANOUT],
+            j->last_values[BOXDROID_BINDING_UPLOAD][0],
             binding_event_names[j->before_scanout_event],
             j->before_scanout_operation[0], j->before_scanout_operation[1],
             j->before_scanout_operation[2], j->before_scanout_operation[3],
-            j->last_values[BOXDROID_Android_BINDING_GUEST_DRAW][0],
-            j->last_values[BOXDROID_Android_BINDING_GUEST_DRAW][1],
-            j->last_values[BOXDROID_Android_BINDING_GUEST_DRAW][2],
-            j->last_values[BOXDROID_Android_BINDING_GUEST_DRAW][3],
-            j->last_values[BOXDROID_Android_BINDING_GUEST_DRAW][4],
-            j->last_values[BOXDROID_Android_BINDING_GUEST_DRAW][5],
-            j->last_values[BOXDROID_Android_BINDING_GUEST_DRAW][6],
-            j->last_values[BOXDROID_Android_BINDING_GUEST_DRAW][7]);
+            j->last_values[BOXDROID_BINDING_GUEST_DRAW][0],
+            j->last_values[BOXDROID_BINDING_GUEST_DRAW][1],
+            j->last_values[BOXDROID_BINDING_GUEST_DRAW][2],
+            j->last_values[BOXDROID_BINDING_GUEST_DRAW][3],
+            j->last_values[BOXDROID_BINDING_GUEST_DRAW][4],
+            j->last_values[BOXDROID_BINDING_GUEST_DRAW][5],
+            j->last_values[BOXDROID_BINDING_GUEST_DRAW][6],
+            j->last_values[BOXDROID_BINDING_GUEST_DRAW][7]);
     }
     pthread_mutex_unlock(&binding_journal_lock);
 }
@@ -2777,7 +2777,7 @@ void boxdroid_diag_firmware_event(const char *kind, const char *stage,
                                     uint64_t bytes)
 {
     __android_log_print(ANDROID_LOG_INFO, TAG,
-        "Android_FIRMWARE_%s stage=%s path=%s result=%" PRId64 " bytes=%" PRIu64,
+        "BOXDROID_FIRMWARE_%s stage=%s path=%s result=%" PRId64 " bytes=%" PRIu64,
         kind, stage, path ? path : "(null)", result, bytes);
 }
 
@@ -2787,7 +2787,7 @@ void boxdroid_diag_hdd_open(const char *path, int result,
     bool path_match = runtime_hdd_path && path &&
                       g_str_has_suffix(path, runtime_hdd_path);
     __android_log_print(ANDROID_LOG_INFO, TAG,
-        "Android_HDD_QCOW2_OPEN result=%d path=%s expected=%s path_match=%d virtual_size=%" PRIu64,
+        "BOXDROID_HDD_QCOW2_OPEN result=%d path=%s expected=%s path_match=%d virtual_size=%" PRIu64,
         result, path ? path : "(null)", runtime_hdd_path ? runtime_hdd_path : "(unset)",
         path_match, virtual_size);
 }
@@ -2798,7 +2798,7 @@ void boxdroid_diag_guest_io_start(void)
     hdd_io_enabled = true;
     pthread_mutex_unlock(&hdd_io_lock);
     __android_log_print(ANDROID_LOG_INFO, TAG,
-                        "Android_HDD_GUEST_IO_WINDOW_START path=%s",
+                        "BOXDROID_HDD_GUEST_IO_WINDOW_START path=%s",
                         runtime_hdd_path ? runtime_hdd_path : "(unset)");
 }
 
@@ -2807,7 +2807,7 @@ void boxdroid_diag_guest_io_stop(void)
     pthread_mutex_lock(&hdd_io_lock);
     hdd_io_enabled = false;
     __android_log_print(ANDROID_LOG_INFO, TAG,
-        "Android_HDD_GUEST_IO_SUMMARY path=%s reads=%" PRIu64
+        "BOXDROID_HDD_GUEST_IO_SUMMARY path=%s reads=%" PRIu64
         " read_bytes=%" PRIu64 " read_failures=%" PRIu64
         " writes=%" PRIu64 " write_bytes=%" PRIu64
         " write_failures=%" PRIu64 " first_read_count=%zu",
@@ -2816,7 +2816,7 @@ void boxdroid_diag_guest_io_stop(void)
         hdd_write_failures, hdd_first_read_count);
     for (size_t i = 0; i < hdd_first_read_count; i++) {
         __android_log_print(ANDROID_LOG_INFO, TAG,
-            "Android_HDD_GUEST_READ_FIRST index=%zu offset=0x%" PRIx64 " bytes=%" PRIu64,
+            "BOXDROID_HDD_GUEST_READ_FIRST index=%zu offset=0x%" PRIx64 " bytes=%" PRIu64,
             i, hdd_first_reads[i].offset, hdd_first_reads[i].bytes);
     }
     pthread_mutex_unlock(&hdd_io_lock);
@@ -2851,7 +2851,7 @@ void boxdroid_diag_hdd_io(bool write, const char *path, uint64_t offset,
             boxdroid_diag_record("HDD_GUEST_READ", offset, bytes,
                                     (uint64_t)(uint32_t)result, index, 0, 0);
             __android_log_print(ANDROID_LOG_INFO, TAG,
-                "Android_HDD_GUEST_READ_FIRST index=%zu offset=0x%" PRIx64
+                "BOXDROID_HDD_GUEST_READ_FIRST index=%zu offset=0x%" PRIx64
                 " bytes=%" PRIu64 " result=%d", index, offset, bytes, result);
         }
     }

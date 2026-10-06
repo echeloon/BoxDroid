@@ -11,10 +11,10 @@
 #include <string.h>
 #include <time.h>
 
-#define M6_TAG "BoxDroidM6Audio"
-#define M6_RATE 48000
-#define M6_CHANNELS 2
-#define M6_RING_FRAMES 2048
+#define TAG "BoxDroidAudio"
+#define AUDIO_RATE 48000
+#define AUDIO_CHANNELS 2
+#define AUDIO_RING_FRAMES 2048
 
 JNIEXPORT jint JNICALL
 Java_org_boxdroid_AudioEmulatorActivity_nativeAudioInitialize(JNIEnv *env, jobject self);
@@ -29,11 +29,11 @@ Java_org_boxdroid_AudioEmulatorActivity_nativeAudioOverlayMetrics(JNIEnv *env, j
 JNIEXPORT void JNICALL
 Java_org_boxdroid_AudioEmulatorActivity_nativeAudioShutdown(JNIEnv *env, jobject self);
 
-typedef struct M6StereoFrame {
-    int16_t channel[M6_CHANNELS];
-} M6StereoFrame;
+typedef struct AudioStereoFrame {
+    int16_t channel[AUDIO_CHANNELS];
+} AudioStereoFrame;
 
-static M6StereoFrame ring[M6_RING_FRAMES];
+static AudioStereoFrame ring[AUDIO_RING_FRAMES];
 static _Atomic uint64_t ring_write;
 static _Atomic uint64_t ring_read;
 static _Atomic bool flush_requested;
@@ -116,7 +116,7 @@ static inline int32_t stereo_peak(int32_t left, int32_t right)
 static aaudio_data_callback_result_t audio_data_callback(
     AAudioStream *stream, void *user_data, void *audio_data, int32_t num_frames)
 {
-    M6StereoFrame *out = audio_data;
+    AudioStereoFrame *out = audio_data;
     uint64_t read_at, write_at, available;
     int32_t count;
     bool enabled;
@@ -166,7 +166,7 @@ static aaudio_data_callback_result_t audio_data_callback(
     uint64_t nonzero = 0;
     int32_t peak = atomic_load_explicit(&stat_consumed_peak, memory_order_relaxed);
     for (int32_t i = 0; i < count; i++) {
-        out[i] = ring[(read_at + (uint64_t)i) & (M6_RING_FRAMES - 1)];
+        out[i] = ring[(read_at + (uint64_t)i) & (AUDIO_RING_FRAMES - 1)];
         int32_t magnitude = stereo_peak(out[i].channel[0], out[i].channel[1]);
         nonzero += magnitude != 0;
         if (magnitude > peak) peak = magnitude;
@@ -196,12 +196,12 @@ static void audio_error_callback(AAudioStream *stream, void *user_data,
     (void)user_data;
     if (atomic_compare_exchange_strong_explicit(&stream_error, &expected, error,
             memory_order_release, memory_order_relaxed)) {
-        __android_log_print(ANDROID_LOG_ERROR, M6_TAG,
+        __android_log_print(ANDROID_LOG_ERROR, TAG,
                             "AAUDIO_STREAM_ERROR result=%d", error);
     }
 }
 
-int boxdroid_m6_audio_initialize(void)
+int boxdroid_audio_initialize(void)
 {
     AAudioStreamBuilder *builder = NULL;
     aaudio_result_t result;
@@ -210,14 +210,14 @@ int boxdroid_m6_audio_initialize(void)
         return 0;
     }
     if (audio_stream) {
-        boxdroid_m6_audio_shutdown();
+        boxdroid_audio_shutdown();
     }
     reset_stats();
 
     result = AAudio_createStreamBuilder(&builder);
     if (result != AAUDIO_OK) {
         atomic_store(&stream_error, result);
-        __android_log_print(ANDROID_LOG_ERROR, M6_TAG,
+        __android_log_print(ANDROID_LOG_ERROR, TAG,
                             "AAUDIO_BUILDER_FAIL result=%d", result);
         return result;
     }
@@ -226,8 +226,8 @@ int boxdroid_m6_audio_initialize(void)
     AAudioStreamBuilder_setPerformanceMode(builder, AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
     AAudioStreamBuilder_setUsage(builder, AAUDIO_USAGE_GAME);
     AAudioStreamBuilder_setContentType(builder, AAUDIO_CONTENT_TYPE_MUSIC);
-    AAudioStreamBuilder_setSampleRate(builder, M6_RATE);
-    AAudioStreamBuilder_setChannelCount(builder, M6_CHANNELS);
+    AAudioStreamBuilder_setSampleRate(builder, AUDIO_RATE);
+    AAudioStreamBuilder_setChannelCount(builder, AUDIO_CHANNELS);
     AAudioStreamBuilder_setFormat(builder, AAUDIO_FORMAT_PCM_I16);
     AAudioStreamBuilder_setDataCallback(builder, audio_data_callback, NULL);
     AAudioStreamBuilder_setErrorCallback(builder, audio_error_callback, NULL);
@@ -237,7 +237,7 @@ int boxdroid_m6_audio_initialize(void)
     if (result != AAUDIO_OK || !audio_stream) {
         audio_stream = NULL;
         atomic_store(&stream_error, result != AAUDIO_OK ? result : AAUDIO_ERROR_INTERNAL);
-        __android_log_print(ANDROID_LOG_ERROR, M6_TAG,
+        __android_log_print(ANDROID_LOG_ERROR, TAG,
                             "AAUDIO_OPEN_FAIL result=%d", result);
         return result != AAUDIO_OK ? result : AAUDIO_ERROR_INTERNAL;
     }
@@ -247,10 +247,10 @@ int boxdroid_m6_audio_initialize(void)
     frames_per_burst = AAudioStream_getFramesPerBurst(audio_stream);
     stream_capacity_frames = AAudioStream_getBufferCapacityInFrames(audio_stream);
     if (AAudioStream_getFormat(audio_stream) != AAUDIO_FORMAT_PCM_I16 ||
-        actual_channels != M6_CHANNELS || actual_rate != M6_RATE ||
+        actual_channels != AUDIO_CHANNELS || actual_rate != AUDIO_RATE ||
         frames_per_burst <= 0 || stream_capacity_frames <= 0) {
         atomic_store(&stream_error, AAUDIO_ERROR_UNIMPLEMENTED);
-        __android_log_print(ANDROID_LOG_ERROR, M6_TAG,
+        __android_log_print(ANDROID_LOG_ERROR, TAG,
                             "AAUDIO_UNSUPPORTED_FORMAT rate=%d channels=%d format=%d burst=%d capacity=%d",
                             actual_rate, actual_channels, AAudioStream_getFormat(audio_stream),
                             frames_per_burst, stream_capacity_frames);
@@ -268,7 +268,7 @@ int boxdroid_m6_audio_initialize(void)
     result = AAudioStream_requestStart(audio_stream);
     if (result != AAUDIO_OK) {
         atomic_store(&stream_error, result);
-        __android_log_print(ANDROID_LOG_ERROR, M6_TAG,
+        __android_log_print(ANDROID_LOG_ERROR, TAG,
                             "AAUDIO_START_FAIL result=%d", result);
         AAudioStream_close(audio_stream);
         audio_stream = NULL;
@@ -277,22 +277,22 @@ int boxdroid_m6_audio_initialize(void)
     }
     atomic_store_explicit(&stream_initialized, true, memory_order_release);
     atomic_store_explicit(&stream_started, true, memory_order_release);
-    __android_log_print(ANDROID_LOG_INFO, M6_TAG,
+    __android_log_print(ANDROID_LOG_INFO, TAG,
         "AAUDIO_READY backend=AAudio rate=%d channels=%d format=S16LE burst_frames=%d buffer_frames=%d capacity_frames=%d ring_frames=%d ring_max_ms=%.1f",
         actual_rate, actual_channels, frames_per_burst, stream_buffer_frames,
-        stream_capacity_frames, M6_RING_FRAMES,
-        1000.0 * M6_RING_FRAMES / actual_rate);
+        stream_capacity_frames, AUDIO_RING_FRAMES,
+        1000.0 * AUDIO_RING_FRAMES / actual_rate);
     return 0;
 }
 
-void boxdroid_m6_audio_shutdown(void)
+void boxdroid_audio_shutdown(void)
 {
     AAudioStream *closing = audio_stream;
     audio_stream = NULL;
     if (closing) {
         aaudio_result_t stop_result = AAudioStream_requestStop(closing);
         if (stop_result != AAUDIO_OK && stop_result != AAUDIO_ERROR_INVALID_STATE) {
-            __android_log_print(ANDROID_LOG_WARN, M6_TAG,
+            __android_log_print(ANDROID_LOG_WARN, TAG,
                                 "AAUDIO_STOP result=%d", stop_result);
         }
         AAudioStream_close(closing);
@@ -306,7 +306,7 @@ void boxdroid_m6_audio_shutdown(void)
     atomic_store(&stream_capacity_frames, 0);
     atomic_store_explicit(&ring_read,
         atomic_load_explicit(&ring_write, memory_order_acquire), memory_order_release);
-    __android_log_print(ANDROID_LOG_INFO, M6_TAG, "AAUDIO_CLOSED callbacks=%llu underruns=%llu underrun_frames=%llu overruns=%llu dropped_frames=%llu offered_frames=%llu nonzero_frames=%llu",
+    __android_log_print(ANDROID_LOG_INFO, TAG, "AAUDIO_CLOSED callbacks=%llu underruns=%llu underrun_frames=%llu overruns=%llu dropped_frames=%llu offered_frames=%llu nonzero_frames=%llu",
         (unsigned long long)atomic_load(&stat_callbacks),
         (unsigned long long)atomic_load(&stat_underrun_callbacks),
         (unsigned long long)atomic_load(&stat_underrun_frames),
@@ -314,7 +314,7 @@ void boxdroid_m6_audio_shutdown(void)
         (unsigned long long)atomic_load(&stat_dropped_frames),
         (unsigned long long)atomic_load(&stat_offered_frames),
         (unsigned long long)atomic_load(&stat_nonzero_frames));
-    __android_log_print(ANDROID_LOG_INFO, M6_TAG,
+    __android_log_print(ANDROID_LOG_INFO, TAG,
         "AAUDIO_PCM source_nonzero_frames=%llu source_peak=%d ring_nonzero_frames=%llu ring_peak=%d consumed_frames=%llu consumed_nonzero_frames=%llu consumed_peak=%d",
         (unsigned long long)atomic_load(&stat_source_nonzero_frames),
         atomic_load(&stat_source_peak),
@@ -325,37 +325,37 @@ void boxdroid_m6_audio_shutdown(void)
         atomic_load(&stat_consumed_peak));
 }
 
-void boxdroid_m6_audio_set_focus(bool focused)
+void boxdroid_audio_set_focus(bool focused)
 {
     bool previous = atomic_exchange_explicit(&focus_granted, focused, memory_order_acq_rel);
     if (previous != focused) {
         atomic_store_explicit(&flush_requested, true, memory_order_release);
-        __android_log_print(ANDROID_LOG_INFO, M6_TAG, "AUDIO_FOCUS_STATE focused=%d", focused);
+        __android_log_print(ANDROID_LOG_INFO, TAG, "AUDIO_FOCUS_STATE focused=%d", focused);
     }
 }
 
-void boxdroid_m6_audio_set_foreground(bool is_foreground)
+void boxdroid_audio_set_foreground(bool is_foreground)
 {
     bool previous = atomic_exchange_explicit(&foreground, is_foreground, memory_order_acq_rel);
     if (previous != is_foreground) {
         atomic_store_explicit(&flush_requested, true, memory_order_release);
-        __android_log_print(ANDROID_LOG_INFO, M6_TAG, "AUDIO_FOREGROUND_STATE foreground=%d", is_foreground);
+        __android_log_print(ANDROID_LOG_INFO, TAG, "AUDIO_FOREGROUND_STATE foreground=%d", is_foreground);
     }
 }
 
-void boxdroid_m6_audio_apu_attach(void)
+void boxdroid_audio_apu_attach(void)
 {
     atomic_store_explicit(&apu_attached, true, memory_order_release);
-    __android_log_write(ANDROID_LOG_INFO, M6_TAG, "APU_MONITOR_ATTACHED format=S16LE rate=48000 channels=2 chunk_frames=256");
+    __android_log_write(ANDROID_LOG_INFO, TAG, "APU_MONITOR_ATTACHED format=S16LE rate=48000 channels=2 chunk_frames=256");
 }
 
-void boxdroid_m6_audio_apu_detach(void)
+void boxdroid_audio_apu_detach(void)
 {
     atomic_store_explicit(&apu_attached, false, memory_order_release);
-    __android_log_write(ANDROID_LOG_INFO, M6_TAG, "APU_MONITOR_DETACHED");
+    __android_log_write(ANDROID_LOG_INFO, TAG, "APU_MONITOR_DETACHED");
 }
 
-void boxdroid_m6_audio_push(const int16_t *samples, uint32_t frames, float gain)
+void boxdroid_audio_push(const int16_t *samples, uint32_t frames, float gain)
 {
     uint64_t write_at, read_at, queued, free_frames;
     uint32_t accepted, nonzero = 0;
@@ -363,7 +363,7 @@ void boxdroid_m6_audio_push(const int16_t *samples, uint32_t frames, float gain)
     uint64_t previous = atomic_fetch_add_explicit(&stat_offered_frames, frames,
                                                   memory_order_relaxed);
     if (previous == 0) {
-        __android_log_print(ANDROID_LOG_INFO, M6_TAG,
+        __android_log_print(ANDROID_LOG_INFO, TAG,
                             "APU_PCM_SOURCE stage=GP_OR_EP_monitor gain=%g", (double)gain);
     }
     uint64_t source_nonzero = 0;
@@ -389,7 +389,7 @@ void boxdroid_m6_audio_push(const int16_t *samples, uint32_t frames, float gain)
     write_at = atomic_load_explicit(&ring_write, memory_order_relaxed);
     read_at = atomic_load_explicit(&ring_read, memory_order_acquire);
     queued = write_at - read_at;
-    free_frames = queued >= M6_RING_FRAMES ? 0 : M6_RING_FRAMES - queued;
+    free_frames = queued >= AUDIO_RING_FRAMES ? 0 : AUDIO_RING_FRAMES - queued;
     accepted = (uint32_t)(free_frames < frames ? free_frames : frames);
     if (accepted < frames) {
         atomic_fetch_add_explicit(&stat_overrun_blocks, 1, memory_order_relaxed);
@@ -407,8 +407,8 @@ void boxdroid_m6_audio_push(const int16_t *samples, uint32_t frames, float gain)
             left = left < INT16_MIN ? INT16_MIN : left > INT16_MAX ? INT16_MAX : left;
             right = right < INT16_MIN ? INT16_MIN : right > INT16_MAX ? INT16_MAX : right;
         }
-        ring[(write_at + i) & (M6_RING_FRAMES - 1)].channel[0] = (int16_t)left;
-        ring[(write_at + i) & (M6_RING_FRAMES - 1)].channel[1] = (int16_t)right;
+        ring[(write_at + i) & (AUDIO_RING_FRAMES - 1)].channel[0] = (int16_t)left;
+        ring[(write_at + i) & (AUDIO_RING_FRAMES - 1)].channel[1] = (int16_t)right;
         nonzero += (left != 0 || right != 0);
         int32_t magnitude = stereo_peak(left, right);
         if (magnitude > ring_peak) ring_peak = magnitude;
@@ -418,7 +418,7 @@ void boxdroid_m6_audio_push(const int16_t *samples, uint32_t frames, float gain)
     atomic_store_explicit(&ring_write, write_at + accepted, memory_order_release);
 }
 
-void boxdroid_m6_audio_snapshot(BoxDroidM6AudioStats *stats)
+void boxdroid_audio_snapshot(BoxDroidAudioStats *stats)
 {
     uint64_t write_at = atomic_load_explicit(&ring_write, memory_order_acquire);
     uint64_t read_at = atomic_load_explicit(&ring_read, memory_order_acquire);
@@ -456,13 +456,13 @@ void boxdroid_m6_audio_snapshot(BoxDroidM6AudioStats *stats)
     stats->apu_attached = atomic_load_explicit(&apu_attached, memory_order_relaxed);
 }
 
-void boxdroid_m6_audio_format_metrics(char *buffer, uint32_t buffer_size)
+void boxdroid_audio_format_metrics(char *buffer, uint32_t buffer_size)
 {
-    BoxDroidM6AudioStats s;
+    BoxDroidAudioStats s;
     const char *state;
     int64_t now = monotonic_ns();
     int64_t previous;
-    boxdroid_m6_audio_snapshot(&s);
+    boxdroid_audio_snapshot(&s);
     if (s.error_code) state = "ERROR";
     else if (!s.foreground) state = "PAUSED";
     else if (!s.focus_granted) state = "FOCUS LOST";
@@ -480,7 +480,7 @@ void boxdroid_m6_audio_format_metrics(char *buffer, uint32_t buffer_size)
     if (now - previous >= 10000000000LL &&
         atomic_compare_exchange_strong_explicit(&last_stats_log_ns, &previous, now,
             memory_order_relaxed, memory_order_relaxed)) {
-        __android_log_print(ANDROID_LOG_INFO, M6_TAG,
+        __android_log_print(ANDROID_LOG_INFO, TAG,
             "AUDIO_STATS backend=AAudio state=%s rate=%d channels=%d format=S16LE burst=%d callback_frames=%d..%d buffer_frames=%d capacity_frames=%d queued_frames=%llu queued_estimate_ms=%llu callbacks=%llu callback_frames_total=%llu underrun_callbacks=%llu underrun_frames=%llu overrun_blocks=%llu dropped_frames=%llu offered_frames=%llu nonzero_frames=%llu muted_frames=%llu focus=%d foreground=%d apu_attached=%d error=%d source_nonzero_frames=%llu source_peak=%d ring_peak=%d consumed_frames=%llu consumed_nonzero_frames=%llu consumed_peak=%d",
             state, s.sample_rate, s.channels, s.frames_per_burst,
             s.min_callback_frames, s.max_callback_frames,
@@ -503,7 +503,7 @@ Java_org_boxdroid_AudioEmulatorActivity_nativeAudioInitialize(JNIEnv *env, jobje
 {
     (void)env;
     (void)self;
-    return boxdroid_m6_audio_initialize();
+    return boxdroid_audio_initialize();
 }
 
 JNIEXPORT void JNICALL
@@ -512,7 +512,7 @@ Java_org_boxdroid_AudioEmulatorActivity_nativeAudioSetFocus(JNIEnv *env, jobject
 {
     (void)env;
     (void)self;
-    boxdroid_m6_audio_set_focus(focused == JNI_TRUE);
+    boxdroid_audio_set_focus(focused == JNI_TRUE);
 }
 
 JNIEXPORT void JNICALL
@@ -521,7 +521,7 @@ Java_org_boxdroid_AudioEmulatorActivity_nativeAudioSetForeground(JNIEnv *env, jo
 {
     (void)env;
     (void)self;
-    boxdroid_m6_audio_set_foreground(is_foreground == JNI_TRUE);
+    boxdroid_audio_set_foreground(is_foreground == JNI_TRUE);
 }
 
 JNIEXPORT jstring JNICALL
@@ -529,7 +529,7 @@ Java_org_boxdroid_AudioEmulatorActivity_nativeAudioOverlayMetrics(JNIEnv *env, j
 {
     char metrics[192];
     (void)self;
-    boxdroid_m6_audio_format_metrics(metrics, sizeof(metrics));
+    boxdroid_audio_format_metrics(metrics, sizeof(metrics));
     return (*env)->NewStringUTF(env, metrics);
 }
 
@@ -538,5 +538,5 @@ Java_org_boxdroid_AudioEmulatorActivity_nativeAudioShutdown(JNIEnv *env, jobject
 {
     (void)env;
     (void)self;
-    boxdroid_m6_audio_shutdown();
+    boxdroid_audio_shutdown();
 }

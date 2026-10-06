@@ -1,10 +1,10 @@
-#ifndef BOXDROID_M6_AUDIO_H
-#define BOXDROID_M6_AUDIO_H
+#ifndef BOXDROID_AUDIO_H
+#define BOXDROID_AUDIO_H
 
 #include <stdbool.h>
 #include <stdint.h>
 
-typedef struct BoxDroidM6AudioStats {
+typedef struct BoxDroidAudioStats {
     int32_t sample_rate;
     int32_t channels;
     int32_t frames_per_burst;
@@ -35,16 +35,16 @@ typedef struct BoxDroidM6AudioStats {
     bool focus_granted;
     bool foreground;
     bool apu_attached;
-} BoxDroidM6AudioStats;
+} BoxDroidAudioStats;
 
-int boxdroid_m6_audio_initialize(void);
-void boxdroid_m6_audio_shutdown(void);
-void boxdroid_m6_audio_set_focus(bool focused);
-void boxdroid_m6_audio_set_foreground(bool foreground);
-void boxdroid_m6_audio_apu_attach(void);
-void boxdroid_m6_audio_apu_detach(void);
-void boxdroid_m6_audio_push(const int16_t *samples, uint32_t frames, float gain);
-void boxdroid_m6_audio_snapshot(BoxDroidM6AudioStats *stats);
-void boxdroid_m6_audio_format_metrics(char *buffer, uint32_t buffer_size);
+int boxdroid_audio_initialize(void);
+void boxdroid_audio_shutdown(void);
+void boxdroid_audio_set_focus(bool focused);
+void boxdroid_audio_set_foreground(bool foreground);
+void boxdroid_audio_apu_attach(void);
+void boxdroid_audio_apu_detach(void);
+void boxdroid_audio_push(const int16_t *samples, uint32_t frames, float gain);
+void boxdroid_audio_snapshot(BoxDroidAudioStats *stats);
+void boxdroid_audio_format_metrics(char *buffer, uint32_t buffer_size);
 
 #endif
