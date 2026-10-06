@@ -2889,6 +2889,14 @@ static void publish_init_failure(int status)
 }
 #endif
 
+#include <signal.h>
+#include <unistd.h>
+
+static void silent_crash_handler(int sig) {
+    __android_log_print(ANDROID_LOG_ERROR, TAG, "SILENT_CRASH_RECOVERY caught fatal signal %d, exiting cleanly", sig);
+    _exit(1);
+}
+
 static void *run_xbox(void *unused)
 {
     int status;
@@ -3000,6 +3008,18 @@ Java_org_boxdroid_MainActivity_nativeXboxStart(JNIEnv *env, jobject self,
     const int arg_shift = 0;
 #endif
     (void) self;
+    
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = silent_crash_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESETHAND;
+    sigaction(SIGSEGV, &sa, NULL);
+    sigaction(SIGABRT, &sa, NULL);
+    sigaction(SIGILL, &sa, NULL);
+    sigaction(SIGFPE, &sa, NULL);
+    sigaction(SIGBUS, &sa, NULL);
+
     if (thread_created) return -EALREADY;
 #ifdef BOXDROID_XBOX_RUNTIME
     if (dvd_source_fd < 0 || dvd_expected_size == 0) {

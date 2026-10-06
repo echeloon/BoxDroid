@@ -23,6 +23,9 @@ public class MainActivity extends Activity {
     private boolean surfaceReady;
     private boolean xboxStarted;
     private boolean stopping;
+    private android.os.ParcelFileDescriptor biosFd;
+    private android.os.ParcelFileDescriptor mcpxFd;
+    private android.os.ParcelFileDescriptor hddFd;
 
     static {
         System.loadLibrary("boxdroid");
@@ -53,7 +56,11 @@ public class MainActivity extends Activity {
     protected boolean stopRuntimeOnActivityStop() { return true; }
 
     /** Runs on the native executor after QEMU has stopped. */
-    protected void afterNativeRuntimeStop() { }
+    protected void afterNativeRuntimeStop() {
+        if (biosFd != null) { try { biosFd.close(); } catch (Exception e) {} biosFd = null; }
+        if (mcpxFd != null) { try { mcpxFd.close(); } catch (Exception e) {} mcpxFd = null; }
+        if (hddFd != null) { try { hddFd.close(); } catch (Exception e) {} hddFd = null; }
+    }
 
     /** Stop the native runtime in order before closing this milestone app. */
     protected final void shutdownNativeRuntimeAndFinish() {
@@ -168,21 +175,50 @@ public class MainActivity extends Activity {
 
     private void startXbox(File directory) {
         if (xboxStarted) return;
-        File bios = new File(directory, "bios.bin");
-        File mcpx = new File(directory, "mcpx.bin");
-        File hdd = new File(directory, "hdd.qcow2");
+        
+        android.content.SharedPreferences prefs = getSharedPreferences("boxdroid_games", android.content.Context.MODE_PRIVATE);
+        String biosUriStr = prefs.getString("bios_uri", null);
+        String mcpxUriStr = prefs.getString("mcpx_uri", null);
+        String hddUriStr = prefs.getString("hdd_uri", null);
         File log = new File(getFilesDir(), "qemu.log");
-        if (!bios.canRead() || !mcpx.canRead() || !hdd.canRead()) {
-            Log.e(TAG, "FIRMWARE_STAGE_MISSING bios=" + bios.canRead() +
-                    " mcpx=" + mcpx.canRead() + " hdd=" + hdd.canRead());
-            return;
+
+        String biosPath;
+        String mcpxPath;
+        String hddPath;
+
+        if (biosUriStr != null && mcpxUriStr != null && hddUriStr != null) {
+            try {
+                biosFd = getContentResolver().openFileDescriptor(android.net.Uri.parse(biosUriStr), "r");
+                mcpxFd = getContentResolver().openFileDescriptor(android.net.Uri.parse(mcpxUriStr), "r");
+                hddFd = getContentResolver().openFileDescriptor(android.net.Uri.parse(hddUriStr), "rw");
+                
+                biosPath = "/proc/self/fd/" + biosFd.getFd();
+                mcpxPath = "/proc/self/fd/" + mcpxFd.getFd();
+                hddPath = "/proc/self/fd/" + hddFd.getFd();
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to open system files", e);
+                return;
+            }
+        } else {
+            File bios = new File(directory, "bios.bin");
+            File mcpx = new File(directory, "mcpx.bin");
+            File hdd = new File(directory, "hdd.qcow2");
+            if (!bios.canRead() || !mcpx.canRead() || !hdd.canRead()) {
+                Log.e(TAG, "FIRMWARE_STAGE_MISSING bios=" + bios.canRead() +
+                        " mcpx=" + mcpx.canRead() + " hdd=" + hdd.canRead());
+                return;
+            }
+            biosPath = bios.getAbsolutePath();
+            mcpxPath = mcpx.getAbsolutePath();
+            hddPath = hdd.getAbsolutePath();
         }
+
         xboxStarted = true;
         Log.i(TAG, "XBOX_START_REQUEST machine=xbox target=tcg guest=i386 host=aarch64");
         NATIVE.execute(() -> {
             beforeNativeRuntimeStart();
-            int result = nativeXboxStart(bios.getAbsolutePath(), mcpx.getAbsolutePath(),
-                    hdd.getAbsolutePath(), log.getAbsolutePath());
+            int result = nativeXboxStart(biosPath, mcpxPath,
+                    hddPath, log.getAbsolutePath());
             Log.i(TAG, "XBOX_INIT_RESULT=" + result + " qemu_log=" + log.getAbsolutePath());
         });
     }
@@ -190,23 +226,57 @@ public class MainActivity extends Activity {
     /** Starts the existing Xbox runtime only after a caller has validated a selected DVD FD. */
     protected final void startXboxWithDvd(File directory, int dvdFd, long dvdSize) {
         if (xboxStarted || stopping) return;
-        File bios = new File(directory, "bios.bin");
-        File mcpx = new File(directory, "mcpx.bin");
-        File hdd = new File(directory, "hdd.qcow2");
+        
+        android.content.SharedPreferences prefs = getSharedPreferences("boxdroid_games", android.content.Context.MODE_PRIVATE);
+        String biosUriStr = prefs.getString("bios_uri", null);
+        String mcpxUriStr = prefs.getString("mcpx_uri", null);
+        String hddUriStr = prefs.getString("hdd_uri", null);
         File log = new File(getFilesDir(), "qemu.log");
-        if (!bios.canRead() || !mcpx.canRead() || !hdd.canRead() || dvdFd < 0 || dvdSize <= 0) {
-            Log.e(TAG, "M55_START_REJECTED bios=" + bios.canRead() + " mcpx=" + mcpx.canRead()
-                    + " hdd=" + hdd.canRead() + " fd_valid=" + (dvdFd >= 0)
-                    + " dvd_size=" + dvdSize);
-            onSelectedDvdStartResult(-1);
-            return;
+
+        String biosPath;
+        String mcpxPath;
+        String hddPath;
+
+        if (biosUriStr != null && mcpxUriStr != null && hddUriStr != null) {
+            try {
+                biosFd = getContentResolver().openFileDescriptor(android.net.Uri.parse(biosUriStr), "r");
+                mcpxFd = getContentResolver().openFileDescriptor(android.net.Uri.parse(mcpxUriStr), "r");
+                hddFd = getContentResolver().openFileDescriptor(android.net.Uri.parse(hddUriStr), "rw");
+                
+                long biosSize = biosFd.getStatSize();
+                long mcpxSize = mcpxFd.getStatSize();
+                long hddSize = hddFd.getStatSize();
+
+                
+                biosPath = "/proc/self/fd/" + biosFd.getFd();
+                mcpxPath = "/proc/self/fd/" + mcpxFd.getFd();
+                hddPath = "/proc/self/fd/" + hddFd.getFd();
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to open system files", e);
+                onSelectedDvdStartResult(-1);
+                return;
+            }
+        } else {
+            File bios = new File(directory, "bios.bin");
+            File mcpx = new File(directory, "mcpx.bin");
+            File hdd = new File(directory, "hdd.qcow2");
+            if (!bios.canRead() || !mcpx.canRead() || !hdd.canRead() || dvdFd < 0) {
+                Log.e(TAG, "M55_START_REJECTED bios=" + bios.canRead() + " mcpx=" + mcpx.canRead()
+                        + " hdd=" + hdd.canRead() + " fd_valid=" + (dvdFd >= 0));
+                onSelectedDvdStartResult(-1);
+                return;
+            }
+            biosPath = bios.getAbsolutePath();
+            mcpxPath = mcpx.getAbsolutePath();
+            hddPath = hdd.getAbsolutePath();
         }
+
         xboxStarted = true;
         NATIVE.execute(() -> {
             beforeNativeRuntimeStart();
             Log.i(TAG, "M55_EMULATOR_START_REQUEST dvd_fd_validated=1 dvd_size=" + dvdSize);
-            int result = nativeXboxStartWithDvd(bios.getAbsolutePath(), mcpx.getAbsolutePath(),
-                    hdd.getAbsolutePath(), log.getAbsolutePath(), dvdFd, dvdSize);
+            int result = nativeXboxStartWithDvd(biosPath, mcpxPath,
+                    hddPath, log.getAbsolutePath(), dvdFd, dvdSize);
             Log.i(TAG, "M55_EMULATOR_START_RESULT=" + result);
             if (result != 0) xboxStarted = false;
             final int startResult = result;

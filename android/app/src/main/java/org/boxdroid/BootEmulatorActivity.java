@@ -90,6 +90,7 @@ public class BootEmulatorActivity extends AudioEmulatorActivity {
     protected void onVideoPresenterReady(File directory) {
         runtimeDirectory = directory;
         runOnUiThread(() -> {
+            if (isFinishing()) return;
             presenterReady = true;
             Log.i(TAG, "M61_PRESENTER_READY guest_runtime=stopped");
             if (dvdDescriptor != null) {
@@ -98,7 +99,7 @@ public class BootEmulatorActivity extends AudioEmulatorActivity {
                 pickerShownThisLaunch = true;
                 launchPicker("presenter_ready");
             } else {
-                showIdle("No image selected. Choose an Xbox XISO to continue.");
+                finish();
             }
         });
     }
@@ -125,7 +126,8 @@ public class BootEmulatorActivity extends AudioEmulatorActivity {
         } catch (RuntimeException error) {
             pickerInFlight = false;
             Log.e(TAG, "M61_PICKER_LAUNCH_FAILED", error);
-            showIdle("Picker could not be opened. Tap to retry.");
+            Toast.makeText(this, "Could Not Load Game, Check your system files again", Toast.LENGTH_LONG).show();
+            finish();
         }
     }
 
@@ -137,7 +139,7 @@ public class BootEmulatorActivity extends AudioEmulatorActivity {
         Uri uri = data == null ? null : data.getData();
         if (resultCode != RESULT_OK || uri == null) {
             Log.i(TAG, "M61_PICKER_CANCELLED emulator=stopped");
-            showIdle("No game selected. Tap to choose an Xbox XISO.");
+            finish();
             return;
         }
         selectedUri = uri;
@@ -195,10 +197,8 @@ public class BootEmulatorActivity extends AudioEmulatorActivity {
             Log.e(TAG, "M61_URI_VALIDATION_FAILED uri=" + selectedUri + " name="
                     + selectedName + " mime=" + selectedMime + " provider_size="
                     + providerSize + " reason=" + error.getClass().getSimpleName(), error);
-            Toast.makeText(this, "Selected document is unreadable or not seekable.",
-                    Toast.LENGTH_LONG).show();
-            resetSelection();
-            showIdle("Image access failed. Choose another Xbox XISO.");
+            Toast.makeText(this, "Could Not Load Game, Check your system files again", Toast.LENGTH_LONG).show();
+            finish();
         }
     }
 
@@ -257,10 +257,8 @@ public class BootEmulatorActivity extends AudioEmulatorActivity {
         }
         startRequested = false;
         Log.e(TAG, "M61_EMULATOR_START_FAILED result=" + result + " emulator_stopped=1");
-        Toast.makeText(this, "Xbox startup failed. Select the image again to retry.",
-                Toast.LENGTH_LONG).show();
-        resetSelection();
-        showIdle("DVD attachment/start failed. Choose an Xbox XISO to retry.");
+        Toast.makeText(this, "Could Not Load Game, Check your system files again", Toast.LENGTH_LONG).show();
+        finish();
     }
 
     @Override
