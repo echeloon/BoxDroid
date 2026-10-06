@@ -40,6 +40,17 @@ if [ ! -f "$BUILD_ROOT/libboxdroid.so" ]; then
     mkdir -p "$BUILD_ROOT/assets"
 fi
 
+echo "Building Web Frontend..."
+cd web-frontend
+npm install
+npm run build
+cd ..
+
+echo "Packaging Web Assets..."
+rm -rf android/app/src/main/assets/www
+mkdir -p android/app/src/main/assets/www
+cp -r web-frontend/build/client/* android/app/src/main/assets/www/
+
 echo "Building BoxDroid APK..."
 cd android
 ./gradlew assembleDebug -PnativeBuildRoot="$BUILD_ROOT"

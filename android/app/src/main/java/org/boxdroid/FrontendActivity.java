@@ -8,14 +8,11 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.BaseAdapter;
-import android.widget.Button;
-import android.widget.ListView;
-import android.widget.TextView;
-import android.widget.ImageButton;
+import android.webkit.JavascriptInterface;
+import android.webkit.WebChromeClient;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -26,18 +23,9 @@ import java.util.List;
 
 public class FrontendActivity extends Activity {
 
-    private enum State {
-        WELCOME,
-        MAIN_MENU,
-        GAME_LIBRARY,
-        SETTINGS,
-        FILE_SYSTEM_SETTINGS
-    }
-
-    private State currentState = State.WELCOME;
     private SharedPreferences prefs;
     private List<Game> gameList = new ArrayList<>();
-    private GameAdapter adapter;
+    private WebView webView;
 
     private static final int REQUEST_CODE_ADD_GAME = 1001;
     private static final int REQUEST_CODE_SELECT_MCPX = 1002;
@@ -52,121 +40,168 @@ public class FrontendActivity extends Activity {
         prefs = getSharedPreferences("boxdroid_games", Context.MODE_PRIVATE);
         loadGames();
 
-        showWelcomeScreen();
-    }
+        android.widget.FrameLayout container = new android.widget.FrameLayout(this);
+        container.setBackgroundColor(android.graphics.Color.BLUE); // Blue background to test
+        
+        webView = new WebView(this);
+        android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT);
+        webView.setLayoutParams(params);
+        container.addView(webView);
+        setContentView(container);
 
-    private void showWelcomeScreen() {
-        currentState = State.WELCOME;
-        setContentView(R.layout.activity_welcome);
+        WebSettings webSettings = webView.getSettings();
+        webSettings.setJavaScriptEnabled(true);
+        webSettings.setDomStorageEnabled(true);
+        webSettings.setAllowFileAccessFromFileURLs(true);
+        webSettings.setAllowUniversalAccessFromFileURLs(true);
 
-        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            if (currentState == State.WELCOME) {
-                showMainMenu();
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public android.webkit.WebResourceResponse shouldInterceptRequest(WebView view, android.webkit.WebResourceRequest request) {
+                Uri url = request.getUrl();
+                if ("http".equals(url.getScheme()) && "boxdroid.local".equals(url.getHost())) {
+                    android.util.Log.e("BoxDroid-WebView", "Intercepting virtual host request: " + url.toString());
+                    String path = url.getPath();
+                    if (path == null || path.isEmpty() || path.equals("/")) path = "/index.html";
+                    
+                    try {
+                        String assetPath = "www" + path;
+                        java.io.InputStream is = null;
+                        try {
+                            is = getAssets().open(assetPath);
+                        } catch (java.io.IOException e) {
+                            // SPA Fallback
+                            is = getAssets().open("www/index.html");
+                            path = "/index.html";
+                        }
+                        
+                        String mimeType = "text/html";
+                        if (path.endsWith(".css")) mimeType = "text/css";
+                        else if (path.endsWith(".js")) mimeType = "text/javascript";
+                        else if (path.endsWith(".svg")) mimeType = "image/svg+xml";
+                        else if (path.endsWith(".png")) mimeType = "image/png";
+                        
+                        // Add CORS headers to allow module scripts
+                        java.util.Map<String, String> headers = new java.util.HashMap<>();
+                        headers.put("Access-Control-Allow-Origin", "*");
+                        return new android.webkit.WebResourceResponse(mimeType, "UTF-8", 200, "OK", headers, is);
+                    } catch (java.io.IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+                return super.shouldInterceptRequest(view, request);
             }
-        }, 2000);
-    }
-
-    private void showMainMenu() {
-        currentState = State.MAIN_MENU;
-        setContentView(R.layout.activity_main_menu);
-
-        findViewById(R.id.btn_select_game).setOnClickListener(v -> {
-            if (prefs.getString("mcpx_uri", null) == null ||
-                prefs.getString("bios_uri", null) == null ||
-                prefs.getString("hdd_uri", null) == null) {
-                android.widget.Toast.makeText(this, "Load BIOS, MCPX and HDD Image first.", android.widget.Toast.LENGTH_LONG).show();
-            } else {
-                showGameLibrary();
+        });
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onConsoleMessage(android.webkit.ConsoleMessage consoleMessage) {
+                android.util.Log.e("BoxDroid-WebView", consoleMessage.message() + " -- From line "
+                        + consoleMessage.lineNumber() + " of "
+                        + consoleMessage.sourceId());
+                return super.onConsoleMessage(consoleMessage);
             }
         });
-        findViewById(R.id.btn_settings).setOnClickListener(v -> showSettings());
-        findViewById(R.id.btn_exit).setOnClickListener(v -> finishAffinity());
+        webView.addJavascriptInterface(new WebAppBridge(), "BoxDroidBridge");
+
+        // Assuming you have built the React app into assets/www
+        webView.loadUrl("http://boxdroid.local/");
     }
 
-    private void showSettings() {
-        currentState = State.SETTINGS;
-        setContentView(R.layout.activity_settings);
-
-        View layoutFileSystemSettings = findViewById(R.id.layout_file_system_settings);
-        layoutFileSystemSettings.setOnClickListener(v -> showFileSystemSettings());
-    }
-
-    private void showFileSystemSettings() {
-        currentState = State.FILE_SYSTEM_SETTINGS;
-        setContentView(R.layout.activity_file_system_settings);
-
-        View layoutMcpx = findViewById(R.id.layout_select_mcpx);
-        View layoutBios = findViewById(R.id.layout_select_bios);
-        View layoutHdd = findViewById(R.id.layout_select_hdd);
-
-        TextView textMcpx = findViewById(R.id.text_mcpx_name);
-        TextView textBios = findViewById(R.id.text_bios_name);
-        TextView textHdd = findViewById(R.id.text_hdd_name);
-
-        ImageButton btnDeleteMcpx = findViewById(R.id.btn_delete_mcpx);
-        ImageButton btnDeleteBios = findViewById(R.id.btn_delete_bios);
-        ImageButton btnDeleteHdd = findViewById(R.id.btn_delete_hdd);
-
-        android.widget.ImageView iconMcpx = findViewById(R.id.icon_mcpx);
-        android.widget.ImageView iconBios = findViewById(R.id.icon_bios);
-        android.widget.ImageView iconHdd = findViewById(R.id.icon_hdd);
-
-        updateSettingsItemText(textMcpx, btnDeleteMcpx, iconMcpx, "Select MCPX", "mcpx_uri");
-        updateSettingsItemText(textBios, btnDeleteBios, iconBios, "Select BIOS", "bios_uri");
-        updateSettingsItemText(textHdd, btnDeleteHdd, iconHdd, "Select HDD Image", "hdd_uri");
-
-        layoutMcpx.setOnClickListener(v -> {
-            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-            intent.addCategory(Intent.CATEGORY_OPENABLE);
-            intent.setType("*/*");
-            startActivityForResult(intent, REQUEST_CODE_SELECT_MCPX);
-        });
-
-        btnDeleteMcpx.setOnClickListener(v -> {
-            prefs.edit().remove("mcpx_uri").apply();
-            updateSettingsItemText(textMcpx, btnDeleteMcpx, iconMcpx, "Select MCPX", "mcpx_uri");
-        });
-
-        layoutBios.setOnClickListener(v -> {
-            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-            intent.addCategory(Intent.CATEGORY_OPENABLE);
-            intent.setType("*/*");
-            startActivityForResult(intent, REQUEST_CODE_SELECT_BIOS);
-        });
-
-        btnDeleteBios.setOnClickListener(v -> {
-            prefs.edit().remove("bios_uri").apply();
-            updateSettingsItemText(textBios, btnDeleteBios, iconBios, "Select BIOS", "bios_uri");
-        });
-
-        layoutHdd.setOnClickListener(v -> {
-            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-            intent.addCategory(Intent.CATEGORY_OPENABLE);
-            intent.setType("*/*");
-            startActivityForResult(intent, REQUEST_CODE_SELECT_HDD);
-        });
-
-        btnDeleteHdd.setOnClickListener(v -> {
-            prefs.edit().remove("hdd_uri").apply();
-            updateSettingsItemText(textHdd, btnDeleteHdd, iconHdd, "Select HDD Image", "hdd_uri");
-        });
-    }
-
-    private void updateSettingsItemText(TextView textView, ImageButton deleteBtn, android.widget.ImageView iconView, String defaultText, String prefKey) {
-        String uriString = prefs.getString(prefKey, null);
-        if (uriString != null) {
-            String name = getFileNameFromUri(Uri.parse(uriString));
-            if (name == null || name.isEmpty()) {
-                name = defaultText + " (Loaded)";
-            }
-            textView.setText(name);
-            deleteBtn.setVisibility(View.VISIBLE);
-            iconView.setVisibility(View.VISIBLE);
-        } else {
-            textView.setText(defaultText);
-            deleteBtn.setVisibility(View.GONE);
-            iconView.setVisibility(View.INVISIBLE);
+    private class WebAppBridge {
+        @JavascriptInterface
+        public String getGames() {
+            return prefs.getString("games", "[]");
         }
+
+        @JavascriptInterface
+        public String getSettings() {
+            JSONObject obj = new JSONObject();
+            try {
+                obj.put("mcpx_uri", getFileRef("mcpx_uri", "Select MCPX"));
+                obj.put("bios_uri", getFileRef("bios_uri", "Select BIOS"));
+                obj.put("hdd_uri", getFileRef("hdd_uri", "Select HDD Image"));
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+            return obj.toString();
+        }
+
+        private JSONObject getFileRef(String key, String defaultName) throws JSONException {
+            JSONObject ref = new JSONObject();
+            String uriString = prefs.getString(key, null);
+            if (uriString != null) {
+                String name = getFileNameFromUri(Uri.parse(uriString));
+                if (name == null || name.isEmpty()) name = defaultName + " (Loaded)";
+                ref.put("isSet", true);
+                ref.put("name", name);
+            } else {
+                ref.put("isSet", false);
+                ref.put("name", defaultName);
+            }
+            return ref;
+        }
+
+        @JavascriptInterface
+        public void addGame() {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("application/octet-stream");
+            startActivityForResult(intent, REQUEST_CODE_ADD_GAME);
+        }
+
+        @JavascriptInterface
+        public void selectMcpx() {
+            selectFile(REQUEST_CODE_SELECT_MCPX);
+        }
+
+        @JavascriptInterface
+        public void selectBios() {
+            selectFile(REQUEST_CODE_SELECT_BIOS);
+        }
+
+        @JavascriptInterface
+        public void selectHdd() {
+            selectFile(REQUEST_CODE_SELECT_HDD);
+        }
+
+        private void selectFile(int requestCode) {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("*/*");
+            startActivityForResult(intent, requestCode);
+        }
+
+        @JavascriptInterface
+        public void deleteGame(int position) {
+            if (position >= 0 && position < gameList.size()) {
+                gameList.remove(position);
+                saveGames();
+                notifyWeb("games_changed");
+            }
+        }
+
+        @JavascriptInterface
+        public void clearSetting(String key) {
+            prefs.edit().remove(key).apply();
+            notifyWeb("settings_changed");
+        }
+
+        @JavascriptInterface
+        public void startGame(String uriString) {
+            Intent intent = new Intent(FrontendActivity.this, org.boxdroid.GameActivity.class);
+            intent.setData(Uri.parse(uriString));
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            gameStartTime = System.currentTimeMillis();
+            startActivityForResult(intent, REQUEST_CODE_START_GAME);
+        }
+    }
+
+    private void notifyWeb(String eventName) {
+        runOnUiThread(() -> {
+            webView.evaluateJavascript("window.dispatchEvent(new Event('" + eventName + "'))", null);
+        });
     }
 
     private String getFileNameFromUri(Uri uri) {
@@ -182,39 +217,6 @@ public class FrontendActivity extends Activity {
             e.printStackTrace();
         }
         return name;
-    }
-
-    private void showGameLibrary() {
-        currentState = State.GAME_LIBRARY;
-        setContentView(R.layout.activity_game_library);
-
-        ListView listView = findViewById(R.id.list_games);
-        TextView textEmpty = findViewById(R.id.text_empty);
-
-        adapter = new GameAdapter();
-        listView.setAdapter(adapter);
-
-        updateEmptyView();
-
-        findViewById(R.id.btn_add_game).setOnClickListener(v -> {
-            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-            intent.addCategory(Intent.CATEGORY_OPENABLE);
-            intent.setType("application/octet-stream"); // xiso
-            startActivityForResult(intent, REQUEST_CODE_ADD_GAME);
-        });
-
-        listView.setOnItemClickListener((parent, view, position, id) -> {
-            Game game = gameList.get(position);
-            startGame(game.uri);
-        });
-    }
-
-    private void startGame(String uriString) {
-        Intent intent = new Intent(this, org.boxdroid.GameActivity.class);
-        intent.setData(Uri.parse(uriString));
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        gameStartTime = System.currentTimeMillis();
-        startActivityForResult(intent, REQUEST_CODE_START_GAME);
     }
 
     @Override
@@ -233,56 +235,34 @@ public class FrontendActivity extends Activity {
                     getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
                     
                     String name = "Unknown Game";
-                    try (android.database.Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
-                        if (cursor != null && cursor.moveToFirst()) {
-                            int index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
-                            if (index != -1) {
-                                name = cursor.getString(index);
-                            }
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+                    name = getFileNameFromUri(uri);
 
                     gameList.add(new Game(name, uri.toString()));
                     saveGames();
-                    
-                    if (currentState == State.GAME_LIBRARY) {
-                        adapter.notifyDataSetChanged();
-                        updateEmptyView();
-                    }
+                    notifyWeb("games_changed");
                 } else if (requestCode == REQUEST_CODE_SELECT_MCPX) {
                     getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
                     prefs.edit().putString("mcpx_uri", uri.toString()).apply();
-                    if (currentState == State.FILE_SYSTEM_SETTINGS) showFileSystemSettings();
+                    notifyWeb("settings_changed");
                 } else if (requestCode == REQUEST_CODE_SELECT_BIOS) {
                     getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
                     prefs.edit().putString("bios_uri", uri.toString()).apply();
-                    if (currentState == State.FILE_SYSTEM_SETTINGS) showFileSystemSettings();
+                    notifyWeb("settings_changed");
                 } else if (requestCode == REQUEST_CODE_SELECT_HDD) {
                     getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
                     prefs.edit().putString("hdd_uri", uri.toString()).apply();
-                    if (currentState == State.FILE_SYSTEM_SETTINGS) showFileSystemSettings();
+                    notifyWeb("settings_changed");
                 }
             }
         }
         super.onActivityResult(requestCode, resultCode, data);
     }
 
-    private void updateEmptyView() {
-        TextView textEmpty = findViewById(R.id.text_empty);
-        if (textEmpty != null) {
-            textEmpty.setVisibility(gameList.isEmpty() ? View.VISIBLE : View.GONE);
-        }
-    }
-
     @Override
     public void onBackPressed() {
-        if (currentState == State.GAME_LIBRARY || currentState == State.SETTINGS) {
-            showMainMenu();
-        } else if (currentState == State.FILE_SYSTEM_SETTINGS) {
-            showSettings();
-        } else if (currentState == State.MAIN_MENU) {
+        if (webView.canGoBack()) {
+            webView.goBack();
+        } else {
             super.onBackPressed();
         }
     }
@@ -323,39 +303,6 @@ public class FrontendActivity extends Activity {
         Game(String name, String uri) {
             this.name = name;
             this.uri = uri;
-        }
-    }
-
-    private class GameAdapter extends BaseAdapter {
-        @Override
-        public int getCount() { return gameList.size(); }
-        @Override
-        public Object getItem(int position) { return gameList.get(position); }
-        @Override
-        public long getItemId(int position) { return position; }
-
-        @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-            if (convertView == null) {
-                convertView = LayoutInflater.from(FrontendActivity.this).inflate(R.layout.item_game, parent, false);
-            }
-
-            Game game = gameList.get(position);
-            TextView textName = convertView.findViewById(R.id.text_game_name);
-            ImageButton btnDelete = convertView.findViewById(R.id.btn_delete_game);
-
-            textName.setText(game.name);
-            
-            // Fix click interception by setting focusable false
-            btnDelete.setFocusable(false);
-            btnDelete.setOnClickListener(v -> {
-                gameList.remove(position);
-                saveGames();
-                notifyDataSetChanged();
-                updateEmptyView();
-            });
-
-            return convertView;
         }
     }
 }

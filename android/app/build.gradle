@@ -25,7 +25,7 @@ android {
     sourceSets {
         main {
             jniLibs.srcDirs = ["${nativeBuildRoot}/jniLibs"]
-            assets.srcDirs = ["${nativeBuildRoot}/assets"]
+            assets.srcDirs += ["${nativeBuildRoot}/assets"]
         }
     }
 
