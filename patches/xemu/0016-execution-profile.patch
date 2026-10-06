@@ -1,0 +1,16 @@
+diff --git a/accel/tcg/cpu-exec.c b/accel/tcg/cpu-exec.c
+index 3f317af872..04a004170d 100644
+--- a/accel/tcg/cpu-exec.c
++++ b/accel/tcg/cpu-exec.c
+@@ -428,0 +429,3 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
++#ifdef BOXDROID_RUNTIME
++        boxdroid_tcg_event(1);
++#endif
+@@ -435,0 +439,3 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
++#ifdef BOXDROID_RUNTIME
++    boxdroid_lookup_pc(s.pc);
++#endif
+@@ -489,0 +496,3 @@ cpu_tb_exec(CPUState *cpu, TranslationBlock *itb, int *tb_exit)
++#ifdef BOXDROID_RUNTIME
++    boxdroid_tb_return(last_tb != itb, *tb_exit);
++#endif

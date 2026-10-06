@@ -8,20 +8,20 @@ import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 
-import org.boxdroid.M61Activity;
+import org.boxdroid.BootEmulatorActivity;
 
 
-public class GameActivity extends M61Activity {
-    private static final String TAG = "BoxDroidM7_Game";
+public class GameActivity extends BootEmulatorActivity {
+    private static final String TAG = "BoxDroid_Game";
     private static final int REQUEST_XISO = 6101;
     
-    private M62Input physicalInput;
+    private GamepadInput physicalInput;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        physicalInput = new M62Input(this);
+        physicalInput = new GamepadInput(this);
         physicalInput.start();
         Log.i(TAG, "INPUT_LAYER_READY host=Android_Gamepad_Joystick slots=4 guest=XID_Duke");
         
@@ -32,7 +32,7 @@ public class GameActivity extends M61Activity {
             fakeResult.setData(uri);
             fakeResult.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             
-            // This tricks M61Activity into thinking the picker just returned
+            // This tricks BootEmulatorActivity into thinking the picker just returned
             onActivityResult(REQUEST_XISO, Activity.RESULT_OK, fakeResult);
         } else {
             Log.e(TAG, "No game URI provided, finishing");

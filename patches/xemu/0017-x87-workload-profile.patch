@@ -1,0 +1,365 @@
+--- a/target/i386/helper.h
++++ b/target/i386/helper.h
+@@ -235,0 +236,4 @@
++
++#ifdef BOXDROID_M54_X87_PROFILE
++DEF_HELPER_3(m54_x87_opcode, void, env, i32, i32)
++#endif
+--- a/target/i386/tcg/fpu_helper.c
++++ b/target/i386/tcg/fpu_helper.c
+@@ -267,0 +268,99 @@
++
++
++#ifdef BOXDROID_M54_X87_PROFILE
++#include <android/log.h>
++extern int64_t boxdroid_x87_start;
++#define X87_COUNT 2048
++static uint64_t x87_ops[X87_COUNT], x87_calls[128], x87_ns[128], x87_samples[128];
++static uint64_t x87_classes[7], x87_control[4096], x87_operands[128][7];
++static int64_t x87_cpu_begin;
++static uint64_t x87_frequency;
++static uint64_t x87_pairs[128][128];
++static unsigned x87_previous=127, x87_active, x87_finished;
++static uint64_t x87_total;
++static uint32_t x87_pc[1024];
++static uint64_t x87_pc_count[1024];
++static const char *const x87_names[] = {"flds_FT0","fldl_FT0","fildl_FT0","flds_ST0","fldl_ST0","fildl_ST0","fildll_ST0","fsts_ST0","fstl_ST0","fist_ST0","fistl_ST0","fistll_ST0","fistt_ST0","fisttl_ST0","fisttll_ST0","fldt_ST0","fstt_ST0","fpush","fpop","fdecstp","fincstp","ffree_STN","fmov_ST0_FT0","fmov_FT0_STN","fmov_ST0_STN","fmov_STN_ST0","fxchg_ST0_STN","fcom_ST0_FT0","fucom_ST0_FT0","fcomi_ST0_FT0","fucomi_ST0_FT0","fadd_ST0_FT0","fmul_ST0_FT0","fsub_ST0_FT0","fsubr_ST0_FT0","fdiv_ST0_FT0","fdivr_ST0_FT0","fadd_STN_ST0","fmul_STN_ST0","fsub_STN_ST0","fsubr_STN_ST0","fdiv_STN_ST0","fdivr_STN_ST0","fchs_ST0","fabs_ST0","fld1_ST0","fldl2t_ST0","fldl2e_ST0","fldpi_ST0","fldlg2_ST0","fldln2_ST0","fldz_ST0","fldz_FT0","fnstsw","fnstcw","fldcw","fclex","fwait","fninit","fbld_ST0","fbst_ST0","f2xm1","fptan","fpatan","fxtract","fprem1","fprem","fyl2xp1","fyl2x","fsqrt","fsincos","frndint","fscale","fsin","fcos","fxam_ST0","fstenv","fldenv","fsave","frstor","fxsave","fxrstor"};
++typedef struct X87Scope { unsigned id; int64_t begin; } X87Scope;
++static inline int64_t x87_clock_ns(void)
++{
++    /* Raw counter ticks: conversion is deferred until the summary. */
++    uint64_t value;
++    asm volatile("isb; mrs %0, cntvct_el0" : "=r"(value) :: "memory");
++    return value;
++}
++static int64_t x87_cpu_ns(void)
++{
++    struct timespec t;
++    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &t);
++    return (int64_t)t.tv_sec*1000000000+t.tv_nsec;
++}
++static X87Scope x87_begin(unsigned id)
++{
++    X87Scope v={id,0};
++    if (x87_active) {
++        uint64_t n=++x87_calls[id];
++        ++x87_pairs[x87_previous][id];
++        x87_previous=id;
++        if (!(n & 2047)) v.begin=x87_clock_ns();
++    }
++    return v;
++}
++static void x87_end(X87Scope *v)
++{
++    if (v->begin) { x87_ns[v->id]+=x87_clock_ns()-v->begin; ++x87_samples[v->id]; }
++}
++#define X87_SCOPE(id) X87Scope x87_scope __attribute__((cleanup(x87_end))) = x87_begin(id)
++static unsigned x87_class(floatx80 x)
++{
++    unsigned e=x.high & 0x7fff;
++    if (!e) return x.low ? 2 : 1; /* subnormal / zero */
++    if (!(x.low >> 63)) return 6; /* unsupported */
++    if (e==0x7fff) return x.low==UINT64_C(0x8000000000000000) ? 3 : 4;
++    return 0; /* normal finite */
++}
++void helper_m54_x87_opcode(CPUX86State *env, uint32_t op, uint32_t pc)
++{
++    if (x87_finished) return;
++    if (!(x87_total++ & 1023)) {
++        int64_t start=__atomic_load_n(&boxdroid_x87_start,__ATOMIC_RELAXED);
++        int64_t elapsed=start ? g_get_monotonic_time()-start : 0;
++        x87_active=start && elapsed<5000000;
++        if (x87_active && !x87_cpu_begin) {
++            asm volatile("mrs %0, cntfrq_el0" : "=r"(x87_frequency));
++            x87_cpu_begin=x87_cpu_ns();
++        }
++        if (start && elapsed>=5000000) {
++            x87_finished=1;
++            int64_t cpu_ns=x87_cpu_ns()-x87_cpu_begin;
++            uint64_t floor_ticks=0;
++            for (unsigned n=0;n<8192;n++) {
++                int64_t t=x87_clock_ns();
++                floor_ticks+=x87_clock_ns()-t;
++            }
++            __android_log_print(ANDROID_LOG_INFO,"BoxDroidM54","X87_WINDOW elapsed_us=%"PRId64" cpu_ns=%"PRId64" tick_hz=%"PRIu64" timer_floor_ns=%.3f sampling=1/2048 costs=inclusive profiler=opt-in",elapsed,cpu_ns,x87_frequency,(double)floor_ticks*1e9/x87_frequency/8192);
++            for (unsigned i=0;i<X87_COUNT;i++) if(x87_ops[i])
++                __android_log_print(ANDROID_LOG_INFO,"BoxDroidM54","X87_OPCODE code=%03x count=%"PRIu64,i,x87_ops[i]);
++            for(unsigned i=0;i<ARRAY_SIZE(x87_names);i++) if(x87_calls[i]) {
++                __android_log_print(ANDROID_LOG_INFO,"BoxDroidM54","X87_HELPER name=%s calls=%"PRIu64" samples=%"PRIu64" ns=%"PRIu64,x87_names[i],x87_calls[i],x87_samples[i],(uint64_t)((double)x87_ns[i]*1e9/x87_frequency));
++                for(unsigned c=0;c<7;c++) if(x87_operands[i][c])
++                    __android_log_print(ANDROID_LOG_INFO,"BoxDroidM54","X87_OPERAND helper=%s class=%u samples=%"PRIu64,x87_names[i],c,x87_operands[i][c]);
++                for(unsigned j=0;j<ARRAY_SIZE(x87_names);j++) if(x87_pairs[i][j]>10000)
++                    __android_log_print(ANDROID_LOG_INFO,"BoxDroidM54","X87_PAIR a=%s b=%s count=%"PRIu64,x87_names[i],x87_names[j],x87_pairs[i][j]);
++            }
++            for(unsigned i=0;i<7;i++) __android_log_print(ANDROID_LOG_INFO,"BoxDroidM54","X87_CLASS class=%u samples=%"PRIu64,i,x87_classes[i]);
++            for(unsigned i=0;i<4096;i++) if(x87_control[i]) __android_log_print(ANDROID_LOG_INFO,"BoxDroidM54","X87_CW word=%03x samples=%"PRIu64,i,x87_control[i]);
++            for(unsigned i=0;i<1024;i++) if(x87_pc_count[i]>10000) __android_log_print(ANDROID_LOG_INFO,"BoxDroidM54","X87_PC pc=%08x count=%"PRIu64,x87_pc[i],x87_pc_count[i]);
++        }
++    }
++    if(!x87_active) return;
++    ++x87_ops[op & 2047];
++    unsigned slot=(pc ^ (pc>>10)) & 1023;
++    for(unsigned n=0;n<1024;n++,slot=(slot+1)&1023) {
++        if(!x87_pc_count[slot] || x87_pc[slot]==pc) { x87_pc[slot]=pc; ++x87_pc_count[slot]; break; }
++    }
++    if(!(x87_total & 1023)) { ++x87_classes[x87_class(ST0)]; ++x87_classes[x87_class(FT0)]; ++x87_control[env->fpuc & 4095]; }
++}
++#else
++#define X87_SCOPE(id) ((void)0)
++#endif
+@@ -439,0 +539 @@
++    X87_SCOPE(0);
+@@ -452,0 +553 @@
++    X87_SCOPE(1);
+@@ -465,0 +567 @@
++    X87_SCOPE(2);
+@@ -470,0 +573 @@
++    X87_SCOPE(3);
+@@ -487,0 +591 @@
++    X87_SCOPE(4);
+@@ -511,0 +616 @@
++    X87_SCOPE(5);
+@@ -524,0 +630 @@
++    X87_SCOPE(6);
+@@ -537,0 +644 @@
++    X87_SCOPE(7);
+@@ -550,0 +658 @@
++    X87_SCOPE(8);
+@@ -563,0 +672 @@
++    X87_SCOPE(9);
+@@ -577,0 +687 @@
++    X87_SCOPE(10);
+@@ -590,0 +701 @@
++    X87_SCOPE(11);
+@@ -603,0 +715 @@
++    X87_SCOPE(12);
+@@ -617,0 +730 @@
++    X87_SCOPE(13);
+@@ -630,0 +744 @@
++    X87_SCOPE(14);
+@@ -643,0 +758 @@
++    X87_SCOPE(15);
+@@ -656,0 +772 @@
++    X87_SCOPE(16);
+@@ -664,0 +781 @@
++    X87_SCOPE(17);
+@@ -669,0 +787 @@
++    X87_SCOPE(18);
+@@ -674,0 +793 @@
++    X87_SCOPE(19);
+@@ -680,0 +800 @@
++    X87_SCOPE(20);
+@@ -688,0 +809 @@
++    X87_SCOPE(21);
+@@ -693,0 +815 @@
++    X87_SCOPE(22);
+@@ -698,0 +821 @@
++    X87_SCOPE(23);
+@@ -703,0 +827 @@
++    X87_SCOPE(24);
+@@ -708,0 +833 @@
++    X87_SCOPE(25);
+@@ -713,0 +839 @@
++    X87_SCOPE(26);
+@@ -726,0 +853 @@
++    X87_SCOPE(27);
+@@ -736,0 +864 @@
++    X87_SCOPE(28);
+@@ -748,0 +877 @@
++    X87_SCOPE(29);
+@@ -761,0 +891 @@
++    X87_SCOPE(30);
+@@ -774,0 +905,8 @@
++    X87_SCOPE(31);
++#ifdef BOXDROID_M54_X87_PROFILE
++    if (x87_active && !(x87_calls[31] & 2047)) {
++        floatx80 operands[] = {ST0, FT0};
++        ++x87_operands[31][x87_class(operands[0])];
++        ++x87_operands[31][x87_class(operands[1])];
++    }
++#endif
+@@ -781,0 +920,8 @@
++    X87_SCOPE(32);
++#ifdef BOXDROID_M54_X87_PROFILE
++    if (x87_active && !(x87_calls[32] & 2047)) {
++        floatx80 operands[] = {ST0, FT0};
++        ++x87_operands[32][x87_class(operands[0])];
++        ++x87_operands[32][x87_class(operands[1])];
++    }
++#endif
+@@ -788,0 +935,8 @@
++    X87_SCOPE(33);
++#ifdef BOXDROID_M54_X87_PROFILE
++    if (x87_active && !(x87_calls[33] & 2047)) {
++        floatx80 operands[] = {ST0, FT0};
++        ++x87_operands[33][x87_class(operands[0])];
++        ++x87_operands[33][x87_class(operands[1])];
++    }
++#endif
+@@ -795,0 +950,8 @@
++    X87_SCOPE(34);
++#ifdef BOXDROID_M54_X87_PROFILE
++    if (x87_active && !(x87_calls[34] & 2047)) {
++        floatx80 operands[] = {ST0, FT0};
++        ++x87_operands[34][x87_class(operands[0])];
++        ++x87_operands[34][x87_class(operands[1])];
++    }
++#endif
+@@ -802,0 +965,8 @@
++    X87_SCOPE(35);
++#ifdef BOXDROID_M54_X87_PROFILE
++    if (x87_active && !(x87_calls[35] & 2047)) {
++        floatx80 operands[] = {ST0, FT0};
++        ++x87_operands[35][x87_class(operands[0])];
++        ++x87_operands[35][x87_class(operands[1])];
++    }
++#endif
+@@ -807,0 +978,8 @@
++    X87_SCOPE(36);
++#ifdef BOXDROID_M54_X87_PROFILE
++    if (x87_active && !(x87_calls[36] & 2047)) {
++        floatx80 operands[] = {ST0, FT0};
++        ++x87_operands[36][x87_class(operands[0])];
++        ++x87_operands[36][x87_class(operands[1])];
++    }
++#endif
+@@ -814,0 +993,8 @@
++    X87_SCOPE(37);
++#ifdef BOXDROID_M54_X87_PROFILE
++    if (x87_active && !(x87_calls[37] & 2047)) {
++        floatx80 operands[] = {ST(st_index), ST0};
++        ++x87_operands[37][x87_class(operands[0])];
++        ++x87_operands[37][x87_class(operands[1])];
++    }
++#endif
+@@ -821,0 +1008,8 @@
++    X87_SCOPE(38);
++#ifdef BOXDROID_M54_X87_PROFILE
++    if (x87_active && !(x87_calls[38] & 2047)) {
++        floatx80 operands[] = {ST(st_index), ST0};
++        ++x87_operands[38][x87_class(operands[0])];
++        ++x87_operands[38][x87_class(operands[1])];
++    }
++#endif
+@@ -828,0 +1023,8 @@
++    X87_SCOPE(39);
++#ifdef BOXDROID_M54_X87_PROFILE
++    if (x87_active && !(x87_calls[39] & 2047)) {
++        floatx80 operands[] = {ST(st_index), ST0};
++        ++x87_operands[39][x87_class(operands[0])];
++        ++x87_operands[39][x87_class(operands[1])];
++    }
++#endif
+@@ -835,0 +1038,8 @@
++    X87_SCOPE(40);
++#ifdef BOXDROID_M54_X87_PROFILE
++    if (x87_active && !(x87_calls[40] & 2047)) {
++        floatx80 operands[] = {ST(st_index), ST0};
++        ++x87_operands[40][x87_class(operands[0])];
++        ++x87_operands[40][x87_class(operands[1])];
++    }
++#endif
+@@ -842,0 +1053,8 @@
++    X87_SCOPE(41);
++#ifdef BOXDROID_M54_X87_PROFILE
++    if (x87_active && !(x87_calls[41] & 2047)) {
++        floatx80 operands[] = {ST(st_index), ST0};
++        ++x87_operands[41][x87_class(operands[0])];
++        ++x87_operands[41][x87_class(operands[1])];
++    }
++#endif
+@@ -850,0 +1069,8 @@
++    X87_SCOPE(42);
++#ifdef BOXDROID_M54_X87_PROFILE
++    if (x87_active && !(x87_calls[42] & 2047)) {
++        floatx80 operands[] = {ST(st_index), ST0};
++        ++x87_operands[42][x87_class(operands[0])];
++        ++x87_operands[42][x87_class(operands[1])];
++    }
++#endif
+@@ -859,0 +1086 @@
++    X87_SCOPE(43);
+@@ -864,0 +1092 @@
++    X87_SCOPE(44);
+@@ -869,0 +1098 @@
++    X87_SCOPE(45);
+@@ -874,0 +1104 @@
++    X87_SCOPE(46);
+@@ -886,0 +1117 @@
++    X87_SCOPE(47);
+@@ -899,0 +1131 @@
++    X87_SCOPE(48);
+@@ -912,0 +1145 @@
++    X87_SCOPE(49);
+@@ -925,0 +1159 @@
++    X87_SCOPE(50);
+@@ -938,0 +1173 @@
++    X87_SCOPE(51);
+@@ -943,0 +1179 @@
++    X87_SCOPE(52);
+@@ -948,0 +1185 @@
++    X87_SCOPE(53);
+@@ -953,0 +1191 @@
++    X87_SCOPE(54);
+@@ -996,0 +1235 @@
++    X87_SCOPE(55);
+@@ -1001,0 +1241 @@
++    X87_SCOPE(56);
+@@ -1006,0 +1247 @@
++    X87_SCOPE(57);
+@@ -1032,0 +1274 @@
++    X87_SCOPE(58);
+@@ -1039,0 +1282 @@
++    X87_SCOPE(59);
+@@ -1062,0 +1306 @@
++    X87_SCOPE(60);
+@@ -1337,0 +1582 @@
++    X87_SCOPE(61);
+@@ -1498,0 +1744 @@
++    X87_SCOPE(62);
+@@ -1570,0 +1817 @@
++    X87_SCOPE(63);
+@@ -2009,0 +2257 @@
++    X87_SCOPE(64);
+@@ -2109,0 +2358 @@
++    X87_SCOPE(65);
+@@ -2114,0 +2364 @@
++    X87_SCOPE(66);
+@@ -2254,0 +2505 @@
++    X87_SCOPE(67);
+@@ -2352,0 +2604 @@
++    X87_SCOPE(68);
+@@ -2499,0 +2752 @@
++    X87_SCOPE(69);
+@@ -2510,0 +2764 @@
++    X87_SCOPE(70);
+@@ -2525,0 +2780 @@
++    X87_SCOPE(71);
+@@ -2532,0 +2788 @@
++    X87_SCOPE(72);
+@@ -2583,0 +2840 @@
++    X87_SCOPE(73);
+@@ -2596,0 +2854 @@
++    X87_SCOPE(74);
+@@ -2609,0 +2868 @@
++    X87_SCOPE(75);
+@@ -2692,0 +2952 @@
++    X87_SCOPE(76);
+@@ -2732,0 +2993 @@
++    X87_SCOPE(77);
+@@ -2756,0 +3018 @@
++    X87_SCOPE(78);
+@@ -2779,0 +3042 @@
++    X87_SCOPE(79);
+@@ -2912,0 +3176 @@
++    X87_SCOPE(80);
+@@ -3161,0 +3426 @@
++    X87_SCOPE(81);
+--- a/target/i386/tcg/translate.c
++++ b/target/i386/tcg/translate.c
+@@ -2945,0 +2946,5 @@
++#ifdef BOXDROID_M54_X87_PROFILE
++    gen_helper_m54_x87_opcode(tcg_env,
++        tcg_constant_i32(((b & 7) << 8) | modrm),
++        tcg_constant_i32(s->base.pc_next));
++#endif

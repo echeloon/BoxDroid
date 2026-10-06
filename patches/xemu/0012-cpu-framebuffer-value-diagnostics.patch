@@ -1,0 +1,59 @@
+diff --git a/hw/xbox/nv2a/nv2a.c b/hw/xbox/nv2a/nv2a.c
+--- a/hw/xbox/nv2a/nv2a.c
++++ b/hw/xbox/nv2a/nv2a.c
+@@ -26,18 +26,53 @@
+ #include "hw/xbox/nv2a/boxdroid-diagnostics.h"
+ #include "hw/core/cpu.h"
+ static MemAccessCallback *boxdroid_vram_access;
++typedef struct BoxDroidPendingStore {
++    NV2AState *nv2a;
++    hwaddr addr;
++    size_t len;
++    uint8_t before[8];
++    uint64_t guest_pc;
++    uint64_t pcrtc_start;
++    int64_t pre_store_us;
++    bool valid;
++} BoxDroidPendingStore;
++static __thread BoxDroidPendingStore boxdroid_pending_store;
+-
++
+ static void boxdroid_vram_access_callback(void *opaque, MemoryRegion *mr,
+                                              hwaddr addr, hwaddr len,
+                                              bool write)
+ {
+-    (void)opaque;
++    NV2AState *d = opaque;
++    BoxDroidPendingStore *pending = &boxdroid_pending_store;
++    (void)mr;
++    /* The QEMU callback fires before an access. A subsequent callback on
++     * this vCPU thread observes the completed previous store's bytes. */
++    if (pending->valid) {
++        uint8_t after[8];
++        memcpy(after, pending->nv2a->vram_ptr + pending->addr,
++               pending->len);
++        boxdroid_diag_cpu_store_value(pending->addr, pending->len,
++            pending->before, after, pending->guest_pc,
++            pending->pcrtc_start, pending->pre_store_us);
++        pending->valid = false;
++    }
+     /* physmem.c passes the callback offset relative to this MemoryRegion. */
+     if (write) {
+         CPUState *cpu = current_cpu;
+         uint64_t guest_pc = cpu && cpu->cc && cpu->cc->get_pc ?
+             cpu->cc->get_pc(cpu) : 0;
+         boxdroid_diag_vram_write(cpu ? "guest-cpu-context" :
+                                     "device-memory-transaction",
+                                     addr, len, 0, guest_pc);
++        if (cpu && len > 0 && len <= sizeof(pending->before) &&
++            addr <= memory_region_size(d->vram) - len) {
++            pending->nv2a = d;
++            pending->addr = addr;
++            pending->len = len;
++            memcpy(pending->before, d->vram_ptr + addr, len);
++            pending->guest_pc = guest_pc;
++            pending->pcrtc_start = d->pcrtc.start;
++            pending->pre_store_us = g_get_monotonic_time();
++            pending->valid = true;
++        }
+     } else {

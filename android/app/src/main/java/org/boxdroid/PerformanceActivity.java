@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit;
 
 /** Android-only diagnostic overlay. MainActivity continues to own the Xbox runtime. */
 public class PerformanceActivity extends MainActivity {
-    private static final String TAG = "BoxDroidM53";
+    private static final String TAG = "BoxDroid_";
     private static final long SAMPLE_MS = 500;
     private final Object samplerLock = new Object();
     private ScheduledExecutorService sampler;
@@ -32,10 +32,10 @@ public class PerformanceActivity extends MainActivity {
     private TextView metrics;
 
     // Counts changes in the complete guest RGBA frame, independently of presents.
-    private native long nativeM53UniqueFrames();
-    private native long nativeM53PresentedFrames();
+    private native long nativeUniqueFrames();
+    private native long nativePresentedFrames();
 
-    /** Optional isolated-app diagnostics; empty in the frozen M5.3/M5.4 apps. */
+    /** Optional isolated-app diagnostics; empty in the frozen / apps. */
     protected String additionalOverlayMetrics() { return ""; }
 
     @Override
@@ -157,7 +157,7 @@ public class PerformanceActivity extends MainActivity {
                     statm = new RandomAccessFile("/proc/self/statm", "r");
                 }
                 long now = SystemClock.elapsedRealtimeNanos();
-                long presented = nativeM53UniqueFrames();
+                long presented = nativeUniqueFrames();
                 String proc = read(stat);
                 String[] fields = proc.substring(proc.lastIndexOf(')') + 1).trim().split("\\s+");
                 long ticks = Long.parseLong(fields[11]) + Long.parseLong(fields[12]);
@@ -190,7 +190,7 @@ public class PerformanceActivity extends MainActivity {
                     Log.i(TAG, "OVERLAY_SAMPLE fps=" + String.format(Locale.US, "%.1f", smoothFps)
                             + " rss_mb=" + rssMb + " cpu_pct=" + Math.round(cpu)
                             + " online_cpus=" + onlineCpus + " gpu=" + gpuValue + " gpu_raw=" + gpuRaw
-                            + " unique_frames=" + presented + " presents=" + nativeM53PresentedFrames() + " sample_us=" + sampleMicros
+                            + " unique_frames=" + presented + " presents=" + nativePresentedFrames() + " sample_us=" + sampleMicros
                             + " average_sample_us=" + (totalSampleMicros / (samples + 1))
                             + " max_sample_us=" + maxSampleMicros);
                 }

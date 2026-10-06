@@ -1,0 +1,362 @@
+diff --git a/util/main-loop.c b/util/main-loop.c
+index 42ecfb8..46ae19d 100644
+--- a/util/main-loop.c
++++ b/util/main-loop.c
+@@ -35,3 +35,6 @@
+ #include "qemu/error-report.h"
+ #include "qemu/queue.h"
+ #include "qom/object.h"
++#ifdef BOXDROID_RUNTIME
++#include <android/log.h>
++#endif
+@@ -371,2 +374,5 @@ static int os_host_main_loop_wait(int64_t timeout)
++#ifdef BOXDROID_RUNTIME
++    int64_t perfStart = g_get_monotonic_time();
++#endif
+     bql_unlock();
+     replay_mutex_unlock();
+@@ -375,6 +381,9 @@ static int os_host_main_loop_wait(int64_t timeout)
+     qemu_mutex_unlock_main_loop();
+ #endif
+     ret = qemu_poll_ns((GPollFD *)gpollfds->data, gpollfds->len, timeout);
++#ifdef BOXDROID_RUNTIME
++    int64_t perfPoll = g_get_monotonic_time();
++#endif
+ #ifdef XBOX
+     qemu_mutex_lock_main_loop();
+ #endif
+@@ -382,2 +391,24 @@ static int os_host_main_loop_wait(int64_t timeout)
++#ifdef BOXDROID_RUNTIME
++    int64_t perfMain = g_get_monotonic_time();
++#endif
+     replay_mutex_lock();
++#ifdef BOXDROID_RUNTIME
++    int64_t perfReplay = g_get_monotonic_time();
++#endif
+     bql_lock();
++#ifdef BOXDROID_RUNTIME
++    static int64_t report, poll, mainWait, replayWait, bqlWait, maximumBql;
++    static unsigned count;
++    int64_t now = g_get_monotonic_time();
++    if (!report) report=now;
++    poll+=perfPoll-perfStart; mainWait+=perfMain-perfPoll;
++    replayWait+=perfReplay-perfMain; bqlWait+=now-perfReplay;
++    maximumBql=MAX(maximumBql,now-perfReplay); ++count;
++    if (now-report >= G_USEC_PER_SEC) {
++        __android_log_print(ANDROID_LOG_INFO,"BoxDroidM53",
++            "MAINLOOP elapsed_us=%lld calls=%u poll_us=%lld main_lock_us=%lld replay_us=%lld bql_us=%lld max_bql_us=%lld last_timeout_ns=%lld",
++            (long long)(now-report),count,(long long)poll,(long long)mainWait,
++            (long long)replayWait,(long long)bqlWait,(long long)maximumBql,(long long)timeout);
++        report=now;count=0;poll=mainWait=replayWait=bqlWait=maximumBql=0;
++    }
++#endif
+diff --git a/system/cpus.c b/system/cpus.c
+index ef2d2f2..7cb80cb 100644
+--- a/system/cpus.c
++++ b/system/cpus.c
+@@ -570,6 +570,12 @@ void rust_bql_mock_lock(void)
+  * The BQL is taken from so many places that it is worth profiling the
+  * callers directly, instead of funneling them all through a single function.
+  */
++#ifdef BOXDROID_RUNTIME
++#include <android/log.h>
++static __thread int64_t m53_hold_begin;
++static __thread const char *m53_hold_file;
++static __thread int m53_hold_line, m53_hold_logs;
++#endif
+ void bql_lock_impl(const char *file, int line)
+ {
+     QemuMutexLockFunc bql_lock_fn = qatomic_read(&bql_mutex_lock_func);
+@@ -577,3 +583,7 @@ void rust_bql_mock_lock(void)
+     g_assert(!bql_locked());
+     bql_lock_fn(&bql, file, line);
++#ifdef BOXDROID_RUNTIME
++    m53_hold_begin = g_get_monotonic_time();
++    m53_hold_file = file; m53_hold_line = line;
++#endif
+ }
+@@ -581,6 +591,15 @@ void rust_bql_mock_lock(void)
+ void bql_unlock(void)
+ {
+     g_assert(bql_locked());
+     g_assert(!bql_unlock_blocked);
++#ifdef BOXDROID_RUNTIME
++    int64_t duration = g_get_monotonic_time() - m53_hold_begin;
++    if (m53_hold_begin && duration > 10000 && m53_hold_logs++ < 16) {
++        __android_log_print(ANDROID_LOG_INFO,"BoxDroidM53",
++            "BQL_HOLD us=%lld cpu=%d file=%s line=%d",(long long)duration,
++            current_cpu ? current_cpu->cpu_index : -1,m53_hold_file,m53_hold_line);
++    }
++    m53_hold_begin=0;
++#endif
+     qemu_mutex_unlock(&bql);
+ }
+diff --git a/ui/console.c b/ui/console.c
+index 2d00828..478e37e 100644
+--- a/ui/console.c
++++ b/ui/console.c
+@@ -82,3 +82,7 @@ static bool console_compatible_with(QemuConsole *con,
++#ifdef BOXDROID_RUNTIME
++#include <android/log.h>
++extern uint64_t boxdroid_guest_refresh_period_ns(void);
++#endif
+ static void gui_update(void *opaque)
+ {
+     uint64_t interval = GUI_REFRESH_INTERVAL_IDLE;
+@@ -102,5 +106,29 @@ static void gui_update(void *opaque)
+         trace_console_refresh(interval);
+     }
+     ds->last_update = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
++#ifdef BOXDROID_RUNTIME
++    /* Absolute deadlines do not add scanout/presentation work to the guest
++     * period. Skip expired deadlines; never manufacture catch-up vblanks. */
++    static uint64_t deadline, previousPeriod, reports, skipped, callbacks;
++    uint64_t now=qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
++    uint64_t period=boxdroid_guest_refresh_period_ns();
++    if (!period) period=interval*SCALE_MS;
++    if (!deadline || previousPeriod!=period) deadline=now;
++    deadline+=period;
++    if (deadline<=now) {
++        uint64_t missed=(now-deadline)/period+1;
++        skipped+=missed; deadline+=missed*period;
++    }
++    previousPeriod=period; ++callbacks;
++    timer_mod_ns(ds->gui_timer,deadline);
++    if (now-reports>=NANOSECONDS_PER_SECOND) {
++        __android_log_print(ANDROID_LOG_INFO,"BoxDroidM53",
++            "REFRESH_DEADLINE now_ns=%llu next_ns=%llu period_ns=%llu callbacks=%llu missed=%llu",
++            (unsigned long long)now,(unsigned long long)deadline,(unsigned long long)period,
++            (unsigned long long)callbacks,(unsigned long long)skipped);
++        reports=now; callbacks=skipped=0;
++    }
++#else
+     timer_mod(ds->gui_timer, ds->last_update + interval);
++#endif
+ }
+diff --git a/accel/tcg/cputlb.c b/accel/tcg/cputlb.c
+index b9ae474..0d8ec78 100644
+--- a/accel/tcg/cputlb.c
++++ b/accel/tcg/cputlb.c
+@@ -20,4 +20,7 @@
+ #include "qemu/osdep.h"
++#ifdef BOXDROID_RUNTIME
++#include <android/log.h>
++#endif
+ #include "qemu/main-loop.h"
+ #include "qemu/target-info.h"
+ #include "accel/tcg/cpu-ops.h"
+@@ -2542,4 +2545,17 @@ static uint64_t do_st_mmio_leN(CPUState *cpu, CPUTLBEntryFull *full,
+     BQL_LOCK_GUARD();
++#ifdef BOXDROID_RUNTIME
++    int64_t begin=g_get_monotonic_time();
++    uint64_t result=int_st_mmio_leN(cpu,full,val_le,addr,size,mmu_idx,ra,mr,mr_offset);
++    int64_t duration=g_get_monotonic_time()-begin;
++    static unsigned logs;
++    if (duration>100000 && logs++<16) {
++        __android_log_print(ANDROID_LOG_INFO,"BoxDroidM53",
++            "SLOW_MMIO_WRITE region=%s address=0x%llx offset=0x%llx size=%d us=%lld",
++            mr->name,(unsigned long long)addr,(unsigned long long)mr_offset,size,(long long)duration);
++    }
++    return result;
++#else
+     return int_st_mmio_leN(cpu, full, val_le, addr, size, mmu_idx,
+                            ra, mr, mr_offset);
++#endif
+ }
+diff --git a/hw/xbox/nv2a/pgraph/pgraph.c b/hw/xbox/nv2a/pgraph/pgraph.c
+index 3a67760..d7fc523 100644
+--- a/hw/xbox/nv2a/pgraph/pgraph.c
++++ b/hw/xbox/nv2a/pgraph/pgraph.c
+@@ -106,3 +106,11 @@ uint64_t pgraph_read(void *opaque, hwaddr addr, unsigned int size)
++#ifdef BOXDROID_RUNTIME
++#include <android/log.h>
++static uint64_t m53_guest_flips;
++uint64_t boxdroid_guest_flips(void)
++{
++    return qatomic_read(&m53_guest_flips);
++}
++#endif
+ void pgraph_write(void *opaque, hwaddr addr, uint64_t val, unsigned int size)
+ {
+     NV2AState *d = (NV2AState *)opaque;
+@@ -113,2 +121,18 @@ void pgraph_write(void *opaque, hwaddr addr, uint64_t val, unsigned int size)
++#ifdef BOXDROID_RUNTIME
++    int64_t begin=g_get_monotonic_time();
++#endif
+     qemu_mutex_lock(&d->pfifo.lock); // FIXME: Factor out fifo lock here
++#ifdef BOXDROID_RUNTIME
++    int64_t fifo=g_get_monotonic_time();
++#endif
+     qemu_mutex_lock(&pg->lock);
++#ifdef BOXDROID_RUNTIME
++    int64_t graph=g_get_monotonic_time();
++    static unsigned logs;
++    if (graph-begin>100000 && logs++<16) {
++        __android_log_print(ANDROID_LOG_INFO,"BoxDroidM53",
++            "PGRAPH_MMIO_WAIT addr=0x%llx value=0x%llx fifo_us=%lld graph_us=%lld bql=%d",
++            (unsigned long long)addr,(unsigned long long)val,
++            (long long)(fifo-begin),(long long)(graph-fifo),bql_locked());
++    }
++#endif
+@@ -920,3 +944,6 @@ DEF_METHOD(NV097, FLIP_INCREMENT_WRITE)
+     trace_nv2a_pgraph_flip_increment_write(old, new);
+     pg->frame_time++;
++#ifdef BOXDROID_RUNTIME
++    qatomic_inc(&m53_guest_flips);
++#endif
+ }
+diff --git a/hw/xbox/mcpx/apu/apu.c b/hw/xbox/mcpx/apu/apu.c
+index fe1823d..d789a17 100644
+--- a/hw/xbox/mcpx/apu/apu.c
++++ b/hw/xbox/mcpx/apu/apu.c
+@@ -259,3 +259,6 @@ static void se_frame(MCPXAPUState *d)
++#ifdef BOXDROID_RUNTIME
++extern uint32_t boxdroid_voice_lock_waiters;
++#endif
+ static void *mcpx_apu_frame_thread(void *arg)
+ {
+     MCPXAPUState *d = MCPX_APU_DEVICE(arg);
+@@ -300,5 +303,16 @@ static void *mcpx_apu_frame_thread(void *arg)
+         throttle(d);
+         se_frame(d);
++#ifdef BOXDROID_RUNTIME
++        /* Bionic's mutex lets this busy worker reacquire repeatedly while a
++         * guest VOICE_LOCK writer waits with the BQL. Yield the APU lock to
++         * queued writers between complete frames, preserving voice-work
++         * ordering and the existing emulated audio clock/throttle. The
++         * writer signals cond after updating the protected lock bitmap. */
++        while (qatomic_read(&boxdroid_voice_lock_waiters) &&
++               !qatomic_read(&d->exiting)) {
++            qemu_cond_wait(&d->cond, &d->lock);
++        }
++#endif
+     }
+     qemu_mutex_unlock(&d->lock);
+     return NULL;
+diff --git a/hw/xbox/mcpx/apu/vp/vp.c b/hw/xbox/mcpx/apu/vp/vp.c
+index c6bffb5..7562ddc 100644
+--- a/hw/xbox/mcpx/apu/vp/vp.c
++++ b/hw/xbox/mcpx/apu/vp/vp.c
+@@ -134,4 +134,29 @@ static void voice_off(MCPXAPUState *d, uint16_t v)
++#ifdef BOXDROID_RUNTIME
++/* One APU per Xbox machine; process lifetime matches the embedded runtime. */
++#include <android/log.h>
++uint32_t boxdroid_voice_lock_waiters;
++#endif
+ static void voice_lock(MCPXAPUState *d, uint16_t v, bool lock)
+ {
+     assert(v < MCPX_HW_MAX_VOICES);
++#ifdef BOXDROID_RUNTIME
++    int64_t m53_begin = g_get_monotonic_time();
++    qatomic_inc(&boxdroid_voice_lock_waiters);
++#endif
+     qemu_mutex_lock(&d->lock);
++#ifdef BOXDROID_RUNTIME
++    qatomic_dec(&boxdroid_voice_lock_waiters);
++    static uint64_t calls, wait_us, maximum;
++    static int64_t report;
++    int64_t now = g_get_monotonic_time();
++    if (!report) report = now;
++    uint64_t elapsed = now - m53_begin;
++    ++calls; wait_us += elapsed; maximum = MAX(maximum, elapsed);
++    if (now - report >= G_USEC_PER_SEC) {
++        __android_log_print(ANDROID_LOG_INFO, "BoxDroidM53",
++            "APU_VOICE_WAIT interval_us=%lld calls=%llu wait_us=%llu maximum_us=%llu",
++            (long long)(now-report), (unsigned long long)calls,
++            (unsigned long long)wait_us, (unsigned long long)maximum);
++        calls = wait_us = maximum = 0; report = now;
++    }
++#endif
+diff --git a/hw/xbox/nv2a/pgraph/vk/draw.c b/hw/xbox/nv2a/pgraph/vk/draw.c
+index 714e8f8..1876f3e 100644
+--- a/hw/xbox/nv2a/pgraph/vk/draw.c
++++ b/hw/xbox/nv2a/pgraph/vk/draw.c
+@@ -23,3 +23,26 @@
+ #include <math.h>
+ #ifdef BOXDROID_XBOX_RUNTIME
+ #include "hw/xbox/nv2a/boxdroid-diagnostics.h"
++#ifdef BOXDROID_RUNTIME
++#include <android/log.h>
++static void m53_render_metric(unsigned kind, int64_t elapsed)
++{
++    static struct { uint64_t calls, total, maximum; } stats[12];
++    static int64_t report;
++    int64_t now=g_get_monotonic_time();
++    if (!report) report=now;
++    stats[kind].calls++; stats[kind].total+=elapsed;
++    stats[kind].maximum=MAX(stats[kind].maximum,elapsed);
++    if (now-report<G_USEC_PER_SEC) return;
++    for (unsigned i=0;i<12;++i) {
++        if (!stats[i].calls) continue;
++        __android_log_print(ANDROID_LOG_INFO,"BoxDroidM53",
++            "NV_RENDER kind=%u interval_us=%lld calls=%llu total_us=%llu maximum_us=%llu",
++            i,(long long)(now-report),(unsigned long long)stats[i].calls,
++            (unsigned long long)stats[i].total,(unsigned long long)stats[i].maximum);
++        stats[i].calls=stats[i].total=stats[i].maximum=0;
++    }
++    report=now;
++}
++#endif
++
+@@ -741,3 +764,11 @@ static void create_clear_pipeline(PGRAPHState *pg)
+     VkPipeline pipeline;
+-    VK_CHECK(vkCreateGraphicsPipelines(r->device, r->vk_pipeline_cache, 1,
++    {
++#ifdef BOXDROID_RUNTIME
++        int64_t m53_begin=g_get_monotonic_time();
++#endif
++        VK_CHECK(vkCreateGraphicsPipelines(r->device, r->vk_pipeline_cache, 1,
+                                        &pipeline_info, NULL, &pipeline));
++#ifdef BOXDROID_RUNTIME
++        m53_render_metric(0,g_get_monotonic_time()-m53_begin);
++#endif
++    }
+@@ -1147,5 +1178,13 @@ static void create_pipeline(PGRAPHState *pg)
+         .basePipelineHandle = VK_NULL_HANDLE,
+     };
+     VkPipeline pipeline;
+-    VK_CHECK(vkCreateGraphicsPipelines(r->device, r->vk_pipeline_cache, 1,
++    {
++#ifdef BOXDROID_RUNTIME
++        int64_t m53_begin=g_get_monotonic_time();
++#endif
++        VK_CHECK(vkCreateGraphicsPipelines(r->device, r->vk_pipeline_cache, 1,
+                                        &pipeline_create_info, NULL, &pipeline));
++#ifdef BOXDROID_RUNTIME
++        m53_render_metric(0,g_get_monotonic_time()-m53_begin);
++#endif
++    }
+@@ -1402,2 +1441,5 @@ void pgraph_vk_finish(PGRAPHState *pg, FinishReason finish_reason)
+     if (r->in_command_buffer) {
+         nv2a_profile_inc_counter(finish_reason_to_counter_enum[finish_reason]);
++#ifdef BOXDROID_RUNTIME
++        m53_render_metric(3 + finish_reason, 0);
++#endif
+@@ -1441,9 +1483,15 @@ void pgraph_vk_finish(PGRAPHState *pg, FinishReason finish_reason)
+         };
+         nv2a_profile_inc_counter(NV2A_PROF_QUEUE_SUBMIT);
+         vkResetFences(r->device, 1, &r->command_buffer_fence);
++        #ifdef BOXDROID_RUNTIME
++        int64_t m53_submit_result_begin=g_get_monotonic_time();
++#endif
+         VkResult submit_result = vkQueueSubmit(
+             r->queue, ARRAY_SIZE(submit_infos), submit_infos,
+             r->command_buffer_fence);
++#ifdef BOXDROID_RUNTIME
++        m53_render_metric(1,g_get_monotonic_time()-m53_submit_result_begin);
++#endif
+ #ifdef BOXDROID_XBOX_RUNTIME
+         if (boxdroid_target_draw_queued) {
+             if (!boxdroid_logged_vk32_first_render_submit) {
+@@ -1484,5 +1532,11 @@ void pgraph_vk_finish(PGRAPHState *pg, FinishReason finish_reason)
++        #ifdef BOXDROID_RUNTIME
++        int64_t m53_fence_result_begin=g_get_monotonic_time();
++#endif
+         VkResult fence_result = vkWaitForFences(
+             r->device, 1, &r->command_buffer_fence, VK_TRUE, UINT64_MAX);
++#ifdef BOXDROID_RUNTIME
++        m53_render_metric(2,g_get_monotonic_time()-m53_fence_result_begin);
++#endif
+         VK_CHECK(fence_result);
+ #ifdef BOXDROID_XBOX_RUNTIME
+         if (boxdroid_target_draw_queued) {

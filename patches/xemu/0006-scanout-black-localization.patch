@@ -1,0 +1,122 @@
+diff --git a/hw/xbox/nv2a/pgraph/vk/renderer.c b/hw/xbox/nv2a/pgraph/vk/renderer.c
+index de3be0fc1a..eb0d84ba18 100644
+--- a/hw/xbox/nv2a/pgraph/vk/renderer.c
++++ b/hw/xbox/nv2a/pgraph/vk/renderer.c
+@@ -211,0 +212,2 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
++    static bool boxdroid_seen_scanout_hit;
++    static bool boxdroid_logged_late_miss;
+@@ -220,0 +223,28 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
++        if (boxdroid_seen_scanout_hit && !boxdroid_logged_late_miss) {
++            SurfaceBinding *nearest = NULL;
++            uint64_t nearest_distance = UINT64_MAX;
++            SurfaceBinding *candidate;
++            QTAILQ_FOREACH(candidate, &pg->vk_renderer_state->surfaces, entry) {
++                uint64_t base = candidate->vram_addr;
++                uint64_t end = base + candidate->size;
++                uint64_t distance = scanout_address < base ? base - scanout_address :
++                                    scanout_address >= end ? scanout_address - end + 1 : 0;
++                if (candidate->color && distance < nearest_distance) {
++                    nearest = candidate;
++                    nearest_distance = distance;
++                }
++            }
++            BoxDroidM5BindingInfo info = {0};
++            if (nearest) {
++                info.binding_base = nearest->vram_addr;
++                info.binding_end = nearest->vram_addr + nearest->size;
++                info.pitch = nearest->pitch;
++                info.width = nearest->width;
++                info.height = nearest->height;
++                info.color_format = nearest->shape.color_format;
++            }
++            boxdroid_diag_late_miss(d->pcrtc.start,
++                                       vga_display_params.line_offset,
++                                       scanout_address, nearest ? &info : NULL);
++            boxdroid_logged_late_miss = true;
++        }
+@@ -235,0 +266,21 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
++    BoxDroidM5BindingInfo binding_info = {
++        .pcrtc_start = d->pcrtc.start,
++        .line_offset = vga_display_params.line_offset,
++        .lookup_address = scanout_address,
++        .binding_base = surface->vram_addr,
++        .binding_end = surface->vram_addr + surface->size,
++        .delta = scanout_address - surface->vram_addr,
++        .pitch = surface->pitch,
++        .width = surface->width,
++        .height = surface->height,
++        .color_format = surface->shape.color_format,
++        .host_vk_format = surface->host_fmt.vk_format,
++        .frame_time = surface->frame_time,
++        .draw_time = surface->draw_time,
++        .draw_dirty = surface->draw_dirty,
++        .upload_pending = surface->upload_pending,
++        .initialized = surface->initialized,
++        .cleared = surface->cleared,
++    };
++    boxdroid_diag_binding(&binding_info);
++    boxdroid_diag_track_surface(surface);
+@@ -238,0 +290 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
++    boxdroid_seen_scanout_hit = true;
+diff --git a/hw/xbox/nv2a/pgraph/vk/surface.c b/hw/xbox/nv2a/pgraph/vk/surface.c
+index 8caa31be56..7a9c544929 100644
+--- a/hw/xbox/nv2a/pgraph/vk/surface.c
++++ b/hw/xbox/nv2a/pgraph/vk/surface.c
+@@ -29,0 +30,3 @@
++#if defined(BOXDROID_XBOX_RUNTIME)
++#include "hw/xbox/nv2a/boxdroid-diagnostics.h"
++#endif
+@@ -154,0 +158,3 @@ static void download_surface_to_buffer(NV2AState *d, SurfaceBinding *surface,
++#ifdef BOXDROID_XBOX_RUNTIME
++    bool diag_scanout = boxdroid_diag_is_tracked_surface(surface);
++#endif
+@@ -459,0 +466,10 @@ static void download_surface_to_buffer(NV2AState *d, SurfaceBinding *surface,
++#ifdef BOXDROID_XBOX_RUNTIME
++    if (diag_scanout) {
++        boxdroid_diag_event(BOXDROID_DIAG_DOWNLOAD_PERFORMED,
++                               downloaded_image_size, surface->width,
++                               surface->height, surface->pitch, 0, 0);
++        boxdroid_diag_sample(BOXDROID_M5_SAMPLE_NV2A_STAGING,
++                                mapped_memory_ptr, downloaded_image_size,
++                                UINT64_MAX, "vk-copy-complete-after-invalidate");
++    }
++#endif
+@@ -474,0 +491,9 @@ static void download_surface_to_buffer(NV2AState *d, SurfaceBinding *surface,
++#ifdef BOXDROID_XBOX_RUNTIME
++    if (diag_scanout) {
++        size_t vram_bytes = MIN((size_t) surface->pitch * surface->height,
++                                (size_t) 4 * MiB);
++        boxdroid_diag_sample(BOXDROID_M5_SAMPLE_XBOX_VRAM, pixels,
++                                vram_bytes, UINT64_MAX,
++                                "copied-from-staging-to-vram");
++    }
++#endif
+@@ -502,2 +527,18 @@ void pgraph_vk_wait_for_surface_download(SurfaceBinding *surface)
+-
+-    if (qatomic_read(&surface->draw_dirty)) {
++#ifdef BOXDROID_XBOX_RUNTIME
++    bool diag_scanout = boxdroid_diag_is_tracked_surface(surface);
++    if (diag_scanout) {
++        boxdroid_diag_event(BOXDROID_DIAG_DOWNLOAD_WAIT,
++                               surface->vram_addr, surface->size, 0, 0, 0, 0);
++    }
++#endif
++    bool draw_dirty = qatomic_read(&surface->draw_dirty);
++
++    if (draw_dirty) {
++#ifdef BOXDROID_XBOX_RUNTIME
++        if (diag_scanout) {
++            boxdroid_diag_event(BOXDROID_DIAG_DOWNLOAD_DIRTY,
++                                   surface->vram_addr, 0, 0, 0, 0, 0);
++            boxdroid_diag_event(BOXDROID_DIAG_DOWNLOAD_REQUESTED,
++                                   surface->vram_addr, 0, 0, 0, 0, 0);
++        }
++#endif
+@@ -510,0 +552,7 @@ void pgraph_vk_wait_for_surface_download(SurfaceBinding *surface)
++    } else {
++#ifdef BOXDROID_XBOX_RUNTIME
++        if (diag_scanout) {
++            boxdroid_diag_event(BOXDROID_DIAG_DOWNLOAD_SKIPPED,
++                                   surface->vram_addr, 0, 0, 0, 0, 0);
++        }
++#endif

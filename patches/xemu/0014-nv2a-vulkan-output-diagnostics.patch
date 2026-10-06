@@ -1,0 +1,442 @@
+diff --git a/hw/xbox/nv2a/pgraph/vk/draw.c b/hw/xbox/nv2a/pgraph/vk/draw.c
+index c4aae99..714e8f8 100644
+--- a/hw/xbox/nv2a/pgraph/vk/draw.c
++++ b/hw/xbox/nv2a/pgraph/vk/draw.c
+@@ -26,0 +27,10 @@
++static bool boxdroid_logged_vk32_render_pass_target;
++static bool boxdroid_logged_vk32_first_render_submit;
++static bool boxdroid_logged_vk32_late_render_submit;
++static bool boxdroid_logged_vk32_first_render_complete;
++static bool boxdroid_logged_vk32_late_render_complete;
++static bool boxdroid_logged_vk32_late_finish_state;
++/* The preceding bounded run reached 229 emitted draws on this binding;
++ * sample once near that late state after the rendering fence completes. */
++#define BOXDROID_M5_VK32_LATE_PROBE_DRAW_THRESHOLD 200
++
+@@ -43,0 +54,48 @@ static void boxdroid_record_guest_draw(PGRAPHState *pg, uint64_t api,
++    if (surface->vram_addr == UINT64_C(0x32a4000)) {
++        uint64_t draw_count = qatomic_fetch_inc(
++            &r->boxdroid_vk32_guest_draw_count) + 1;
++        r->boxdroid_vk32_last_draw_surface = surface;
++        if (draw_count == 1 || draw_count == 64 || draw_count == 128 ||
++            draw_count == 192 || draw_count ==
++                BOXDROID_M5_VK32_LATE_PROBE_DRAW_THRESHOLD) {
++            boxdroid_diag_record("VK32_EMITTED_DRAW_CHECKPOINT",
++                draw_count, api, pg->primitive_mode, vertex_count,
++                index_count, (uint64_t)surface->image);
++            ShaderState state = pgraph_glsl_get_shader_state(pg);
++            boxdroid_diag_record("VK32_MATCH_GUEST", draw_count,
++                fast_hash((const uint8_t *)&state, sizeof(state)),
++                fast_hash((const uint8_t *)pg->vsh_constants, sizeof(pg->vsh_constants)),
++                pgraph_reg_r(pg, NV_PGRAPH_CONTROL_0),
++                pgraph_reg_r(pg, NV_PGRAPH_CONTROL_1),
++                pgraph_reg_r(pg, NV_PGRAPH_BLEND));
++            boxdroid_diag_record("VK32_MATCH_INPUT", draw_count,
++                pg->draw_time, pg->inline_array_length,
++                fast_hash((const uint8_t *)pg->inline_array, pg->inline_array_length * 4),
++                pgraph_reg_r(pg, NV_PGRAPH_SETUPRASTER),
++                fast_hash((const uint8_t *)pg->program_data, sizeof(pg->program_data)));
++            ShaderBinding *binding = r->shader_binding;
++            boxdroid_diag_record("VK32_MATCH_PROGRAM", draw_count,
++                fast_hash(binding->vsh.module_info->spirv->data, binding->vsh.module_info->spirv->len),
++                fast_hash(binding->psh.module_info->spirv->data, binding->psh.module_info->spirv->len),
++                r->uniform_buffer_hashes[0], r->uniform_buffer_hashes[1],
++                (uint64_t)r->pipeline_binding->pipeline);
++            boxdroid_diag_record("VK32_MATCH_DESCRIPTOR", draw_count,
++                r->descriptor_set_index,
++                r->uniform_buffer_offsets[0], r->uniform_buffer_offsets[1],
++                fast_hash((const uint8_t *)&r->pipeline_binding->key, sizeof(r->pipeline_binding->key)),
++                (uint64_t)r->descriptor_sets[r->descriptor_set_index-1]);
++            for (int i=0; i<NV2A_MAX_TEXTURES; i++) {
++                TextureBinding *texture = r->texture_bindings[i];
++                boxdroid_diag_record("VK32_MATCH_TEXTURE", draw_count, i,
++                    texture->key.texture_vram_offset, texture->key.texture_length,
++                    (uint64_t)texture->image,
++                    texture->key.texture_length ? fast_hash(container_of(pg, NV2AState, pgraph)->vram_ptr + texture->key.texture_vram_offset, texture->key.texture_length) : 0);
++            }
++        }
++        if (draw_count == BOXDROID_M5_VK32_LATE_PROBE_DRAW_THRESHOLD) {
++            boxdroid_diag_record("VK32_DRAW_THRESHOLD_STATE",
++                draw_count, (uint64_t)surface->image, r->submit_count,
++                r->in_command_buffer, r->in_render_pass,
++                surface->draw_dirty);
++        }
++    }
+@@ -1272,0 +1331,15 @@ static void begin_render_pass(PGRAPHState *pg)
++#ifdef BOXDROID_XBOX_RUNTIME
++    if (r->color_binding &&
++        r->color_binding->vram_addr == UINT64_C(0x32a4000) &&
++        !__atomic_exchange_n(&boxdroid_logged_vk32_render_pass_target, true,
++                             __ATOMIC_RELAXED)) {
++        boxdroid_diag_record("VK32_RENDER_PASS_TARGET",
++            r->color_binding->vram_addr,
++            (uint64_t)r->color_binding->image,
++            (uint64_t)r->color_binding->image_view,
++            (uint64_t)render_pass_begin_info.framebuffer,
++            (uint64_t)render_pass_begin_info.renderPass,
++            ((uint64_t)render_pass_begin_info.renderArea.extent.width << 32) |
++                render_pass_begin_info.renderArea.extent.height);
++    }
++#endif
+@@ -1299,0 +1373,25 @@ void pgraph_vk_finish(PGRAPHState *pg, FinishReason finish_reason)
++#ifdef BOXDROID_XBOX_RUNTIME
++    uint64_t boxdroid_vk32_draw_count =
++        qatomic_read(&r->boxdroid_vk32_guest_draw_count);
++    uint64_t boxdroid_vk32_unsent_draws = boxdroid_vk32_draw_count -
++        r->boxdroid_vk32_last_submitted_draw_count;
++    SurfaceBinding *boxdroid_target_surface =
++        r->boxdroid_vk32_last_draw_surface;
++    bool boxdroid_target_draw_queued = boxdroid_target_surface &&
++        boxdroid_vk32_unsent_draws && r->in_command_buffer;
++    bool boxdroid_log_first_submit = false;
++    bool boxdroid_log_late_submit = false;
++    if (boxdroid_vk32_draw_count >=
++            BOXDROID_M5_VK32_LATE_PROBE_DRAW_THRESHOLD &&
++        !boxdroid_logged_vk32_late_finish_state) {
++        boxdroid_logged_vk32_late_finish_state = true;
++        uint64_t state = r->in_command_buffer |
++            ((uint64_t)r->in_render_pass << 1) |
++            ((uint64_t)(boxdroid_target_surface &&
++                       boxdroid_target_surface->draw_dirty) << 2);
++        boxdroid_diag_record("VK32_FINISH_AFTER_DRAW_STATE",
++            boxdroid_vk32_draw_count, boxdroid_vk32_unsent_draws,
++            boxdroid_target_surface ? boxdroid_target_surface->vram_addr : 0,
++            state, r->submit_count, finish_reason);
++    }
++#endif
+@@ -1346,2 +1444,24 @@ void pgraph_vk_finish(PGRAPHState *pg, FinishReason finish_reason)
+-        VK_CHECK(vkQueueSubmit(r->queue, ARRAY_SIZE(submit_infos), submit_infos,
+-                               r->command_buffer_fence));
++        VkResult submit_result = vkQueueSubmit(
++            r->queue, ARRAY_SIZE(submit_infos), submit_infos,
++            r->command_buffer_fence);
++#ifdef BOXDROID_XBOX_RUNTIME
++        if (boxdroid_target_draw_queued) {
++            if (!boxdroid_logged_vk32_first_render_submit) {
++                boxdroid_log_first_submit = true;
++                boxdroid_logged_vk32_first_render_submit = true;
++            } else if (boxdroid_vk32_draw_count >=
++                       BOXDROID_M5_VK32_LATE_PROBE_DRAW_THRESHOLD &&
++                       !boxdroid_logged_vk32_late_render_submit) {
++                boxdroid_log_late_submit = true;
++                boxdroid_logged_vk32_late_render_submit = true;
++            }
++            if (boxdroid_log_first_submit || boxdroid_log_late_submit) {
++                boxdroid_diag_record("VK32_RENDER_QUEUE_SUBMIT",
++                    boxdroid_target_surface->vram_addr,
++                    (uint64_t)boxdroid_target_surface->image,
++                    boxdroid_vk32_draw_count, boxdroid_vk32_unsent_draws,
++                    submit_result, finish_reason);
++            }
++        }
++#endif
++        VK_CHECK(submit_result);
+@@ -1364,2 +1484,26 @@ void pgraph_vk_finish(PGRAPHState *pg, FinishReason finish_reason)
+-        VK_CHECK(vkWaitForFences(r->device, 1, &r->command_buffer_fence,
+-                                 VK_TRUE, UINT64_MAX));
++        VkResult fence_result = vkWaitForFences(
++            r->device, 1, &r->command_buffer_fence, VK_TRUE, UINT64_MAX);
++        VK_CHECK(fence_result);
++#ifdef BOXDROID_XBOX_RUNTIME
++        if (boxdroid_target_draw_queued) {
++            if (boxdroid_log_first_submit &&
++                !boxdroid_logged_vk32_first_render_complete) {
++                boxdroid_logged_vk32_first_render_complete = true;
++                boxdroid_diag_record("VK32_RENDER_FENCE_COMPLETE",
++                    boxdroid_target_surface->vram_addr,
++                    (uint64_t)boxdroid_target_surface->image,
++                    boxdroid_vk32_draw_count, boxdroid_vk32_unsent_draws,
++                    fence_result, r->submit_count);
++            } else if (boxdroid_log_late_submit &&
++                       !boxdroid_logged_vk32_late_render_complete) {
++                boxdroid_logged_vk32_late_render_complete = true;
++                boxdroid_diag_record("VK32_RENDER_FENCE_COMPLETE",
++                    boxdroid_target_surface->vram_addr,
++                    (uint64_t)boxdroid_target_surface->image,
++                    boxdroid_vk32_draw_count, boxdroid_vk32_unsent_draws,
++                    fence_result, r->submit_count);
++            }
++            r->boxdroid_vk32_last_submitted_draw_count =
++                boxdroid_vk32_draw_count;
++        }
++#endif
+@@ -1379,0 +1524,18 @@ void pgraph_vk_finish(PGRAPHState *pg, FinishReason finish_reason)
++#ifdef BOXDROID_XBOX_RUNTIME
++    if (boxdroid_target_draw_queued && boxdroid_target_surface &&
++        boxdroid_target_surface->vram_addr == UINT64_C(0x32a4000) &&
++        qatomic_read(&boxdroid_target_surface->boxdroid_scanout_count) > 0 &&
++        qatomic_read(&boxdroid_target_surface->boxdroid_probe_count) < 4 &&
++        ((boxdroid_vk32_draw_count >= 64 && qatomic_read(&boxdroid_target_surface->boxdroid_last_probe_draw_count) < 64) ||
++         (boxdroid_vk32_draw_count >= 128 && qatomic_read(&boxdroid_target_surface->boxdroid_last_probe_draw_count) < 128) ||
++         (boxdroid_vk32_draw_count >= 200 && qatomic_read(&boxdroid_target_surface->boxdroid_last_probe_draw_count) < 200))) {
++        boxdroid_diag_record("VK32_LATE_GPU_PROBE_TRIGGER",
++            boxdroid_vk32_draw_count,
++            boxdroid_vk32_unsent_draws,
++            (uint64_t)boxdroid_target_surface->image,
++            qatomic_read(&boxdroid_target_surface->boxdroid_scanout_count),
++            r->submit_count,
++            boxdroid_target_surface->draw_dirty);
++        pgraph_vk_boxdroid_probe_surface(d, boxdroid_target_surface);
++    }
++#endif
+diff --git a/hw/xbox/nv2a/pgraph/vk/renderer.c b/hw/xbox/nv2a/pgraph/vk/renderer.c
+index 477d14d..e728b68 100644
+--- a/hw/xbox/nv2a/pgraph/vk/renderer.c
++++ b/hw/xbox/nv2a/pgraph/vk/renderer.c
+@@ -344,0 +345,3 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
++    if (surface->vram_addr == UINT64_C(0x32a4000)) {
++        qatomic_fetch_inc(&surface->boxdroid_scanout_count);
++    }
+diff --git a/hw/xbox/nv2a/pgraph/vk/renderer.h b/hw/xbox/nv2a/pgraph/vk/renderer.h
+index 8f23953..a3a69cb 100644
+--- a/hw/xbox/nv2a/pgraph/vk/renderer.h
++++ b/hw/xbox/nv2a/pgraph/vk/renderer.h
+@@ -151 +151,3 @@ typedef struct SurfaceBinding {
+-    bool boxdroid_probe_done;
++    uint64_t boxdroid_last_probe_draw_count;
++    uint32_t boxdroid_probe_count;
++    uint32_t boxdroid_scanout_count;
+@@ -358,0 +361,5 @@ typedef struct PGRAPHVkState {
++#ifdef BOXDROID_XBOX_RUNTIME
++    uint64_t boxdroid_vk32_guest_draw_count;
++    uint64_t boxdroid_vk32_last_submitted_draw_count;
++    SurfaceBinding *boxdroid_vk32_last_draw_surface;
++#endif
+diff --git a/hw/xbox/nv2a/pgraph/vk/surface.c b/hw/xbox/nv2a/pgraph/vk/surface.c
+index b15f4b1..2a134b4 100644
+--- a/hw/xbox/nv2a/pgraph/vk/surface.c
++++ b/hw/xbox/nv2a/pgraph/vk/surface.c
+@@ -45,0 +46,6 @@ static uint64_t boxdroid_surface_generation;
++static bool boxdroid_logged_vk32_image_create;
++static uint32_t boxdroid_vk32_readback_begin_logs;
++static uint32_t boxdroid_vk32_readback_copy_logs;
++static uint32_t boxdroid_vk32_readback_complete_logs;
++static uint32_t boxdroid_vk32_staging_sample_count;
++static uint32_t boxdroid_vk32_render_ready_logs;
+@@ -84,2 +90 @@ void pgraph_vk_boxdroid_probe_surface(NV2AState *d, SurfaceBinding *surface)
+-    const unsigned int count = BOXDROID_M5_PROBE_PATCH_WIDTH *
+-                               BOXDROID_M5_PROBE_PATCH_HEIGHT;
++    unsigned int count;
+@@ -87 +92 @@ void pgraph_vk_boxdroid_probe_surface(NV2AState *d, SurfaceBinding *surface)
+-    const size_t buffer_size = (size_t)count * 4;
++    size_t buffer_size;
+@@ -90,0 +96,5 @@ void pgraph_vk_boxdroid_probe_surface(NV2AState *d, SurfaceBinding *surface)
++    bool vk32 = surface->vram_addr == UINT64_C(0x32a4000);
++    uint32_t probe_ordinal = qatomic_read(&surface->boxdroid_probe_count);
++    uint64_t guest_draw_count = qatomic_read(&r->boxdroid_vk32_guest_draw_count);
++    uint64_t last_probe_draw_count =
++        qatomic_read(&surface->boxdroid_last_probe_draw_count);
+@@ -97,3 +107,12 @@ void pgraph_vk_boxdroid_probe_surface(NV2AState *d, SurfaceBinding *surface)
+-    if (!boxdroid_target_surface(surface) || surface->boxdroid_probe_done ||
+-        !surface->color || !surface->image || !surface->width ||
+-        !surface->height || !bytes_per_pixel || bytes_per_pixel > 4) {
++    if (!boxdroid_target_surface(surface) || !surface->color ||
++        !surface->image || !surface->width || !surface->height ||
++        !bytes_per_pixel || bytes_per_pixel > 4) {
++        return;
++    }
++    if (vk32) {
++        if (probe_ordinal >= 4 || !guest_draw_count ||
++            !qatomic_read(&surface->boxdroid_scanout_count) ||
++            (probe_ordinal && guest_draw_count <= last_probe_draw_count)) {
++            return;
++        }
++    } else if (probe_ordinal) {
+@@ -107,2 +126,7 @@ void pgraph_vk_boxdroid_probe_surface(NV2AState *d, SurfaceBinding *surface)
+-    surface->boxdroid_probe_done = true;
+-
++    /* Bounded full-target sample: the center patch cannot establish that
++     * boot animation geometry outside the center is black. */
++    unsigned int sample_width = vk32 ? width : BOXDROID_M5_PROBE_PATCH_WIDTH;
++    unsigned int sample_height = vk32 ? height : BOXDROID_M5_PROBE_PATCH_HEIGHT;
++    if (sample_width > 640 || sample_height > 480) return;
++    count = sample_width * sample_height;
++    buffer_size = (size_t)count * 4;
+@@ -121,2 +145,2 @@ void pgraph_vk_boxdroid_probe_surface(NV2AState *d, SurfaceBinding *surface)
+-            .x = (width - BOXDROID_M5_PROBE_PATCH_WIDTH) / 2,
+-            .y = (height - BOXDROID_M5_PROBE_PATCH_HEIGHT) / 2,
++            .x = (width - sample_width) / 2,
++            .y = (height - sample_height) / 2,
+@@ -125,2 +149 @@ void pgraph_vk_boxdroid_probe_surface(NV2AState *d, SurfaceBinding *surface)
+-        .imageExtent = { BOXDROID_M5_PROBE_PATCH_WIDTH,
+-                         BOXDROID_M5_PROBE_PATCH_HEIGHT, 1 },
++        .imageExtent = { sample_width, sample_height, 1 },
+@@ -153,0 +177,4 @@ void pgraph_vk_boxdroid_probe_surface(NV2AState *d, SurfaceBinding *surface)
++    uint64_t grid[12] = {0}, green_grid[12] = {0};
++    uint64_t region_hash[12];
++    uint8_t rgb_min[3] = {255,255,255}, rgb_max[3] = {0};
++    for (unsigned int cell=0; cell<12; cell++) region_hash[cell] = UINT64_C(1469598103934665603);
+@@ -154,0 +182,2 @@ void pgraph_vk_boxdroid_probe_surface(NV2AState *d, SurfaceBinding *surface)
++        unsigned int cell = (i / sample_width * 3 / sample_height) * 4 +
++                             (i % sample_width * 4 / sample_width);
+@@ -159,0 +189,2 @@ void pgraph_vk_boxdroid_probe_surface(NV2AState *d, SurfaceBinding *surface)
++            region_hash[cell] ^= pixel[c];
++            region_hash[cell] *= UINT64_C(1099511628211);
+@@ -162,0 +194,2 @@ void pgraph_vk_boxdroid_probe_surface(NV2AState *d, SurfaceBinding *surface)
++                rgb_min[c] = MIN(rgb_min[c], pixel[c]);
++                rgb_max[c] = MAX(rgb_max[c], pixel[c]);
+@@ -166,0 +200,14 @@ void pgraph_vk_boxdroid_probe_surface(NV2AState *d, SurfaceBinding *surface)
++        grid[cell] += nonblack;
++        if (bytes_per_pixel == 4 && pixel[1] > 32 &&
++            pixel[1] > pixel[0] * 6 / 5 && pixel[1] > pixel[2] * 6 / 5) {
++            green_grid[cell]++;
++        }
++    }
++    if (vk32) {
++        boxdroid_diag_record("VK32_FULL_RGB_RANGE", guest_draw_count,
++            sample_width, sample_height, rgb_min[0] | (rgb_min[1]<<8) | (rgb_min[2]<<16),
++            rgb_max[0] | (rgb_max[1]<<8) | (rgb_max[2]<<16), hash);
++        for (unsigned int cell=0; cell<12; cell++) {
++            boxdroid_diag_record("VK32_FULL_GRID", guest_draw_count, cell,
++                grid[cell], green_grid[cell], region_hash[cell], surface->vram_addr);
++        }
+@@ -171,2 +218,10 @@ void pgraph_vk_boxdroid_probe_surface(NV2AState *d, SurfaceBinding *surface)
+-    values[0] = BOXDROID_M5_PROBE_PATCH_WIDTH;
+-    values[1] = BOXDROID_M5_PROBE_PATCH_HEIGHT;
++    probe_ordinal = qatomic_fetch_inc(&surface->boxdroid_probe_count) + 1;
++    qatomic_set(&surface->boxdroid_last_probe_draw_count, guest_draw_count);
++    if (vk32) {
++        boxdroid_diag_record("VK32_GPU_PROBE_SAMPLE", probe_ordinal,
++            qatomic_read(&surface->boxdroid_scanout_count), guest_draw_count,
++            nonblack_samples, nonzero_samples, hash);
++    }
++
++    values[0] = sample_width;
++    values[1] = sample_height;
+@@ -323,0 +379,18 @@ static void download_surface_to_buffer(NV2AState *d, SurfaceBinding *surface,
++#ifdef BOXDROID_XBOX_RUNTIME
++    bool boxdroid_target_32a =
++        surface->vram_addr == UINT64_C(0x32a4000) && surface->color;
++    bool boxdroid_render_pending = r->in_command_buffer &&
++        surface->draw_time >= r->command_buffer_start_time;
++    if (boxdroid_target_32a &&
++        __atomic_add_fetch(&boxdroid_vk32_readback_begin_logs, 1,
++                           __ATOMIC_RELAXED) <= 2) {
++        boxdroid_diag_record("VK32_READBACK_BEGIN",
++            surface->vram_addr, (uint64_t)surface->image,
++            (uint64_t)surface->image_view, surface->draw_time,
++            r->command_buffer_start_time,
++            ((uint64_t)r->in_command_buffer << 32) |
++                ((uint64_t)surface->draw_dirty << 1) |
++                surface->upload_pending);
++    }
++#endif
++
+@@ -334,0 +408,8 @@ static void download_surface_to_buffer(NV2AState *d, SurfaceBinding *surface,
++    if (boxdroid_target_32a && boxdroid_render_pending &&
++        __atomic_add_fetch(&boxdroid_vk32_render_ready_logs, 1,
++                           __ATOMIC_RELAXED) <= 2) {
++        boxdroid_diag_record("VK32_RENDER_READY_FOR_READBACK",
++            surface->vram_addr, (uint64_t)surface->image,
++            surface->draw_time, r->submit_count,
++            r->in_command_buffer, surface->draw_dirty);
++    }
+@@ -367,0 +449,12 @@ static void download_surface_to_buffer(NV2AState *d, SurfaceBinding *surface,
++#ifdef BOXDROID_XBOX_RUNTIME
++    if (boxdroid_target_32a &&
++        __atomic_add_fetch(&boxdroid_vk32_readback_copy_logs, 1,
++                           __ATOMIC_RELAXED) <= 2) {
++        boxdroid_diag_record("VK32_LAYOUT_COLOR_TO_TRANSFER_SRC",
++            surface->vram_addr, (uint64_t)surface->image,
++            surface->host_fmt.vk_format,
++            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
++            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
++            ((uint64_t)surface->width << 32) | surface->height);
++    }
++#endif
+@@ -467,0 +561,14 @@ static void download_surface_to_buffer(NV2AState *d, SurfaceBinding *surface,
++#ifdef BOXDROID_XBOX_RUNTIME
++    if (boxdroid_target_32a) {
++        static uint32_t boxdroid_vk32_copy_command_logs;
++        if (__atomic_add_fetch(&boxdroid_vk32_copy_command_logs, 1,
++                               __ATOMIC_RELAXED) <= 2) {
++            boxdroid_diag_record("VK32_COPY_IMAGE_TO_BUFFER",
++                surface->vram_addr, (uint64_t)surface_image_loc,
++                (uint64_t)surface->image,
++                (uint64_t)r->storage_buffers[copy_buffer_idx].buffer,
++                ((uint64_t)scaled_width << 32) | scaled_height,
++                surface->host_fmt.vk_format);
++        }
++    }
++#endif
+@@ -605,0 +713,12 @@ static void download_surface_to_buffer(NV2AState *d, SurfaceBinding *surface,
++#ifdef BOXDROID_XBOX_RUNTIME
++    if (boxdroid_target_32a &&
++        __atomic_add_fetch(&boxdroid_vk32_readback_complete_logs, 1,
++                           __ATOMIC_RELAXED) <= 2) {
++        boxdroid_diag_record("VK32_READBACK_QUEUE_IDLE_COMPLETE",
++            surface->vram_addr, (uint64_t)surface->image,
++            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
++            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
++            (uint64_t)r->storage_buffers[copy_buffer_idx].buffer,
++            downloaded_image_size);
++    }
++#endif
+@@ -614,0 +734,35 @@ static void download_surface_to_buffer(NV2AState *d, SurfaceBinding *surface,
++#ifdef BOXDROID_XBOX_RUNTIME
++    if (boxdroid_target_32a) {
++        uint32_t sample_ordinal = __atomic_add_fetch(
++            &boxdroid_vk32_staging_sample_count, 1, __ATOMIC_RELAXED);
++        if (sample_ordinal <= 2) {
++            const uint8_t *staging = mapped_memory_ptr;
++            const size_t bpp = surface->host_fmt.host_bytes_per_pixel;
++            uint64_t nonblack_pixels = 0, nonzero_pixels = 0;
++            uint64_t hash = UINT64_C(1469598103934665603);
++
++            for (size_t offset = 0; offset < downloaded_image_size; offset++) {
++                hash ^= staging[offset];
++                hash *= UINT64_C(1099511628211);
++            }
++            if (bpp && downloaded_image_size % bpp == 0) {
++                for (size_t offset = 0; offset < downloaded_image_size;
++                     offset += bpp) {
++                    bool rgb_nonzero = false, any_nonzero = false;
++                    for (size_t channel = 0; channel < bpp; channel++) {
++                        any_nonzero |= staging[offset + channel] != 0;
++                        if (channel < 3) {
++                            rgb_nonzero |= staging[offset + channel] != 0;
++                        }
++                    }
++                    nonblack_pixels += rgb_nonzero;
++                    nonzero_pixels += any_nonzero;
++                }
++            }
++            boxdroid_diag_record("VK32_STAGING_SAMPLE_AFTER_INVALIDATE",
++                sample_ordinal, qatomic_read(&surface->boxdroid_scanout_count),
++                qatomic_read(&r->boxdroid_vk32_guest_draw_count),
++                nonblack_pixels, nonzero_pixels, hash);
++        }
++    }
++#endif
+@@ -1093,0 +1248,14 @@ static void create_surface_image(PGRAPHState *pg, SurfaceBinding *surface)
++#ifdef BOXDROID_XBOX_RUNTIME
++    if (surface->vram_addr == UINT64_C(0x32a4000) &&
++        !__atomic_exchange_n(&boxdroid_logged_vk32_image_create, true,
++                             __ATOMIC_RELAXED)) {
++        boxdroid_diag_record("VK32_IMAGE_CREATE",
++            surface->vram_addr, (uint64_t)surface->image,
++            (uint64_t)surface->image_view,
++            ((uint64_t)width << 32) | height,
++            ((uint64_t)surface->host_fmt.vk_format << 32) |
++                surface->shape.color_format,
++            ((uint64_t)VK_SAMPLE_COUNT_1_BIT << 32) |
++                image_create_info.usage);
++    }
++#endif
+@@ -1107,0 +1276,11 @@ static void create_surface_image(PGRAPHState *pg, SurfaceBinding *surface)
++#ifdef BOXDROID_XBOX_RUNTIME
++    if (surface->vram_addr == UINT64_C(0x32a4000)) {
++        boxdroid_diag_record("VK32_IMAGE_INITIALIZED",
++            surface->vram_addr, (uint64_t)surface->image,
++            (uint64_t)surface->image_view,
++            surface->color ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL :
++                             VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
++            ((uint64_t)width << 32) | height,
++            surface->initialized);
++    }
++#endif
+@@ -1852 +2031,3 @@ static void update_surface_part(NV2AState *d, bool upload, bool color)
+-            surface->boxdroid_probe_done = false;
++            surface->boxdroid_last_probe_draw_count = 0;
++            surface->boxdroid_probe_count = 0;
++            surface->boxdroid_scanout_count = 0;

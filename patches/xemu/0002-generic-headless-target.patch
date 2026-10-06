@@ -1,0 +1,210 @@
+diff --git a/hw/meson.build b/hw/meson.build
+index a7f34a9ce4..c20029bffb 100644
+--- a/hw/meson.build
++++ b/hw/meson.build
+@@ -69 +69,4 @@ subdir('watchdog')
+-subdir('xbox')
++if 'i386-softmmu' in target_dirs
++  # Xemu's Xbox chipset and NV2A are an i386 target machine.
++  subdir('xbox')
++endif
+diff --git a/hw/vfio/meson.build b/hw/vfio/meson.build
+index cd16d43d74..3c6b8959b0 100644
+--- a/hw/vfio/meson.build
++++ b/hw/vfio/meson.build
+@@ -38,0 +39,4 @@ endif
++
++if host_os == 'android'
++  system_ss.add(files('iommufd-stubs.c'))
++endif
+diff --git a/meson.build b/meson.build
+index 9376478dc7..25afb4cae4 100644
+--- a/meson.build
++++ b/meson.build
+@@ -2403 +2403 @@ if host_os == 'windows'
+-elif host_os in ['linux', 'android']
++elif host_os == 'linux'
+@@ -2455,26 +2455,32 @@ libsamplerate = dependency('samplerate', method: 'pkg-config', required: true)
+-imgui_opengl = get_option('opengl').disabled() ? 'disabled' : 'enabled'
+-imgui_proj = subproject('imgui', required: true,
+-                         default_options: [
+-                           'default_library=static',
+-                           'dx9=disabled',
+-                           'dx10=disabled',
+-                           'dx11=disabled',
+-                           'dx12=disabled',
+-                           'metal=disabled',
+-                           'opengl=' + imgui_opengl,
+-                           'sdl2_renderer=disabled',
+-                           'sdl3_renderer=disabled',
+-                           'vulkan=disabled',
+-                           'webgpu=disabled',
+-                           'glfw=disabled',
+-                           'sdl2=disabled',
+-                           'sdl3=enabled',
+-                           'osx=disabled',
+-                           'win=disabled',
+-                           'allegro5=disabled',
+-                        ])
+-imgui = imgui_proj.get_variable('imgui_dep')
+-
+-implot_proj = subproject('implot', required: true,
+-                         default_options: ['default_library=static'])
+-implot = implot_proj.get_variable('implot_dep')
++if host_os == 'android'
++  # The embedded Android runtime has no desktop Xemu UI.
++  imgui = not_found
++  implot = not_found
++else
++  imgui_opengl = get_option('opengl').disabled() ? 'disabled' : 'enabled'
++  imgui_proj = subproject('imgui', required: true,
++                           default_options: [
++                             'default_library=static',
++                             'dx9=disabled',
++                             'dx10=disabled',
++                             'dx11=disabled',
++                             'dx12=disabled',
++                             'metal=disabled',
++                             'opengl=' + imgui_opengl,
++                             'sdl2_renderer=disabled',
++                             'sdl3_renderer=disabled',
++                             'vulkan=disabled',
++                             'webgpu=disabled',
++                             'glfw=disabled',
++                             'sdl2=disabled',
++                             'sdl3=enabled',
++                             'osx=disabled',
++                             'win=disabled',
++                             'allegro5=disabled',
++                          ])
++  imgui = imgui_proj.get_variable('imgui_dep')
++
++  implot_proj = subproject('implot', required: true,
++                           default_options: ['default_library=static'])
++  implot = implot_proj.get_variable('implot_dep')
++endif
+@@ -4679,0 +4686,13 @@ foreach target : target_dirs
++    if get_option('boxdroid_runtime') and host_os == 'android' and \
++       target == 'aarch64-softmmu'
++      boxdroid_android_log = cc.find_library('log', required: true)
++      shared_library('boxdroid', files('system/boxdroid-runtime.c'),
++                     install: false,
++                     c_args: c_args,
++                     dependencies: arch_deps + [boxdroid_android_log],
++                     objects: lib.extract_all_objects(recursive: true),
++                     include_directories: target_inc,
++                     link_depends: [block_syms, qemu_syms, files('system/boxdroid.map')],
++                     link_args: link_args + ['-Wl,--version-script=' + meson.current_source_dir() + '/system/boxdroid.map'])
++    endif
++
+diff --git a/meson_options.txt b/meson_options.txt
+index ef622e1d05..067196f870 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -398,0 +399,3 @@ option('strict_rust_lints', type: 'boolean', value: false,
++
++option('boxdroid_runtime', type: 'boolean', value: false,
++       description: 'Build the BoxDroid embedded headless runtime library')
+diff --git a/migration/migration.c b/migration/migration.c
+index b316ee01ab..fbc0f86135 100644
+--- a/migration/migration.c
++++ b/migration/migration.c
+@@ -3929 +3929 @@ static void *bg_migration_thread(void *opaque)
+-#ifdef __linux__
++#ifdef CONFIG_LINUX
+diff --git a/net/net.c b/net/net.c
+index 2609958dc0..e0df3582a4 100644
+--- a/net/net.c
++++ b/net/net.c
+@@ -1310,0 +1311 @@ static int (* const net_client_init_fun[NET_CLIENT_DRIVER__MAX])(
++#ifdef CONFIG_PCAP
+@@ -1311,0 +1313 @@ static int (* const net_client_init_fun[NET_CLIENT_DRIVER__MAX])(
++#endif
+diff --git a/scsi/pr-manager-stub.c b/scsi/pr-manager-stub.c
+index 738b6d7425..27cd646bf2 100644
+--- a/scsi/pr-manager-stub.c
++++ b/scsi/pr-manager-stub.c
+@@ -30,0 +31,6 @@ PRManagerInfoList *qmp_query_pr_managers(Error **errp)
++
++int coroutine_fn pr_manager_execute(PRManager *pr_mgr, AioContext *ctx, int fd,
++                                    struct sg_io_hdr *hdr)
++{
++    return -ENOTSUP;
++}
+diff --git a/system/vl.c b/system/vl.c
+index f45bdc3458..d99aaf2b75 100644
+--- a/system/vl.c
++++ b/system/vl.c
+@@ -145,0 +146 @@
++#ifndef __ANDROID__
+@@ -150,0 +152,6 @@
++#else
++static void xemu_queue_error_message(const char *message)
++{
++    error_report("%s", message);
++}
++#endif
+@@ -2526,0 +2534 @@ static void configure_accelerators(const char *progname)
++#ifndef __ANDROID__
+@@ -2557,0 +2566 @@ static char *strdup_double_commas(const char *input) {
++#endif
+@@ -2908,0 +2918 @@ void qmp_x_exit_preconfig(Error **errp)
++#ifndef __ANDROID__
+@@ -2949,0 +2960 @@ static const char *get_eeprom_path(void)
++#endif
+@@ -2966,0 +2978 @@ void qemu_init(int argc, char **argv)
++#ifndef __ANDROID__
+@@ -3117,0 +3130 @@ void qemu_init(int argc, char **argv)
++#endif
+diff --git a/target/arm/tcg/translate.c b/target/arm/tcg/translate.c
+index 63735d9789..81005fd605 100644
+--- a/target/arm/tcg/translate.c
++++ b/target/arm/tcg/translate.c
+@@ -57,0 +58,5 @@ static const char * const regnames[] =
++/* Xemu's TCG hook flushes deferred x87 state for the i386 translator. */
++void gen_bb_epilogue(void)
++{
++}
++
+diff --git a/ui/meson.build b/ui/meson.build
+index 4d1a63bebf..ba59379446 100644
+--- a/ui/meson.build
++++ b/ui/meson.build
+@@ -20 +20,2 @@ system_ss.add(files(
+-subdir('thirdparty')
++if host_os != 'android'
++  subdir('thirdparty')
+@@ -22,11 +23,11 @@ subdir('thirdparty')
+-xemu_ss = ss.source_set()
+-xemu_ss.add(files(
+-  'xemu-input.c',
+-  'xemu-monitor.c',
+-  'xemu-net.c',
+-  'xemu-settings.cc',
+-  'xemu-controllers.cc',
+-  'xemu-data.c',
+-  'xemu-widescreen.c',
+-))
+-xemu_ss.add(sdl, json, fatx, tomlplusplus, genconfig)
++  xemu_ss = ss.source_set()
++  xemu_ss.add(files(
++    'xemu-input.c',
++    'xemu-monitor.c',
++    'xemu-net.c',
++    'xemu-settings.cc',
++    'xemu-controllers.cc',
++    'xemu-data.c',
++    'xemu-widescreen.c',
++  ))
++  xemu_ss.add(sdl, json, fatx, tomlplusplus, genconfig)
+@@ -61 +62,2 @@ endif
+-system_ss.add_all(xemu_ss)
++  system_ss.add_all(xemu_ss)
++endif
+diff --git a/util/memfd.c b/util/memfd.c
+index 07beab174d..86976e6825 100644
+--- a/util/memfd.c
++++ b/util/memfd.c
+@@ -62 +62 @@ int qemu_memfd_create(const char *name, size_t size, bool hugetlb,
+-#ifdef CONFIG_LINUX
++#if defined(CONFIG_LINUX) || defined(__ANDROID__)

@@ -18,7 +18,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
-    private static final String TAG = "BoxDroidM5";
+    private static final String TAG = "BoxDroid_";
     private static final ExecutorService NATIVE = Executors.newSingleThreadExecutor();
     private boolean surfaceReady;
     private boolean xboxStarted;
@@ -30,20 +30,20 @@ public class MainActivity extends Activity {
     }
 
     private native int nativeXboxStart(String bios, String mcpx, String hdd, String log);
-    /** M5.5-only entry point: the selected document FD is passed into QEMU's DVD block path. */
+    /** Android-only entry point: the selected document FD is passed into QEMU's DVD block path. */
     protected native int nativeXboxStartWithDvd(String bios, String mcpx, String hdd, String log,
                                                  int dvdFd, long dvdSize);
     private native int nativeXboxStop();
-    private native boolean nativeM4SurfaceCreated(Surface surface, int width, int height, int generation);
-    private native boolean nativeM4SurfaceChanged(int width, int height);
-    private native void nativeM4SurfaceDestroyed();
-    private native String nativeM4Diagnostics();
-    private native void nativeM4Shutdown();
+    private native boolean nativeSurfaceCreated(Surface surface, int width, int height, int generation);
+    private native boolean nativeSurfaceChanged(int width, int height);
+    private native void nativeSurfaceDestroyed();
+    private native String nativeDiagnostics();
+    private native void nativeShutdown();
 
     /** Hook for isolated milestone apps that need host setup before QEMU starts. */
     protected void beforeNativeRuntimeStart() { }
 
-    /** Called after the Android surface/presenter is ready; M5.5 overrides this to wait for SAF. */
+    /** Called after the Android surface/presenter is ready; overrides this to wait for SAF. */
     protected void onVideoPresenterReady(File directory) { startXbox(directory); }
 
     /** Called after the Android surface is destroyed. */
@@ -61,9 +61,9 @@ public class MainActivity extends Activity {
         stopping = true;
         NATIVE.execute(() -> {
             if (xboxStarted) Log.i(TAG, "XBOX_STOP_RESULT=" + nativeXboxStop());
-            Log.i(TAG, "VULKAN_DIAGNOSTICS=" + nativeM4Diagnostics());
+            Log.i(TAG, "VULKAN_DIAGNOSTICS=" + nativeDiagnostics());
             afterNativeRuntimeStop();
-            nativeM4Shutdown();
+            nativeShutdown();
             Log.i(TAG, "M5_SHUTDOWN_COMPLETE");
             runOnUiThread(this::finish);
         });
@@ -101,7 +101,7 @@ public class MainActivity extends Activity {
                         + " format=" + format + " valid=" + holder.getSurface().isValid());
                 if (created) {
                     NATIVE.execute(() -> {
-                        if (!nativeM4SurfaceChanged(width, height)) Log.e(TAG, "VULKAN_RESIZE_FAIL");
+                        if (!nativeSurfaceChanged(width, height)) Log.e(TAG, "VULKAN_RESIZE_FAIL");
                     });
                     return;
                 }
@@ -109,7 +109,7 @@ public class MainActivity extends Activity {
                 final int currentGeneration = ++generation;
                 Surface surface = holder.getSurface();
                 NATIVE.execute(() -> {
-                    boolean ready = nativeM4SurfaceCreated(surface, width, height, currentGeneration);
+                    boolean ready = nativeSurfaceCreated(surface, width, height, currentGeneration);
                     if (!ready) {
                         Log.e(TAG, "ANDROID_WSI_INIT_FAIL");
                         return;
@@ -124,7 +124,7 @@ public class MainActivity extends Activity {
                 Log.i(TAG, "ANDROID_SURFACE_DESTROYED");
                 created = false;
                 NATIVE.execute(() -> {
-                    nativeM4SurfaceDestroyed();
+                    nativeSurfaceDestroyed();
                     surfaceReady = false;
                     onVideoPresenterUnavailable();
                 });
@@ -171,7 +171,7 @@ public class MainActivity extends Activity {
         File bios = new File(directory, "bios.bin");
         File mcpx = new File(directory, "mcpx.bin");
         File hdd = new File(directory, "hdd.qcow2");
-        File log = new File(getFilesDir(), "m5-qemu.log");
+        File log = new File(getFilesDir(), "qemu.log");
         if (!bios.canRead() || !mcpx.canRead() || !hdd.canRead()) {
             Log.e(TAG, "FIRMWARE_STAGE_MISSING bios=" + bios.canRead() +
                     " mcpx=" + mcpx.canRead() + " hdd=" + hdd.canRead());
@@ -193,7 +193,7 @@ public class MainActivity extends Activity {
         File bios = new File(directory, "bios.bin");
         File mcpx = new File(directory, "mcpx.bin");
         File hdd = new File(directory, "hdd.qcow2");
-        File log = new File(getFilesDir(), "m55-qemu.log");
+        File log = new File(getFilesDir(), "qemu.log");
         if (!bios.canRead() || !mcpx.canRead() || !hdd.canRead() || dvdFd < 0 || dvdSize <= 0) {
             Log.e(TAG, "M55_START_REJECTED bios=" + bios.canRead() + " mcpx=" + mcpx.canRead()
                     + " hdd=" + hdd.canRead() + " fd_valid=" + (dvdFd >= 0)
@@ -224,9 +224,9 @@ public class MainActivity extends Activity {
             stopping = true;
             NATIVE.execute(() -> {
                 Log.i(TAG, "XBOX_STOP_RESULT=" + nativeXboxStop());
-                Log.i(TAG, "VULKAN_DIAGNOSTICS=" + nativeM4Diagnostics());
+                Log.i(TAG, "VULKAN_DIAGNOSTICS=" + nativeDiagnostics());
                 afterNativeRuntimeStop();
-                nativeM4Shutdown();
+                nativeShutdown();
                 Log.i(TAG, "M5_SHUTDOWN_COMPLETE");
             });
         }
@@ -238,9 +238,9 @@ public class MainActivity extends Activity {
             stopping = true;
             NATIVE.execute(() -> {
                 if (xboxStarted) Log.i(TAG, "XBOX_STOP_RESULT=" + nativeXboxStop());
-                Log.i(TAG, "VULKAN_DIAGNOSTICS=" + nativeM4Diagnostics());
+                Log.i(TAG, "VULKAN_DIAGNOSTICS=" + nativeDiagnostics());
                 afterNativeRuntimeStop();
-                nativeM4Shutdown();
+                nativeShutdown();
                 Log.i(TAG, "M5_SHUTDOWN_COMPLETE");
             });
         }

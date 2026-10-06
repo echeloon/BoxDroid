@@ -1,0 +1,18 @@
+BOXDROID_1 {
+    global:
+        Java_org_boxdroid_MainActivity_nativeXboxStart;
+        Java_org_boxdroid_MainActivity_nativeXboxStartWithDvd*;
+        Java_org_boxdroid_MainActivity_nativeXboxStop;
+        Java_org_boxdroid_MainActivity_nativeSurfaceCreated;
+        Java_org_boxdroid_MainActivity_nativeSurfaceChanged;
+        Java_org_boxdroid_MainActivity_nativePresentFrame;
+        Java_org_boxdroid_MainActivity_nativeSurfaceDestroyed;
+        Java_org_boxdroid_MainActivity_nativeDiagnostics;
+        Java_org_boxdroid_MainActivity_nativeShutdown;
+        Java_org_boxdroid_OverlayActivity_nativePresentedFrames;
+        /* Optional getters are absent in frozen Android builds. */
+        Java_org_boxdroid_PerformanceActivity_native*;
+        Java_org_boxdroid_AudioEmulatorActivity_nativeAudio*;
+        Java_org_boxdroid_GamepadInput_native*;
+    local: *;
+};

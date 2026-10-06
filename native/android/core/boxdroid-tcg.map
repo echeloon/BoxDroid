@@ -1,0 +1,14 @@
+BOXDROID_1 {
+    global:
+        Java_org_boxdroid_m3_MainActivity_nativeRunTcgTest;
+        Java_org_boxdroid_m3_MainActivity_nativeSurfaceCreated;
+        Java_org_boxdroid_m3_MainActivity_nativeSurfaceChanged;
+        Java_org_boxdroid_m3_MainActivity_nativePresentFrame;
+        Java_org_boxdroid_m3_MainActivity_nativeSurfaceDestroyed;
+        Java_org_boxdroid_m3_MainActivity_nativeDiagnostics;
+        Java_org_boxdroid_m3_MainActivity_nativeShutdown;
+        boxdroid_runtime_initialize;
+        boxdroid_runtime_run;
+        boxdroid_runtime_request_shutdown;
+    local: *;
+};

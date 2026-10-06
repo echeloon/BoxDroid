@@ -1,0 +1,317 @@
+diff --git a/hw/xbox/mcpx/apu/apu.c b/hw/xbox/mcpx/apu/apu.c
+index 1ee6dc4..fe1823d 100644
+--- a/hw/xbox/mcpx/apu/apu.c
++++ b/hw/xbox/mcpx/apu/apu.c
+@@ -179,0 +180 @@ static void throttle(MCPXAPUState *d)
++#if !defined(__ANDROID__)
+@@ -190,0 +192 @@ static void throttle(MCPXAPUState *d)
++#endif
+diff --git a/hw/xbox/mcpx/apu/apu_int.h b/hw/xbox/mcpx/apu/apu_int.h
+index ff13d42..a75bd45 100644
+--- a/hw/xbox/mcpx/apu/apu_int.h
++++ b/hw/xbox/mcpx/apu/apu_int.h
+@@ -25,0 +26 @@
++#if !defined(__ANDROID__)
+@@ -26,0 +28,4 @@
++#else
++/* Android does not provide host audio output yet. */
++typedef struct SDL_AudioStream SDL_AudioStream;
++#endif
+diff --git a/hw/xbox/mcpx/apu/dsp/dsp.c b/hw/xbox/mcpx/apu/dsp/dsp.c
+index 0d844af..acadc50 100644
+--- a/hw/xbox/mcpx/apu/dsp/dsp.c
++++ b/hw/xbox/mcpx/apu/dsp/dsp.c
+@@ -121,0 +122,3 @@ DSPState *dsp_init(void *rw_opaque, dsp_scratch_rw_func scratch_rw,
++#if defined(__ANDROID__)
++    dsp_c_init(dsp);
++#else
+@@ -126,0 +130 @@ DSPState *dsp_init(void *rw_opaque, dsp_scratch_rw_func scratch_rw,
++#endif
+diff --git a/hw/xbox/mcpx/apu/dsp/gp_ep.c b/hw/xbox/mcpx/apu/dsp/gp_ep.c
+index a1212ac..f57f9c5 100644
+--- a/hw/xbox/mcpx/apu/dsp/gp_ep.c
++++ b/hw/xbox/mcpx/apu/dsp/gp_ep.c
+@@ -27,0 +28,8 @@ void mcpx_apu_update_dsp_preference(MCPXAPUState *d)
++#if defined(__ANDROID__)
++    /* Keep guest DSP execution enabled, using the portable interpreter. */
++    d->monitor.point = MCPX_APU_DEBUG_MON_GP_OR_EP;
++    d->gp.realtime = true;
++    d->ep.realtime = true;
++    dsp_set_engine(d->gp.dsp, false);
++    dsp_set_engine(d->ep.dsp, false);
++#else
+@@ -48,0 +57 @@ void mcpx_apu_update_dsp_preference(MCPXAPUState *d)
++#endif
+diff --git a/hw/xbox/mcpx/apu/monitor.c b/hw/xbox/mcpx/apu/monitor.c
+index 730fcc9..7eeb124 100644
+--- a/hw/xbox/mcpx/apu/monitor.c
++++ b/hw/xbox/mcpx/apu/monitor.c
+@@ -21,0 +22,20 @@
++#if defined(__ANDROID__)
++/* Preserve APU emulation while deferring platform audio output. */
++void mcpx_apu_monitor_init(MCPXAPUState *d, Error **errp)
++{
++    (void) errp;
++    d->monitor.stream = NULL;
++}
++
++void mcpx_apu_monitor_finalize(MCPXAPUState *d)
++{
++    (void) d;
++}
++
++void mcpx_apu_monitor_frame(MCPXAPUState *d)
++{
++    if (!((d->ep_frame_div + 1) % 8)) {
++        memset(d->monitor.frame_buf, 0, sizeof(d->monitor.frame_buf));
++    }
++}
++#else
+@@ -84,0 +105 @@ void mcpx_apu_monitor_frame(MCPXAPUState *d)
++#endif
+diff --git a/hw/xbox/mcpx/apu/vp/vp.c b/hw/xbox/mcpx/apu/vp/vp.c
+index c57ecb6..c6bffb5 100644
+--- a/hw/xbox/mcpx/apu/vp/vp.c
++++ b/hw/xbox/mcpx/apu/vp/vp.c
+@@ -1458 +1458,7 @@ static void voice_process(MCPXAPUState *d,
+-    if (v < MCPX_HW_MAX_3D_VOICES && g_config.audio.hrtf) {
++    if (v < MCPX_HW_MAX_3D_VOICES &&
++#if defined(__ANDROID__)
++        false
++#else
++        g_config.audio.hrtf
++#endif
++    ) {
+@@ -1770,0 +1777,3 @@ static void voice_work_init(MCPXAPUState *d)
++#if defined(__ANDROID__)
++    int num_workers = g_get_num_processors();
++#else
+@@ -1771,0 +1781 @@ static void voice_work_init(MCPXAPUState *d)
++#endif
+diff --git a/hw/xbox/meson.build b/hw/xbox/meson.build
+index 8cf1ea0..4aea20a 100644
+--- a/hw/xbox/meson.build
++++ b/hw/xbox/meson.build
+@@ -17 +16,0 @@ specific_ss.add(files(
+-	'xblc.c',
+@@ -19,0 +19,6 @@ specific_ss.add(files(
++
++# XBLC is an Xbox USB audio peripheral backed by SDL audio. Android brings
++# up the core without audio and does not expose this optional USB device yet.
++if not cc.has_define('__ANDROID__')
++	specific_ss.add(files('xblc.c'))
++endif
+diff --git a/hw/xbox/nv2a/pgraph/vk/buffer.c b/hw/xbox/nv2a/pgraph/vk/buffer.c
+index d87c875..455ca7a 100644
+--- a/hw/xbox/nv2a/pgraph/vk/buffer.c
++++ b/hw/xbox/nv2a/pgraph/vk/buffer.c
+@@ -62,0 +63,10 @@ void pgraph_vk_init_buffers(NV2AState *d)
++#ifdef __ANDROID__
++    /* Xbox NV2A uses 64 MiB of unified RAM/VRAM. The desktop renderer's
++     * 10,240-square staging capacity reserves 1.56 GiB across these two
++     * buffers before any guest work. Keep Android scratch within the entire
++     * guest VRAM budget; larger guest surfaces cannot contain useful data. */
++    const size_t compute_buffer_size = 64 * MiB;
++#else
++    const size_t compute_buffer_size = (1024 * 10) * (1024 * 10) * 8;
++#endif
++
+@@ -79 +89 @@ void pgraph_vk_init_buffers(NV2AState *d)
+-        .buffer_size = (1024 * 10) * (1024 * 10) * 8,
++        .buffer_size = compute_buffer_size,
+diff --git a/hw/xbox/nv2a/pgraph/vk/renderer.c b/hw/xbox/nv2a/pgraph/vk/renderer.c
+index 341f97c..96c853c 100644
+--- a/hw/xbox/nv2a/pgraph/vk/renderer.c
++++ b/hw/xbox/nv2a/pgraph/vk/renderer.c
+@@ -22,0 +23,7 @@
++#ifdef __ANDROID__
++#include <android/log.h>
++#define M5_NV2A_STAGE(s) __android_log_write(ANDROID_LOG_INFO, "BoxDroidM5", "NV2A_VULKAN_STAGE " s)
++#else
++#define M5_NV2A_STAGE(s) ((void)0)
++#endif
++
+@@ -38,0 +46 @@ static void pgraph_vk_init(NV2AState *d, Error **errp)
++    M5_NV2A_STAGE("begin");
+@@ -50,0 +59 @@ static void pgraph_vk_init(NV2AState *d, Error **errp)
++    M5_NV2A_STAGE("instance");
+@@ -52,0 +62 @@ static void pgraph_vk_init(NV2AState *d, Error **errp)
++    M5_NV2A_STAGE("command_buffers");
+@@ -53,0 +64 @@ static void pgraph_vk_init(NV2AState *d, Error **errp)
++    M5_NV2A_STAGE("buffers");
+@@ -54,0 +66 @@ static void pgraph_vk_init(NV2AState *d, Error **errp)
++    M5_NV2A_STAGE("surfaces");
+@@ -55,0 +68 @@ static void pgraph_vk_init(NV2AState *d, Error **errp)
++    M5_NV2A_STAGE("shaders");
+@@ -56,0 +70 @@ static void pgraph_vk_init(NV2AState *d, Error **errp)
++    M5_NV2A_STAGE("pipelines");
+@@ -57,0 +72 @@ static void pgraph_vk_init(NV2AState *d, Error **errp)
++    M5_NV2A_STAGE("textures");
+@@ -59,0 +75 @@ static void pgraph_vk_init(NV2AState *d, Error **errp)
++    M5_NV2A_STAGE("compute");
+@@ -60,0 +77 @@ static void pgraph_vk_init(NV2AState *d, Error **errp)
++    M5_NV2A_STAGE("display");
+@@ -185,0 +203,4 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
++#ifdef __ANDROID__
++        __android_log_write(ANDROID_LOG_INFO, "BoxDroidM5",
++                            "NV2A_SCANOUT_SURFACE_MISSING");
++#endif
+@@ -186,0 +208,3 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
++#ifdef __ANDROID__
++        return -1;
++#else
+@@ -187,0 +212 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
++#endif
+@@ -202,0 +228,5 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
++#ifdef __ANDROID__
++    __android_log_print(ANDROID_LOG_INFO, "BoxDroidM5",
++                        "NV2A_SCANOUT_READBACK_BEGIN extent=%dx%d",
++                        surface->width, surface->height);
++#endif
+@@ -203,0 +234,4 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
++#ifdef __ANDROID__
++    __android_log_write(ANDROID_LOG_INFO, "BoxDroidM5",
++                        "NV2A_SCANOUT_READBACK_COMPLETE");
++#endif
+diff --git a/hw/xbox/smbus_xbox_smc.c b/hw/xbox/smbus_xbox_smc.c
+index 4e987cf..668eb21 100644
+--- a/hw/xbox/smbus_xbox_smc.c
++++ b/hw/xbox/smbus_xbox_smc.c
+@@ -26,0 +27,9 @@
++#ifndef XBOX
++#define BOXDROID_LOCAL_XBOX
++#define XBOX
++#endif
++#include "hw/acpi/acpi_dev_interface.h"
++#ifdef BOXDROID_LOCAL_XBOX
++#undef XBOX
++#undef BOXDROID_LOCAL_XBOX
++#endif
+diff --git a/hw/xbox/xid.c b/hw/xbox/xid.c
+index 396d811..a221559 100644
+--- a/hw/xbox/xid.c
++++ b/hw/xbox/xid.c
+@@ -40,0 +41,12 @@ const USBDescStrings desc_strings = {
++#if defined(__ANDROID__)
++/* Controller input is intentionally deferred for the headless M5 bring-up. */
++void update_output(USBXIDGamepadState *s)
++{
++    (void) s;
++}
++
++void update_input(USBXIDGamepadState *s)
++{
++    (void) s;
++}
++#else
+@@ -104,0 +117 @@ void update_input(USBXIDGamepadState *s)
++#endif
+diff --git a/hw/xbox/xid.h b/hw/xbox/xid.h
+index 5b84661..77f7682 100644
+--- a/hw/xbox/xid.h
++++ b/hw/xbox/xid.h
+@@ -33,0 +34 @@
++#if !defined(__ANDROID__)
+@@ -34,0 +36 @@
++#endif
+@@ -137 +139 @@ void usb_xid_handle_destroy(USBDevice *dev);
+-#endif
+\ No newline at end of file
++#endif
+diff --git a/meson.build b/meson.build
+index 9dea48d..e28737c 100644
+--- a/meson.build
++++ b/meson.build
+@@ -34,0 +35,6 @@ host_os = host_machine.system()
++
++if get_option('boxdroid_xbox_runtime') and host_os == 'android'
++  # Build the actual Xbox machine and its dirty-memory clients on Android.
++  # Desktop-only Xemu frontend toggles remain excluded by platform guards.
++  add_project_arguments('-DXBOX=1', language: 'c')
++endif
+@@ -2404,0 +2411,2 @@ elif host_os == 'linux'
++elif host_os == 'android'
++  vulkan = dependency('vulkan')
+@@ -4705,0 +4714,26 @@ foreach target : target_dirs
++    if get_option('boxdroid_xbox_runtime') and host_os == 'android' and \
++       target == 'i386-softmmu'
++      boxdroid_android_log = cc.find_library('log', required: true)
++      boxdroid_android = cc.find_library('android', required: true)
++      boxdroid_dl = cc.find_library('dl', required: true)
++      boxdroid_vulkan = cc.find_library('vulkan', required: true)
++      shared_library('boxdroid',
++                     files('system/boxdroid-xbox-runtime.c',
++                           'system/boxdroid-xbox-settings.c',
++                           'ui/xemu-widescreen.c',
++                           'system/boxdroid-vulkan-presenter.cpp'),
++                     install: false,
++                     c_args: c_args,
++                     dependencies: arch_deps + [boxdroid_android_log,
++                                                boxdroid_android,
++                                                boxdroid_dl,
++                                                boxdroid_vulkan],
++                     objects: lib.extract_all_objects(recursive: true),
++                     include_directories: target_inc,
++                     link_depends: [block_syms, qemu_syms,
++                                    files('system/boxdroid.map')],
++                     link_args: link_args +
++                         ['-Wl,--version-script=' + meson.current_source_dir() +
++                          '/system/boxdroid.map'])
++    endif
++
+diff --git a/meson_options.txt b/meson_options.txt
+index 5312ff2..62e4fce 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -404,0 +405,3 @@ option('boxdroid_presenter', type: 'boolean', value: false,
++
++option('boxdroid_xbox_runtime', type: 'boolean', value: false,
++       description: 'Build the BoxDroid Android Xbox embedded runtime')
+diff --git a/system/runstate.c b/system/runstate.c
+index 5340df6..8c795da 100644
+--- a/system/runstate.c
++++ b/system/runstate.c
+@@ -25,0 +26,3 @@
++#ifdef __ANDROID__
++#include <android/log.h>
++#endif
+@@ -969,0 +973,3 @@ void qemu_cleanup(int status)
++#ifdef __ANDROID__
++    __android_log_write(ANDROID_LOG_INFO, "BoxDroidM5", "QEMU_CLEANUP_STAGE gdb");
++#endif
+@@ -976,0 +983,3 @@ void qemu_cleanup(int status)
++#ifdef __ANDROID__
++    __android_log_write(ANDROID_LOG_INFO, "BoxDroidM5", "QEMU_CLEANUP_STAGE migration");
++#endif
+@@ -984,0 +994,3 @@ void qemu_cleanup(int status)
++#ifdef __ANDROID__
++    __android_log_write(ANDROID_LOG_INFO, "BoxDroidM5", "QEMU_CLEANUP_STAGE exports");
++#endif
+@@ -988,0 +1001,3 @@ void qemu_cleanup(int status)
++#ifdef __ANDROID__
++    __android_log_write(ANDROID_LOG_INFO, "BoxDroidM5", "QEMU_CLEANUP_STAGE vm_shutdown");
++#endif
+@@ -989,0 +1005,3 @@ void qemu_cleanup(int status)
++#ifdef __ANDROID__
++    __android_log_write(ANDROID_LOG_INFO, "BoxDroidM5", "QEMU_CLEANUP_STAGE replay");
++#endif
+@@ -1000,0 +1019,3 @@ void qemu_cleanup(int status)
++#ifdef __ANDROID__
++    __android_log_write(ANDROID_LOG_INFO, "BoxDroidM5", "QEMU_CLEANUP_STAGE bdrv_drain");
++#endif
+@@ -1001,0 +1023,3 @@ void qemu_cleanup(int status)
++#ifdef __ANDROID__
++    __android_log_write(ANDROID_LOG_INFO, "BoxDroidM5", "QEMU_CLEANUP_STAGE jobs");
++#endif
+@@ -1002,0 +1027,3 @@ void qemu_cleanup(int status)
++#ifdef __ANDROID__
++    __android_log_write(ANDROID_LOG_INFO, "BoxDroidM5", "QEMU_CLEANUP_STAGE block");
++#endif
+diff --git a/system/vl.c b/system/vl.c
+index d99aaf2..4c1ffeb 100644
+--- a/system/vl.c
++++ b/system/vl.c
+@@ -2879,0 +2880 @@ void qmp_x_exit_preconfig(Error **errp)
++#ifndef __ANDROID__
+@@ -2884,0 +2886 @@ void qmp_x_exit_preconfig(Error **errp)
++#endif

@@ -2,9 +2,9 @@ plugins {
     id 'com.android.application'
 }
 
-def m5BuildRoot = providers.gradleProperty('m5BuildRoot').orNull
-if (m5BuildRoot == null) {
-    throw new GradleException('Pass -Pm5BuildRoot=<BoxDroid Android native build directory>')
+def nativeBuildRoot = providers.gradleProperty('nativeBuildRoot').orNull
+if (nativeBuildRoot == null) {
+    throw new GradleException('Pass -PnativeBuildRoot=<BoxDroid Android native build directory>')
 }
 
 android {
@@ -24,8 +24,8 @@ android {
 
     sourceSets {
         main {
-            jniLibs.srcDirs = ["${m5BuildRoot}/jniLibs"]
-            assets.srcDirs = ["${m5BuildRoot}/assets"]
+            jniLibs.srcDirs = ["${nativeBuildRoot}/jniLibs"]
+            assets.srcDirs = ["${nativeBuildRoot}/assets"]
         }
     }
 

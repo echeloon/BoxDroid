@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 
 /** Android-only diagnostic overlay. MainActivity continues to own the Xbox runtime. */
 public final class OverlayActivity extends MainActivity {
-    private static final String TAG = "BoxDroidM52";
+    private static final String TAG = "BoxDroid_";
     private static final long SAMPLE_MS = 500;
     private final Object samplerLock = new Object();
     private ScheduledExecutorService sampler;
@@ -31,7 +31,7 @@ public final class OverlayActivity extends MainActivity {
     private TextView metrics;
 
     // Returns the presenter's completed, successful queue-present count.
-    private native long nativeM52PresentedFrames();
+    private native long nativePresentedFrames();
 
     @Override
     protected void onCreate(Bundle state) {
@@ -151,7 +151,7 @@ public final class OverlayActivity extends MainActivity {
                     statm = new RandomAccessFile("/proc/self/statm", "r");
                 }
                 long now = SystemClock.elapsedRealtimeNanos();
-                long presented = nativeM52PresentedFrames();
+                long presented = nativePresentedFrames();
                 String proc = read(stat);
                 String[] fields = proc.substring(proc.lastIndexOf(')') + 1).trim().split("\\s+");
                 long ticks = Long.parseLong(fields[11]) + Long.parseLong(fields[12]);

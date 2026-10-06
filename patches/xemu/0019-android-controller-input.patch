@@ -1,0 +1,88 @@
+diff --git a/hw/xbox/xid.c b/hw/xbox/xid.c
+index a221559..8874a96 100644
+--- a/hw/xbox/xid.c
++++ b/hw/xbox/xid.c
+@@ -22,0 +23,52 @@
++#ifdef BOXDROID_INPUT
++#include "system/boxdroid-input.h"
++
++static int16_t boxdroid_axis(float value)
++{
++    if (value <= -1.0f) return INT16_MIN;
++    if (value >= 1.0f) return INT16_MAX;
++    return value < 0.0f ? (int16_t)(value * 32768.0f)
++                        : (int16_t)(value * 32767.0f);
++}
++
++static uint8_t boxdroid_pressure(float value)
++{
++    if (value <= 0.0f) return 0;
++    if (value >= 1.0f) return UINT8_MAX;
++    return (uint8_t)(value * 255.0f + 0.5f);
++}
++
++static void boxdroid_update_input(USBXIDGamepadState *s)
++{
++    BoxDroidM62InputState state;
++    uint32_t buttons;
++    uint16_t dpad = 0;
++    if (!boxdroid_input_snapshot_primary(&state)) {
++        return;
++    }
++    buttons = state.connected ? state.buttons : 0;
++    s->in_state.bAnalogButtons[GAMEPAD_A] = (buttons & BOXDROID_A) ? UINT8_MAX : 0;
++    s->in_state.bAnalogButtons[GAMEPAD_B] = (buttons & BOXDROID_B) ? UINT8_MAX : 0;
++    s->in_state.bAnalogButtons[GAMEPAD_X] = (buttons & BOXDROID_X) ? UINT8_MAX : 0;
++    s->in_state.bAnalogButtons[GAMEPAD_Y] = (buttons & BOXDROID_Y) ? UINT8_MAX : 0;
++    s->in_state.bAnalogButtons[GAMEPAD_WHITE] = (buttons & BOXDROID_WHITE) ? UINT8_MAX : 0;
++    s->in_state.bAnalogButtons[GAMEPAD_BLACK] = (buttons & BOXDROID_BLACK) ? UINT8_MAX : 0;
++    s->in_state.bAnalogButtons[GAMEPAD_LEFT_TRIGGER] =
++        boxdroid_pressure(state.connected ? state.left_trigger : 0.0f);
++    s->in_state.bAnalogButtons[GAMEPAD_RIGHT_TRIGGER] =
++        boxdroid_pressure(state.connected ? state.right_trigger : 0.0f);
++    if (buttons & BOXDROID_DPAD_U) dpad |= BUTTON_MASK(GAMEPAD_DPAD_UP);
++    if (buttons & BOXDROID_DPAD_D) dpad |= BUTTON_MASK(GAMEPAD_DPAD_DOWN);
++    if (buttons & BOXDROID_DPAD_L) dpad |= BUTTON_MASK(GAMEPAD_DPAD_LEFT);
++    if (buttons & BOXDROID_DPAD_R) dpad |= BUTTON_MASK(GAMEPAD_DPAD_RIGHT);
++    if (buttons & BOXDROID_START) dpad |= BUTTON_MASK(GAMEPAD_START);
++    if (buttons & BOXDROID_BACK) dpad |= BUTTON_MASK(GAMEPAD_BACK);
++    if (buttons & BOXDROID_L3) dpad |= BUTTON_MASK(GAMEPAD_LEFT_THUMB);
++    if (buttons & BOXDROID_R3) dpad |= BUTTON_MASK(GAMEPAD_RIGHT_THUMB);
++    s->in_state.wButtons = dpad;
++    s->in_state.sThumbLX = boxdroid_axis(state.connected ? state.left_x : 0.0f);
++    s->in_state.sThumbLY = boxdroid_axis(state.connected ? state.left_y : 0.0f);
++    s->in_state.sThumbRX = boxdroid_axis(state.connected ? state.right_x : 0.0f);
++    s->in_state.sThumbRY = boxdroid_axis(state.connected ? state.right_y : 0.0f);
++}
++#endif
+@@ -49,0 +102,3 @@ void update_input(USBXIDGamepadState *s)
++#ifdef BOXDROID_INPUT
++    boxdroid_update_input(s);
++#else
+@@ -50,0 +106 @@ void update_input(USBXIDGamepadState *s)
++#endif
+diff --git a/meson.build b/meson.build
+index fee6e95..dde91c0 100644
+--- a/meson.build
++++ b/meson.build
+@@ -41,0 +42,3 @@ endif
++if get_option('boxdroid_input') and host_os == 'android'
++  add_project_arguments('-DBOXDROID_INPUT=1', language: 'c')
++endif
+@@ -4722,0 +4726 @@ foreach target : target_dirs
++      boxdroid_input_sources = []
+@@ -4726,0 +4731,3 @@ foreach target : target_dirs
++      if get_option('boxdroid_input')
++        boxdroid_input_sources += files('system/boxdroid-input.c')
++      endif
+@@ -4732 +4739 @@ foreach target : target_dirs
+-                         boxdroid_audio_sources,
++                         boxdroid_audio_sources + boxdroid_input_sources,
+diff --git a/meson_options.txt b/meson_options.txt
+index 7acf0d2..25e90a7 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -410,0 +411,3 @@ option('boxdroid_audio', type: 'boolean', value: false,
++
++option('boxdroid_input', type: 'boolean', value: false,
++       description: 'Build the BoxDroid Android physical controller input bridge')
