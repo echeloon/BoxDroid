@@ -13,6 +13,8 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.view.InputDevice;
+import android.view.KeyEvent;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -44,6 +46,7 @@ public class FrontendActivity extends Activity {
         container.setBackgroundColor(android.graphics.Color.BLUE); // Blue background to test
         
         webView = new WebView(this);
+        webView.setDefaultFocusHighlightEnabled(false);
         android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT);
@@ -58,6 +61,29 @@ public class FrontendActivity extends Activity {
         webSettings.setAllowUniversalAccessFromFileURLs(true);
 
         webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                view.evaluateJavascript("window.boxDroidController = function(action) {"
+                        + "var allItems = Array.from(document.querySelectorAll('a[href], button:not(:disabled), [role=button], input:not(:disabled), select:not(:disabled), textarea:not(:disabled)'));"
+                        + "var selectedItem = allItems.find(function(item) { return item.classList.contains('controller-selected'); });"
+                        + "if (!allItems.length) return;"
+                        + "if (action === 'activate') { var target = selectedItem || allItems[0];"
+                        + "document.querySelectorAll('.controller-selected').forEach(function(item) { item.classList.remove('controller-selected'); }); target.click(); return; }"
+                        + "var vertical = action === 'up' || action === 'down';"
+                        + "var items = vertical ? allItems.filter(function(item) { var row = item.closest('.neon-card--row'); return !row || item.matches('.neon-card__row-select'); }) : allItems;"
+                        + "var currentItem = selectedItem;"
+                        + "if (vertical && currentItem) { var currentRow = currentItem.closest('.neon-card--row');"
+                        + "if (currentRow && !currentItem.matches('.neon-card__row-select')) currentItem = currentRow.querySelector('.neon-card__row-select') || currentItem; }"
+                        + "var currentIndex = items.indexOf(currentItem);"
+                        + "var forward = action === 'down' || action === 'right';"
+                        + "var next = currentIndex < 0 ? (forward ? 0 : items.length - 1)"
+                        + ": (currentIndex + (forward ? 1 : items.length - 1)) % items.length;"
+                        + "document.querySelectorAll('.controller-selected').forEach(function(item) { item.classList.remove('controller-selected'); });"
+                        + "var target = items[next]; target.classList.add('controller-selected');"
+                        + "var card = target.closest('.neon-card--row') || target.closest('.neon-card'); if (card) card.classList.add('controller-selected');"
+                        + "};", null);
+            }
+
             @Override
             public android.webkit.WebResourceResponse shouldInterceptRequest(WebView view, android.webkit.WebResourceRequest request) {
                 Uri url = request.getUrl();
@@ -107,6 +133,51 @@ public class FrontendActivity extends Activity {
 
         // Assuming you have built the React app into assets/www
         webView.loadUrl("http://boxdroid.local/");
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (webView != null && isControllerEvent(event)) {
+            int keyCode = event.getKeyCode();
+            String action = null;
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                switch (keyCode) {
+                    case KeyEvent.KEYCODE_DPAD_UP: action = "up"; break;
+                    case KeyEvent.KEYCODE_DPAD_DOWN: action = "down"; break;
+                    case KeyEvent.KEYCODE_DPAD_LEFT: action = "left"; break;
+                    case KeyEvent.KEYCODE_DPAD_RIGHT: action = "right"; break;
+                    case KeyEvent.KEYCODE_DPAD_CENTER:
+                    case KeyEvent.KEYCODE_BUTTON_A:
+                    case KeyEvent.KEYCODE_ENTER: action = "activate"; break;
+                    case KeyEvent.KEYCODE_BUTTON_B:
+                    case KeyEvent.KEYCODE_BACK:
+                        if (webView.canGoBack()) webView.goBack();
+                        else onBackPressed();
+                        return true;
+                    default: return super.dispatchKeyEvent(event);
+                }
+                final String controllerAction = action;
+                webView.evaluateJavascript("window.boxDroidController && window.boxDroidController('"
+                        + controllerAction + "')", null);
+            }
+            return true;
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    private boolean isControllerEvent(KeyEvent event) {
+        int keyCode = event.getKeyCode();
+        if (keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN
+                || keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
+                || keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_BUTTON_A
+                || keyCode == KeyEvent.KEYCODE_BUTTON_B || keyCode == KeyEvent.KEYCODE_ENTER) {
+            return true;
+        }
+        InputDevice device = InputDevice.getDevice(event.getDeviceId());
+        if (device == null) return false;
+        int sources = device.getSources();
+        return (sources & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
+                || (sources & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD;
     }
 
     private class WebAppBridge {
