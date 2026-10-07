@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Outlet } from "react-router";
+import { AsciiRain } from "../components/neonblade-ui/ascii-rain";
 
 export default function MatrixLayout() {
   return (
@@ -12,24 +13,14 @@ export default function MatrixLayout() {
           animate={{ y: ["-10%", "110%"], opacity: [0, 0.75, 0] }}
           transition={{ duration: 4.8, repeat: Infinity, ease: "linear" }}
         />
-        <div className="matrix-rain" aria-hidden="true">
-          {Array.from({ length: 32 }, (_, i) => (
-            <motion.div
-              className="matrix-column"
-              key={i}
-              initial={{ y: `${(i % 5) * -22}%` }}
-              animate={{ y: ["-110%", "110%"] }}
-              transition={{ duration: 3.6 + (i % 6) * 0.55, repeat: Infinity, delay: (i % 7) * -0.62, ease: "linear" }}
-              style={{ left: `${1.5 + i * 3.1}%` }}
-            >
-              {Array.from({ length: 11 }, (_, j) => (
-                <span key={j} style={{ opacity: Math.max(0.18, 1 - j * 0.08) }}>
-                  {"ABXY"[(i * 3 + j * 7) % 4]}
-                </span>
-              ))}
-            </motion.div>
-          ))}
-        </div>
+        <AsciiRain
+          textColor="#56ff70"
+          bgColor="rgba(3, 8, 6, 0.08)"
+          fontSize={18}
+          speed={42}
+          characters="ABXY"
+          opacity={55}
+        />
       </div>
       <div className="matrix-route">
         <Outlet />
