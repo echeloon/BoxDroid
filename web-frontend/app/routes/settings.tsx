@@ -20,8 +20,10 @@ export default function Settings() {
   return (
     <div className="flex-1 flex flex-col p-6 w-full">
       <div className="flex items-center mb-8 gap-4">
-        <Link to="/" className="px-4 py-2 bg-gray-700 rounded flex items-center gap-2">
-          <ChevronLeft size={20} /> Back
+        <Link to="/" className="neon-card neon-card--compact">
+          <span className="neon-card__surface neon-card__surface--compact">
+            <ChevronLeft size={20} /> Back
+          </span>
         </Link>
         <h1 className="text-3xl font-bold">System Settings</h1>
       </div>
@@ -54,8 +56,6 @@ function SettingItem({ title, item, onSelect, onClear }: any) {
   return (
     <SelectionListItem
       title={title}
-      titleClassName="text-sm text-gray-400"
-      subtitleClassName={`text-lg ${item?.isSet ? "text-white" : "text-gray-400"}`}
       subtitle={
         <>
           {item?.isSet ? (
@@ -68,8 +68,10 @@ function SettingItem({ title, item, onSelect, onClear }: any) {
       }
       onSelect={onSelect}
       action={item?.isSet && (
-        <button type="button" aria-label={`Clear ${title}`} onClick={onClear} className="p-2 bg-red-600 rounded text-white flex items-center justify-center">
-          <Trash2 size={20} />
+        <button type="button" aria-label={`Clear ${title}`} onClick={onClear} className="neon-card neon-card--icon neon-card--danger">
+          <span className="neon-card__surface neon-card__surface--compact">
+            <Trash2 size={20} />
+          </span>
         </button>
       )}
     />
