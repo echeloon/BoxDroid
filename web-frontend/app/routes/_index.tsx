@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { useEffect, useState } from "react";
-import { Gamepad2, Settings } from "lucide-react";
+import { ArrowRight, Gamepad2, Settings } from "lucide-react";
+import { HomeIntro } from "../components/HomeIntro";
 
 export default function Index() {
   const [canPlay, setCanPlay] = useState(false);
@@ -23,26 +24,51 @@ export default function Index() {
   }, []);
 
   return (
-    <div className="home-content flex-1 flex flex-col items-center space-y-6" style={{ paddingTop: '20vh' }}>
-      <h1 className="text-4xl font-bold mb-8">BoxDroid</h1>
-      
-      {canPlay ? (
-        <Link to="/library" className="px-8 py-4 bg-green-600 rounded text-xl w-64 text-center flex items-center justify-center gap-2">
-          <Gamepad2 /> Play Games
-        </Link>
-      ) : (
-        <button
-          onClick={() => alert("Load BIOS, MCPX and HDD Image first in Settings.")}
-          className="px-8 py-4 bg-gray-600 rounded text-xl w-64 text-center opacity-50 cursor-not-allowed flex items-center justify-center gap-2"
-        >
-          <Gamepad2 /> Play Games
-        </button>
-      )}
+    <>
+      <HomeIntro />
+      <main className="home-content home-menu">
+        <h1 className="home-brand">BoxDroid</h1>
+        <div className="home-menu__options">
+          {canPlay ? (
+            <Link to="/library" className="neon-card" aria-label="Play Games">
+              <span className="neon-card__surface">
+                <span className="neon-card__icon"><Gamepad2 aria-hidden="true" /></span>
+                <span className="neon-card__copy">
+                  <span className="neon-card__title">Play Games</span>
+                  <span className="neon-card__subtitle">Enter your game library</span>
+                </span>
+                <ArrowRight className="neon-card__arrow" aria-hidden="true" />
+              </span>
+            </Link>
+          ) : (
+            <button
+              onClick={() => alert("Load BIOS, MCPX and HDD Image first in Settings.")}
+              className="neon-card neon-card--disabled"
+              aria-label="Play Games, configure system files in Settings first"
+            >
+              <span className="neon-card__surface">
+                <span className="neon-card__icon"><Gamepad2 aria-hidden="true" /></span>
+                <span className="neon-card__copy">
+                  <span className="neon-card__title">Play Games</span>
+                  <span className="neon-card__subtitle">System files required</span>
+                </span>
+                <ArrowRight className="neon-card__arrow" aria-hidden="true" />
+              </span>
+            </button>
+          )}
 
-      <Link to="/settings" className="px-8 py-4 bg-blue-600 rounded text-xl w-64 text-center flex items-center justify-center gap-2 mt-4">
-        <Settings /> Settings
-      </Link>
-
-    </div>
+          <Link to="/settings" className="neon-card neon-card--settings">
+            <span className="neon-card__surface">
+              <span className="neon-card__icon"><Settings aria-hidden="true" /></span>
+              <span className="neon-card__copy">
+                <span className="neon-card__title">Settings</span>
+                <span className="neon-card__subtitle">Configure your system</span>
+              </span>
+              <ArrowRight className="neon-card__arrow" aria-hidden="true" />
+            </span>
+          </Link>
+        </div>
+      </main>
+    </>
   );
 }

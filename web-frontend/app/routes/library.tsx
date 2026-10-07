@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { useEffect, useState } from "react";
-import { Gamepad2, Trash2 } from "lucide-react";
+import { ChevronLeft, Gamepad2, Trash2 } from "lucide-react";
 import SelectionListItem from "../components/SelectionListItem";
 
 export default function Library() {
@@ -21,20 +21,25 @@ export default function Library() {
     <div className="flex-1 flex flex-col p-6 w-full">
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center">
-          <Link to="/" className="mr-4 px-4 py-2 bg-gray-700 rounded">&lt; Back</Link>
+          <Link to="/" className="neon-card neon-card--compact mr-4">
+            <span className="neon-card__surface neon-card__surface--compact"><ChevronLeft size={20} /> Back</span>
+          </Link>
           <h1 className="text-3xl font-bold">Game Library</h1>
         </div>
         <button 
           onClick={() => window.BoxDroidBridge?.addGame()}
-          className="px-4 py-2 bg-green-600 rounded"
+          className="neon-card neon-card--compact"
         >
-          + Add Game
+          <span className="neon-card__surface neon-card__surface--compact">+ Add Game</span>
         </button>
       </div>
 
       {games.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center text-gray-400">
-          No games found. Click Add Game to select an xiso.
+        <div className="neon-card neon-card--row neon-card--empty">
+          <div className="neon-card__surface neon-card__surface--row neon-card__empty-copy">
+            <Gamepad2 size={24} aria-hidden="true" />
+            <span>No games found. Select Add Game to choose an XISO.</span>
+          </div>
         </div>
       ) : (
         <div className="flex w-full flex-col gap-4">
@@ -49,9 +54,9 @@ export default function Library() {
                   type="button"
                   aria-label={`Remove ${game.name}`}
                   onClick={() => window.BoxDroidBridge?.deleteGame(index)}
-                  className="p-2 bg-red-600 rounded text-white flex items-center justify-center"
+                  className="neon-card neon-card--icon neon-card--danger"
                 >
-                  <Trash2 size={20} />
+                  <span className="neon-card__surface neon-card__surface--compact"><Trash2 size={20} /></span>
                 </button>
               )}
             />
