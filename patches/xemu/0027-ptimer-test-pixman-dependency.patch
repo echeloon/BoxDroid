@@ -1,0 +1,20 @@
+From: BoxDroid <boxdroid@localhost>
+Subject: [PATCH] tests/xbox: include Pixman dependency in PTIMER tests
+
+Downstream status: not submitted upstream. NV2A headers include console
+and Pixman headers. Declare the dependency for the standalone correctness
+test, including Android cross-builds with Pixman in a nested include path.
+No production timer or guest behavior changes.
+
+diff --git a/tests/xbox/ptimer/meson.build b/tests/xbox/ptimer/meson.build
+--- a/tests/xbox/ptimer/meson.build
++++ b/tests/xbox/ptimer/meson.build
+@@ -13,7 +13,7 @@
+   include_directories: [
+     include_directories('../../../target/i386'),
+   ],
+-  dependencies: [qemuutil],
++  dependencies: [qemuutil, pixman],
+   build_by_default: false,
+ )
+ 

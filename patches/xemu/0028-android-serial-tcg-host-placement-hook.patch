@@ -1,0 +1,36 @@
+From: BoxDroid <boxdroid@localhost>
+Subject: [PATCH] tcg: allow Android placement of the serial host CPU thread
+
+Downstream status: not submitted upstream. The platform selects a measured
+policy using allowed masks and reported core capacities. Invoke it once on
+the actual TCG host thread before publishing startup readiness. It does not
+split guest instructions, alter their ordering or change virtual clocks.
+Other emulation workers retain scheduler-default placement. Unsupported or
+restricted configurations preserve Android's scheduler.
+
+diff --git a/accel/tcg/tcg-accel-ops-rr.c b/accel/tcg/tcg-accel-ops-rr.c
+--- a/accel/tcg/tcg-accel-ops-rr.c
++++ b/accel/tcg/tcg-accel-ops-rr.c
+@@ -177,6 +177,10 @@
+  * elsewhere.
+  */
+ 
++#ifdef BOXDROID_XBOX_RUNTIME
++extern void boxdroid_android_configure_tcg_thread(void);
++#endif
++
+ static void *rr_cpu_thread_fn(void *arg)
+ {
+     Notifier force_rcu;
+@@ -187,6 +191,11 @@
+     force_rcu.notify = rr_force_rcu;
+     rcu_add_force_rcu_notifier(&force_rcu);
+     tcg_register_thread();
++#ifdef BOXDROID_XBOX_RUNTIME
++    /* Configure only this host CPU thread before guest execution starts.
++     * Other workers retain their original masks. Guest execution is serial. */
++    boxdroid_android_configure_tcg_thread();
++#endif
+ 
+     bql_lock();
+     qemu_thread_get_self(cpu->thread);

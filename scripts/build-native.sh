@@ -125,14 +125,8 @@ else
     if [[ -s "$PATCH_STATE" ]] && [[ "$(cat "$PATCH_STATE")" == "$current_state" ]]; then
         echo "Verified exact previously applied downstream patch series"
     else
-        # Legacy work roots created before the fingerprint was recorded are
-        # accepted only if every checked-in patch reverses cleanly.
-        while IFS= read -r patch_name; do
-            [[ -n "$patch_name" ]] || continue
-            patch_path="$ROOT/patches/xemu/$patch_name"
-            git -C "$SOURCE" apply --unidiff-zero --reverse --check "$patch_path" || \
-                die "source worktree differs from the recorded downstream patch series"
-        done < "$ROOT/patches/xemu/series"
+        python3 "$ROOT/scripts/verify-xemu-patches.py" "$SOURCE" "$PIN" || \
+            die "source worktree differs from the ordered downstream patch series"
     fi
 fi
 
@@ -145,6 +139,7 @@ if [[ "$XBOX_RUNTIME" == 1 ]]; then
     cp "$ROOT/native/android/core/boxdroid-xbox-settings.c" "$SOURCE/system/boxdroid-xbox-settings.c"
     cp "$ROOT/native/android/core/boxdroid.map" "$SOURCE/system/boxdroid.map"
     cp "$ROOT/native/android/core/boxdroid-vulkan-presenter.cpp" "$SOURCE/system/boxdroid-vulkan-presenter.cpp"
+    cp "$ROOT/native/android/core/boxdroid-frame-queue.h" "$SOURCE/system/boxdroid-frame-queue.h"
     cp "$ROOT/native/android/core/boxdroid-diagnostics.h" "$SOURCE/hw/xbox/nv2a/boxdroid-diagnostics.h"
     cp "$ROOT/native/android/core/boxdroid-diagnostics.h" "$SOURCE/system/boxdroid-diagnostics.h"
     if [[ "$AUDIO" == 1 ]]; then
@@ -173,6 +168,7 @@ elif [[ "$RUNTIME" == 1 ]]; then
         presenter_source="$ROOT/native/android/core/boxdroid-vulkan-presenter.cpp"
         [[ -s "$presenter_source" ]] || die "missing BoxDroid presenter source: $presenter_source"
         cp "$presenter_source" "$SOURCE/system/boxdroid-vulkan-presenter.cpp"
+        cp "$ROOT/native/android/core/boxdroid-frame-queue.h" "$SOURCE/system/boxdroid-frame-queue.h"
     fi
 elif [[ "$PRESENTER" == 1 ]]; then
     die "presenter requires BOXDROID_RUNTIME=1"

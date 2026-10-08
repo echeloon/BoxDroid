@@ -1,0 +1,43 @@
+From: BoxDroid <boxdroid@localhost>
+Subject: [PATCH] mcpx/apu: honor configured Android worker counts
+
+Downstream status: not submitted upstream. The core creates these workers; the platform supplies the configuration.
+
+Use the runtime-selected bounded pool size on Android. Shorten Xbox
+worker names to fit pthread_setname_np so profiles identify useful work.
+
+diff --git a/hw/xbox/mcpx/apu/vp/vp.c b/hw/xbox/mcpx/apu/vp/vp.c
+--- a/hw/xbox/mcpx/apu/vp/vp.c
++++ b/hw/xbox/mcpx/apu/vp/vp.c
+@@ -1812,7 +1812,7 @@
+     VoiceWorkDispatch *vwd = &d->vp.voice_work_dispatch;
+ 
+ #if defined(__ANDROID__)
+-    int num_workers = g_get_num_processors();
++    int num_workers = g_config.audio.vp.num_workers ?: g_get_num_processors();
+ #else
+     int num_workers = g_config.audio.vp.num_workers ?: SDL_GetNumLogicalCPUCores();
+ #endif
+@@ -1833,7 +1833,9 @@
+         worker->worker_id = i;
+         qemu_cond_init(&worker->work_pending);
+         vwd->workers_pending |= UINT64_C(1) << i;
+-        qemu_thread_create(&worker->thread, "mcpx.voice_worker",
++        char name[16];
++        snprintf(name, sizeof(name), "mcpx.voice%d", i);
++        qemu_thread_create(&worker->thread, name,
+                            voice_worker_thread, worker, QEMU_THREAD_JOINABLE);
+     }
+     while (vwd->workers_pending) {
+diff --git a/hw/xbox/nv2a/nv2a.c b/hw/xbox/nv2a/nv2a.c
+--- a/hw/xbox/nv2a/nv2a.c
++++ b/hw/xbox/nv2a/nv2a.c
+@@ -314,7 +314,7 @@
+     pgraph_init(d);
+ 
+     /* fire up pfifo */
+-    qemu_thread_create(&d->pfifo.thread, "nv2a.pfifo_thread",
++    qemu_thread_create(&d->pfifo.thread, "nv2a.pfifo",
+                        pfifo_thread, d, QEMU_THREAD_JOINABLE);
+ }
+ 

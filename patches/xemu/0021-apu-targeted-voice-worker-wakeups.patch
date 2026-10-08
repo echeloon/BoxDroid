@@ -1,0 +1,153 @@
+From: BoxDroid <boxdroid@localhost>
+Subject: [PATCH] mcpx/apu: wake only assigned voice workers and join safely
+
+Downstream status: not submitted upstream. The APU owns voice queues, multipass grouping and the mix barrier.
+
+Keep the existing multipass grouping and per-frame completion barrier.
+Use predicate waits to tolerate spurious wakeups, explicit worker identity,
+and release the dispatch mutex before a worker exits. Destroy synchronization
+objects only after all workers have joined.
+
+diff --git a/hw/xbox/mcpx/apu/vp/vp.h b/hw/xbox/mcpx/apu/vp/vp.h
+--- a/hw/xbox/mcpx/apu/vp/vp.h
++++ b/hw/xbox/mcpx/apu/vp/vp.h
+@@ -55,6 +55,9 @@
+ 
+ typedef struct VoiceWorker {
+     QemuThread thread;
++    MCPXAPUState *apu;
++    int worker_id;
++    QemuCond work_pending;
+     float mixbins[NUM_MIXBINS][NUM_SAMPLES_PER_FRAME];
+     float sample_buf[NUM_SAMPLES_PER_FRAME][2];
+     VoiceWorkItem queue[MCPX_HW_MAX_VOICES];
+@@ -66,7 +69,6 @@
+     int num_workers;
+     VoiceWorker *workers;
+     bool workers_should_exit;
+-    QemuCond work_pending;
+     uint64_t workers_pending;
+     QemuCond work_finished;
+     float mixbins[NUM_MIXBINS][NUM_SAMPLES_PER_FRAME];
+diff --git a/hw/xbox/mcpx/apu/vp/vp.c b/hw/xbox/mcpx/apu/vp/vp.c
+--- a/hw/xbox/mcpx/apu/vp/vp.c
++++ b/hw/xbox/mcpx/apu/vp/vp.c
+@@ -1615,14 +1615,14 @@
+ 
+ static void *voice_worker_thread(void *arg)
+ {
+-    MCPXAPUState *d = arg;
++    VoiceWorker *self = arg;
++    MCPXAPUState *d = self->apu;
+     VoiceWorkDispatch *vwd = &d->vp.voice_work_dispatch;
++    int worker_id = self->worker_id;
++    uint64_t worker_bit = UINT64_C(1) << worker_id;
+ 
+     rcu_register_thread();
+     qemu_mutex_lock(&vwd->lock);
+-
+-    int worker_id = ctz64(vwd->workers_pending);
+-    VoiceWorker *self = &d->vp.voice_work_dispatch.workers[worker_id];
+     self->queue_len = 0;
+ 
+     do {
+@@ -1660,7 +1660,7 @@
+             self->queue_len = 0;
+         }
+ 
+-        vwd->workers_pending &= ~(1 << worker_id);
++        vwd->workers_pending &= ~worker_bit;
+         if (!vwd->workers_pending) {
+             qemu_cond_signal(&vwd->work_finished);
+         }
+@@ -1668,9 +1668,13 @@
+         int64_t end_time = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
+         g_dbg.vp.workers[worker_id].time_us = end_time - start_time;
+ 
+-        qemu_cond_wait(&vwd->work_pending, &vwd->lock);
++        while (!vwd->workers_should_exit &&
++               !(vwd->workers_pending & worker_bit)) {
++            qemu_cond_wait(&self->work_pending, &vwd->lock);
++        }
+     } while (!vwd->workers_should_exit);
+ 
++    qemu_mutex_unlock(&vwd->lock);
+     rcu_unregister_thread();
+     return NULL;
+ }
+@@ -1721,7 +1725,7 @@
+         // Assign voice to worker
+         VoiceWorker *worker = &vwd->workers[next_worker_to_schedule];
+         worker->queue[worker->queue_len++] = vwd->queue[i];
+-        vwd->workers_pending |= 1 << next_worker_to_schedule;
++        vwd->workers_pending |= UINT64_C(1) << next_worker_to_schedule;
+ 
+         dirty = (dirty & ~clr) | dst;
+         if (clr & MULTIPASS_BIN_MASK) {
+@@ -1776,9 +1780,17 @@
+ 
+         // Signal workers and wait for completion
+         voice_work_schedule(d);
+-        qemu_cond_broadcast(&vwd->work_pending);
+-        qemu_cond_wait(&vwd->work_finished, &vwd->lock);
+-        assert(!vwd->workers_pending);
++        /* Multipass cohorts remain on the same worker in guest list order.
++         * Wake only workers with assigned voices, then wait for every assigned
++         * contribution before the DSP can consume the mixed frame. */
++        for (int i = 0; i < vwd->num_workers; i++) {
++            if (vwd->workers_pending & (UINT64_C(1) << i)) {
++                qemu_cond_signal(&vwd->workers[i].work_pending);
++            }
++        }
++        while (vwd->workers_pending) {
++            qemu_cond_wait(&vwd->work_finished, &vwd->lock);
++        }
+         vwd->queue_len = 0;
+ 
+         // Add voice contributions
+@@ -1814,15 +1826,19 @@
+ 
+     qemu_mutex_init(&vwd->lock);
+     qemu_mutex_lock(&vwd->lock);
+-    qemu_cond_init(&vwd->work_pending);
+     qemu_cond_init(&vwd->work_finished);
+     for (int i = 0; i < vwd->num_workers; i++) {
+-        vwd->workers_pending |= 1 << i;
+-        qemu_thread_create(&vwd->workers[i].thread, "mcpx.voice_worker",
+-                           voice_worker_thread, d, QEMU_THREAD_JOINABLE);
+-    }
+-    qemu_cond_wait(&vwd->work_finished, &vwd->lock);
+-    assert(!vwd->workers_pending);
++        VoiceWorker *worker = &vwd->workers[i];
++        worker->apu = d;
++        worker->worker_id = i;
++        qemu_cond_init(&worker->work_pending);
++        vwd->workers_pending |= UINT64_C(1) << i;
++        qemu_thread_create(&worker->thread, "mcpx.voice_worker",
++                           voice_worker_thread, worker, QEMU_THREAD_JOINABLE);
++    }
++    while (vwd->workers_pending) {
++        qemu_cond_wait(&vwd->work_finished, &vwd->lock);
++    }
+     qemu_mutex_unlock(&vwd->lock);
+ }
+ 
+@@ -1832,11 +1848,16 @@
+ 
+     qemu_mutex_lock(&vwd->lock);
+     vwd->workers_should_exit = true;
+-    qemu_cond_broadcast(&vwd->work_pending);
++    for (int i = 0; i < vwd->num_workers; i++) {
++        qemu_cond_signal(&vwd->workers[i].work_pending);
++    }
+     qemu_mutex_unlock(&vwd->lock);
+     for (int i = 0; i < vwd->num_workers; i++) {
+         qemu_thread_join(&vwd->workers[i].thread);
+-    }
++        qemu_cond_destroy(&vwd->workers[i].work_pending);
++    }
++    qemu_cond_destroy(&vwd->work_finished);
++    qemu_mutex_destroy(&vwd->lock);
+     g_free(vwd->workers);
+     vwd->workers = NULL;
+ }

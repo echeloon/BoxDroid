@@ -4,8 +4,10 @@
 #include <jni.h>
 #include <pthread.h>
 #include <errno.h>
+#include <sys/system_properties.h>
 
 #include "qemu/main-loop.h"
+#include "qemu/fast-hash.h"
 #include "qemu/timer.h"
 #include "system/replay.h"
 #include "system/runstate.h"
@@ -52,8 +54,25 @@ int64_t boxdroid_x87_start;
 extern bool boxdroid_android_present_rgba(const uint8_t *pixels,
                                          uint32_t width, uint32_t height,
                                          uint32_t stride);
+uint64_t boxdroid_guest_refresh_period_ns(void);
+JNIEXPORT jlong JNICALL
+Java_org_boxdroid_PerformanceActivity_nativeUniqueFrames(JNIEnv *, jobject);
+#ifdef BOXDROID_XBOX_RUNTIME
+JNIEXPORT jint JNICALL
+Java_org_boxdroid_MainActivity_nativeXboxStartWithDvd(JNIEnv *, jobject,
+    jstring, jstring, jstring, jstring, jint, jlong);
+#endif
 
 #define TAG "BoxDroid"
+
+static bool performance_profile;
+static bool detailed_diagnostics;
+extern void boxdroid_android_configure_workers(void);
+bool boxdroid_performance_profile_active(void);
+bool boxdroid_performance_profile_active(void)
+{
+    return performance_profile;
+}
 
 static pthread_mutex_t state_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t state_changed = PTHREAD_COND_INITIALIZER;
@@ -240,6 +259,7 @@ uint64_t boxdroid_diag_record(const char *event, uint64_t a, uint64_t b,
                                 uint64_t c, uint64_t d, uint64_t e,
                                 uint64_t f)
 {
+    if (!detailed_diagnostics) return 0;
     uint64_t sequence = __atomic_add_fetch(&m5_diagnostic_sequence, 1,
                                             __ATOMIC_RELAXED);
     int64_t timestamp = g_get_monotonic_time();
@@ -321,6 +341,7 @@ void boxdroid_diag_vram_sample(const char *boundary, uint64_t start,
                                  uint32_t width, uint32_t height, int depth,
                                  const uint8_t *data, size_t length)
 {
+    if (!detailed_diagnostics) return;
     size_t sample_size = MIN(length, (size_t)(4 * 1024 * 1024));
     uint64_t hash = UINT64_C(1469598103934665603);
     uint64_t nonzero_bytes = 0, nonzero_pixels = 0, nonblack_pixels = 0;
@@ -371,6 +392,7 @@ void boxdroid_diag_vram_write(const char *writer, uint64_t address,
                                 uint64_t bytes, uint64_t source,
                                 uint64_t guest_pc)
 {
+    if (!detailed_diagnostics) return;
     const uint64_t watch_start = BOXDROID_RAW_FB_BASE;
     const uint64_t watch_end = BOXDROID_RAW_FB_BASE + BOXDROID_RAW_FB_SIZE;
     uint64_t end, overlap_start, overlap_end, overlap_bytes, sequence;
@@ -434,6 +456,7 @@ void boxdroid_diag_cpu_store_value(uint64_t address, size_t size,
                                       uint64_t pcrtc_start,
                                       int64_t pre_store_us)
 {
+    if (!detailed_diagnostics) return;
     uint64_t begin, end;
     uint64_t before_word = 0, after_word = 0;
     bool before_nonzero = false, after_nonzero = false;
@@ -531,6 +554,7 @@ static struct {
 
 void boxdroid_tcg_event(unsigned kind)
 {
+    if (!detailed_diagnostics) return;
     if (kind < G_N_ELEMENTS(x87_exec.events)) ++x87_exec.events[kind];
 }
 
@@ -538,6 +562,7 @@ void boxdroid_tcg_event(unsigned kind)
  * disproportionately sample STI's interrupt-shadow exits in the idle loop. */
 void boxdroid_lookup_pc(uint64_t pc)
 {
+    if (!detailed_diagnostics) return;
     static uint64_t ticks, samples, overflow;
     static bool done;
     static struct { uint64_t pc, hits; } pcs[512];
@@ -577,6 +602,7 @@ void boxdroid_lookup_pc(uint64_t pc)
 
 void boxdroid_tb_return(bool chained, unsigned exit_index)
 {
+    if (!detailed_diagnostics) return;
     ++x87_exec.returns;
     x87_exec.chains += chained;
     if (exit_index < G_N_ELEMENTS(x87_exec.exits)) ++x87_exec.exits[exit_index];
@@ -635,11 +661,16 @@ static void x87_tb_profile(CPUState *cpu, uint64_t pc)
 void boxdroid_diag_tb_exec(CPUState *cpu, uint64_t pc,
                               uintptr_t tb_id, uint16_t guest_insns)
 {
+#ifdef BOXDROID_RUNTIME
+    /* This observer supplies the existing guest video period and is not a
+     * profiling hook. Keep it active independently of debug diagnostics. */
+    timing_video_mode_probe(cpu, pc);
+#endif
+    if (!detailed_diagnostics) return;
 #ifdef BOXDROID_XBOX_RUNTIME
     x87_tb_profile(cpu, pc);
 #endif
 #ifdef BOXDROID_RUNTIME
-    timing_video_mode_probe(cpu, pc);
     timing_sample_progress(pc, tb_id, guest_insns);
 #endif
     int64_t last_change = __atomic_load_n(&m5_progress_last_change_us,
@@ -738,6 +769,7 @@ void boxdroid_diag_tb_exec(CPUState *cpu, uint64_t pc,
 
 void boxdroid_diag_cpu_exit(int result, bool halted, uint32_t interrupts)
 {
+    if (!detailed_diagnostics) return;
     if (!m5_progress_started_us || m5_progress_ended_us) {
         return;
     }
@@ -756,6 +788,7 @@ void boxdroid_diag_device_access(bool write, const char *region,
                                     uint64_t value, int result,
                                     CPUState *cpu)
 {
+    if (!detailed_diagnostics) return;
     uint64_t pc;
     size_t i;
 #ifdef BOXDROID_XBOX_RUNTIME
@@ -803,6 +836,7 @@ void boxdroid_diag_device_access(bool write, const char *region,
 
 void boxdroid_diag_progress_summary(void)
 {
+    if (!detailed_diagnostics) return;
     __android_log_print(ANDROID_LOG_INFO, TAG,
         "BOXDROID_PROGRESS_SUMMARY last_change_us=%" PRId64
         " start_us=%" PRId64 " end_us=%" PRId64
@@ -852,6 +886,7 @@ void boxdroid_diag_progress_summary(void)
 void boxdroid_diag_vram_read(const char *reader, uint64_t address,
                                uint64_t bytes)
 {
+    if (!detailed_diagnostics) return;
     const uint64_t watch_start = BOXDROID_RAW_FB_BASE;
     const uint64_t watch_end = BOXDROID_RAW_FB_BASE + BOXDROID_RAW_FB_SIZE;
     uint64_t end, overlap_start, overlap_end, read_number;
@@ -884,6 +919,7 @@ void boxdroid_diag_target_vram_sample(const char *boundary,
                                         uint64_t vram_size,
                                         uint64_t sequence_event)
 {
+    if (!detailed_diagnostics) return;
     const uint64_t starts[] = { UINT64_C(0x3c00000), UINT64_C(0x3d00000) };
     if (!vram || !boundary) {
         return;
@@ -933,6 +969,7 @@ void boxdroid_diag_framebuffer_sample(const char *boundary,
                                         const uint8_t *data,
                                         size_t length)
 {
+    if (!detailed_diagnostics) return;
     size_t sample_bytes = MIN(length, BOXDROID_RAW_FB_SIZE);
     uint64_t hash = UINT64_C(1469598103934665603);
     uint64_t nonzero_bytes = 0, rgb_nonblack_pixels = 0;
@@ -1404,6 +1441,7 @@ Java_org_boxdroid_PerformanceActivity_nativeUniqueFrames(JNIEnv *env, jobject se
 extern uint64_t boxdroid_guest_flips(void);
 static void timing_report(int64_t now)
 {
+    if (!performance_profile) return;
     if (!timing_report_us) timing_report_us = now;
     if (now - timing_report_us < G_USEC_PER_SEC) return;
     VGACommonState *v = &g_nv2a->vga;
@@ -1741,11 +1779,19 @@ static void xbox_display_update(DisplayChangeListener *dcl,
     if (nv2a_surface) {
         nv2a_release_framebuffer_surface();
     }
-    for (size_t i = 0; i < (size_t) stride * surface_height_px; ++i) {
-        frame_hash ^= rgba[i];
-        frame_hash *= UINT64_C(1099511628211);
+    if (detailed_diagnostics) {
+        // Keep the legacy hash for cross-boundary diagnostic comparisons.
+        for (size_t i = 0; i < (size_t) stride * surface_height_px; ++i) {
+            frame_hash ^= rgba[i];
+            frame_hash *= UINT64_C(1099511628211);
+        }
+    } else {
+        // The changed-frame counter needs an image fingerprint, not the
+        // diagnostic byte loop on the main-loop/BQL critical path.
+        frame_hash = fast_hash(rgba, (size_t) stride * surface_height_px);
     }
-    for (int py = 0; py < surface_height_px; ++py) {
+    for (int py = 0; (detailed_diagnostics || vga_fallback || startup_vga_fallback) &&
+                    py < surface_height_px; ++py) {
         for (int px = 0; px < surface_width_px; ++px) {
             const uint8_t *pixel = rgba + (size_t)py * stride + (size_t)px * 4;
             uint8_t red = pixel[0], green = pixel[1], blue = pixel[2];
@@ -1820,6 +1866,12 @@ static void xbox_display_update(DisplayChangeListener *dcl,
     ++timing_frames;
     if (frame_hash != timing_last_hash) {
         __atomic_add_fetch(&timing_unique, 1, __ATOMIC_RELAXED);
+        if (performance_profile) {
+            __android_log_print(ANDROID_LOG_INFO, "BoxDroid3",
+                "GUEST_FRAME mono_us=%" PRId64 " unique=%" PRIu64
+                " guest_flips=%" PRIu64,
+                g_get_monotonic_time(), timing_unique, boxdroid_guest_flips());
+        }
         if (green_pixels > 1024) {
             ++timing_green;
             if (!__atomic_load_n(&timing_pc_start,__ATOMIC_RELAXED))
@@ -1987,7 +2039,7 @@ static void xbox_display_refresh(DisplayChangeListener *dcl)
     boxdroid_diag_event(BOXDROID_DIAG_GRAPHIC_HW_UPDATE,
                            qemu_clock_get_ms(QEMU_CLOCK_REALTIME), 0, 0, 0, 0, 0);
     now_us = g_get_monotonic_time();
-    if (now_us - m5_fb_periodic_sample_us >= G_USEC_PER_SEC) {
+    if (detailed_diagnostics && now_us - m5_fb_periodic_sample_us >= G_USEC_PER_SEC) {
         m5_fb_periodic_sample_us = now_us;
         if (g_nv2a) {
             DisplaySurface *surface = qemu_console_surface(dcl->con);
@@ -2034,6 +2086,7 @@ void boxdroid_diag_event(BoxDroidDiagnostic event,
                             uint64_t a, uint64_t b, uint64_t c,
                             uint64_t d, uint64_t e, uint64_t f)
 {
+    if (!detailed_diagnostics) return;
     uint64_t previous;
 
     if ((unsigned) event >= BOXDROID_DIAG_COUNT) {
@@ -2230,6 +2283,7 @@ static void boxdroid_diag_value_summary(void)
 
 void boxdroid_diag_summary(void)
 {
+    if (!detailed_diagnostics) return;
     __android_log_print(ANDROID_LOG_INFO, TAG,
         "BOXDROID_DIAG_SUMMARY refresh=%" PRIu64 " gfx_update=%" PRIu64
         " display_callback=%" PRIu64 " real_present=%" PRIu64,
@@ -2415,6 +2469,7 @@ void boxdroid_diag_summary(void)
 
 void boxdroid_diag_binding(const BoxDroidBindingInfo *info)
 {
+    if (!detailed_diagnostics) return;
     if (__atomic_exchange_n(&diagnostic_binding_logged, true, __ATOMIC_RELAXED)) {
         return;
     }
@@ -2441,6 +2496,7 @@ void boxdroid_diag_late_miss(uint64_t pcrtc_start, uint64_t line_offset,
                                 const BoxDroidBindingInfo *binding_32a4000,
                                 const BoxDroidBindingInfo *binding_3628000)
 {
+    if (!detailed_diagnostics) return;
     if (__atomic_exchange_n(&diagnostic_late_miss_logged, true, __ATOMIC_RELAXED)) {
         return;
     }
@@ -2486,12 +2542,14 @@ void boxdroid_diag_late_miss(uint64_t pcrtc_start, uint64_t line_offset,
 
 void boxdroid_diag_track_surface(const void *surface)
 {
+    if (!detailed_diagnostics) return;
     __atomic_store_n(&diagnostic_scanout_surface, surface, __ATOMIC_RELAXED);
 }
 
 bool boxdroid_diag_is_tracked_surface(const void *surface)
 {
-    return __atomic_load_n(&diagnostic_scanout_surface, __ATOMIC_RELAXED) == surface;
+    return detailed_diagnostics &&
+           __atomic_load_n(&diagnostic_scanout_surface, __ATOMIC_RELAXED) == surface;
 }
 
 void boxdroid_diag_sample(BoxDroidSampleBoundary boundary,
@@ -2499,6 +2557,7 @@ void boxdroid_diag_sample(BoxDroidSampleBoundary boundary,
                              uint64_t nonblack_pixels,
                              const char *copy_status)
 {
+    if (!detailed_diagnostics) return;
     static const char *const names[BOXDROID_SAMPLE_COUNT] = {
         "nv2a_staging", "xbox_vram", "display_surface", "pixman_rgba",
     };
@@ -2537,6 +2596,7 @@ void boxdroid_diag_binding_event(BoxDroidBindingEvent event,
                                     uint64_t base, uint64_t generation,
                                     const uint64_t values[8])
 {
+    if (!detailed_diagnostics) return;
     BoxDroidBindingJournal *journal = NULL;
     bool first, order_log = false, after_switch = false;
     uint64_t event_count = 0;
@@ -2825,6 +2885,7 @@ void boxdroid_diag_guest_io_stop(void)
 void boxdroid_diag_hdd_io(bool write, const char *path, uint64_t offset,
                              uint64_t bytes, int result)
 {
+    if (!detailed_diagnostics) return;
     bool path_match = runtime_hdd_path && path &&
                       g_str_has_suffix(path, runtime_hdd_path);
     pthread_mutex_lock(&hdd_io_lock);
@@ -2902,6 +2963,27 @@ static void *run_xbox(void *unused)
     int status;
     const char *hdd_arg = arguments[6];
     (void) unused;
+
+    char property[PROP_VALUE_MAX] = { 0 };
+    performance_profile = __system_property_get("debug.boxdroid.profile", property) &&
+                          strcmp(property, "1") == 0;
+    detailed_diagnostics = __system_property_get("debug.boxdroid.diagnostics", property) &&
+                           strcmp(property, "1") == 0;
+    pthread_setname_np(pthread_self(), "boxdroid-main");
+    boxdroid_android_configure_workers();
+    if (!detailed_diagnostics) {
+        for (size_t i = 0; arguments[i]; i++) {
+            if (!strcmp(arguments[i], "-d")) {
+                arguments[i + 1] = ARG("guest_errors");
+                break;
+            }
+        }
+    }
+    size_t argc = g_strv_length(arguments);
+    assert(argc + 2 < G_N_ELEMENTS(arguments));
+    arguments[argc] = ARG("-name");
+    arguments[argc + 1] = ARG("boxdroid,debug-threads=on");
+    arguments[argc + 2] = NULL;
 
 #ifdef BOXDROID_XBOX_RUNTIME
     qemu_thread_naming(true);
@@ -3044,14 +3126,14 @@ Java_org_boxdroid_MainActivity_nativeXboxStart(JNIEnv *env, jobject self,
     arguments[3] = ARG("-bios");
     arguments[4] = (char *) bios_path;
     arguments[5] = ARG("-drive");
-    arguments[6] = "file=BOXDROID_HDD,if=ide,index=0,media=disk,format=qcow2";
+    arguments[6] = ARG("file=BOXDROID_HDD,if=ide,index=0,media=disk,format=qcow2");
     arguments[7] = ARG("-drive");
 #ifdef BOXDROID_XBOX_RUNTIME
     arguments[5] = ARG("-add-fd");
     arguments[6] = g_strdup_printf("fd=%d,set=%d", dvd_source_fd,
                                    DVD_FDSET);
     arguments[7] = ARG("-drive");
-    arguments[8] = "file=BOXDROID_HDD,if=ide,index=0,media=disk,format=qcow2";
+    arguments[8] = ARG("file=BOXDROID_HDD,if=ide,index=0,media=disk,format=qcow2");
     arguments[9] = ARG("-drive");
     arguments[10] = ARG("file=/dev/fdset/55,if=ide,index=1,media=cdrom,format=raw");
 #else

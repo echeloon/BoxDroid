@@ -1,0 +1,310 @@
+From: BoxDroid <boxdroid@localhost>
+Subject: [PATCH] mcpx/apu: let the frame owner participate in voice work
+
+Downstream status: not submitted upstream. The APU owns the quiescent boundary,
+voice grouping, guest VOICE_LOCK arbitration, and the completed-mix barrier.
+
+Preserve the original cohort partitioning and per-cohort guest list order.
+An opt-in APU participant computes cohort zero while the existing background
+workers compute the other cohorts. Shared contributions retain the dispatcher
+mutex and DSP execution waits for all assigned work. Only spawned threads have
+conditions initialized and are signaled/joined. The APU holds its original
+state lock and registers with RCU for the same memory paths as voice workers.
+Profile-only mode changes join the old pool before creating its replacement.
+There is no extra worker, guest instruction splitting, audio clock change or
+batching of guest sample frames.
+
+diff --git a/hw/xbox/mcpx/apu/vp/vp.c b/hw/xbox/mcpx/apu/vp/vp.c
+--- a/hw/xbox/mcpx/apu/vp/vp.c
++++ b/hw/xbox/mcpx/apu/vp/vp.c
+@@ -1617,11 +1617,14 @@
+ #include <android/log.h>
+ extern bool boxdroid_performance_profile_active(void);
+ extern int boxdroid_android_requested_voice_workers(void);
+-#endif
+-
+-static void *voice_worker_thread(void *arg)
+-{
+-    VoiceWorker *self = arg;
++extern bool boxdroid_android_requested_apu_participation(void);
++#endif
++
++/* Called with the dispatcher mutex held; releases it only while processing
++ * this assigned cohort. List/multipass partitioning and the contribution
++ * barrier are identical for background workers and the APU participant. */
++static void voice_work_process(VoiceWorker *self)
++{
+     MCPXAPUState *d = self->apu;
+     VoiceWorkDispatch *vwd = &d->vp.voice_work_dispatch;
+     int worker_id = self->worker_id;
+@@ -1630,70 +1633,84 @@
+     const bool profile = boxdroid_performance_profile_active();
+ #endif
+ 
++    int64_t start_time = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
++    g_dbg.vp.workers[worker_id].num_voices = self->queue_len;
++
++    if (self->queue_len) {
++        qemu_mutex_unlock(&vwd->lock);
++
++        // Process queued voices
++        memset(self->mixbins, 0, sizeof(self->mixbins));
++        if (d->monitor.point == MCPX_APU_DEBUG_MON_VP) {
++            memset(self->sample_buf, 0, sizeof(self->sample_buf));
++        }
++        for (int i = 0; i < self->queue_len; i++) {
++            voice_process(d, self->mixbins, self->sample_buf,
++                          self->queue[i].voice, self->queue[i].list);
++        }
++
++#ifdef BOXDROID_XBOX_RUNTIME
++        int64_t lock_begin_us = profile ?
++            qemu_clock_get_us(QEMU_CLOCK_REALTIME) : 0;
++#endif
++        qemu_mutex_lock(&vwd->lock);
++#ifdef BOXDROID_XBOX_RUNTIME
++        int64_t mix_begin_us = profile ?
++            qemu_clock_get_us(QEMU_CLOCK_REALTIME) : 0;
++        if (profile) {
++            self->profile_lock_wait_us += mix_begin_us - lock_begin_us;
++            self->profile_work_us += lock_begin_us - start_time;
++        }
++#endif
++
++        // Add voice contributions
++        for (int b = 0; b < NUM_MIXBINS; b++) {
++            for (int s = 0; s < NUM_SAMPLES_PER_FRAME; s++) {
++                vwd->mixbins[b][s] += self->mixbins[b][s];
++            }
++        }
++        if (d->monitor.point == MCPX_APU_DEBUG_MON_VP) {
++            for (int i = 0; i < NUM_SAMPLES_PER_FRAME; i++) {
++                d->vp.sample_buf[i][0] += self->sample_buf[i][0];
++                d->vp.sample_buf[i][1] += self->sample_buf[i][1];
++            }
++        }
++
++#ifdef BOXDROID_XBOX_RUNTIME
++        if (profile) {
++            self->profile_mix_hold_us +=
++                qemu_clock_get_us(QEMU_CLOCK_REALTIME) - mix_begin_us;
++        }
++#endif
++        self->queue_len = 0;
++    }
++
++    vwd->workers_pending &= ~worker_bit;
++    if (!vwd->workers_pending) {
++        qemu_cond_signal(&vwd->work_finished);
++    }
++
++    int64_t end_time = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
++    g_dbg.vp.workers[worker_id].time_us = end_time - start_time;
++
++}
++
++static void *voice_worker_thread(void *arg)
++{
++    VoiceWorker *self = arg;
++    MCPXAPUState *d = self->apu;
++    VoiceWorkDispatch *vwd = &d->vp.voice_work_dispatch;
++    uint64_t worker_bit = UINT64_C(1) << self->worker_id;
++#ifdef BOXDROID_XBOX_RUNTIME
++    const bool profile = boxdroid_performance_profile_active();
++#endif
++
+     rcu_register_thread();
+     qemu_mutex_lock(&vwd->lock);
+     self->queue_len = 0;
+ 
+     do {
+-        int64_t start_time = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
+-        g_dbg.vp.workers[worker_id].num_voices = self->queue_len;
+-
+-        if (self->queue_len) {
+-            qemu_mutex_unlock(&vwd->lock);
+-
+-            // Process queued voices
+-            memset(self->mixbins, 0, sizeof(self->mixbins));
+-            if (d->monitor.point == MCPX_APU_DEBUG_MON_VP) {
+-                memset(self->sample_buf, 0, sizeof(self->sample_buf));
+-            }
+-            for (int i = 0; i < self->queue_len; i++) {
+-                voice_process(d, self->mixbins, self->sample_buf,
+-                              self->queue[i].voice, self->queue[i].list);
+-            }
+-
+-#ifdef BOXDROID_XBOX_RUNTIME
+-            int64_t lock_begin_us = profile ?
+-                qemu_clock_get_us(QEMU_CLOCK_REALTIME) : 0;
+-#endif
+-            qemu_mutex_lock(&vwd->lock);
+-#ifdef BOXDROID_XBOX_RUNTIME
+-            int64_t mix_begin_us = profile ?
+-                qemu_clock_get_us(QEMU_CLOCK_REALTIME) : 0;
+-            if (profile) {
+-                self->profile_lock_wait_us += mix_begin_us - lock_begin_us;
+-                self->profile_work_us += lock_begin_us - start_time;
+-            }
+-#endif
+-
+-            // Add voice contributions
+-            for (int b = 0; b < NUM_MIXBINS; b++) {
+-                for (int s = 0; s < NUM_SAMPLES_PER_FRAME; s++) {
+-                    vwd->mixbins[b][s] += self->mixbins[b][s];
+-                }
+-            }
+-            if (d->monitor.point == MCPX_APU_DEBUG_MON_VP) {
+-                for (int i = 0; i < NUM_SAMPLES_PER_FRAME; i++) {
+-                    d->vp.sample_buf[i][0] += self->sample_buf[i][0];
+-                    d->vp.sample_buf[i][1] += self->sample_buf[i][1];
+-                }
+-            }
+-
+-#ifdef BOXDROID_XBOX_RUNTIME
+-            if (profile) {
+-                self->profile_mix_hold_us +=
+-                    qemu_clock_get_us(QEMU_CLOCK_REALTIME) - mix_begin_us;
+-            }
+-#endif
+-            self->queue_len = 0;
+-        }
+-
+-        vwd->workers_pending &= ~worker_bit;
+-        if (!vwd->workers_pending) {
+-            qemu_cond_signal(&vwd->work_finished);
+-        }
+-
+-        int64_t end_time = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
+-        g_dbg.vp.workers[worker_id].time_us = end_time - start_time;
++        voice_work_process(self);
+ 
+         while (!vwd->workers_should_exit &&
+                !(vwd->workers_pending & worker_bit)) {
+@@ -1840,10 +1857,16 @@
+         /* Multipass cohorts remain on the same worker in guest list order.
+          * Wake only workers with assigned voices, then wait for every assigned
+          * contribution before the DSP can consume the mixed frame. */
+-        for (int i = 0; i < vwd->num_workers; i++) {
++        for (int i = vwd->apu_participates ? 1 : 0;
++             i < vwd->num_workers; i++) {
+             if (vwd->workers_pending & (UINT64_C(1) << i)) {
+                 qemu_cond_signal(&vwd->workers[i].work_pending);
+             }
++        }
++        /* Compute an independent cohort while the other workers run. The APU
++         * still owns d->lock, and DSP execution waits for every contribution. */
++        if (vwd->apu_participates && (vwd->workers_pending & UINT64_C(1))) {
++            voice_work_process(&vwd->workers[0]);
+         }
+         while (vwd->workers_pending) {
+             qemu_cond_wait(&vwd->work_finished, &vwd->lock);
+@@ -1881,13 +1904,15 @@
+             worker->profile_wakes = 0;
+         }
+         __android_log_print(ANDROID_LOG_INFO, "BoxDroid",
+-            "VOICE_PROFILE elapsed_us=%" PRId64 " workers=%d frames=%" PRIu64
++            "VOICE_PROFILE elapsed_us=%" PRId64
++            " workers=%d background_workers=%d apu_participates=%d frames=%" PRIu64
+             " jobs=%" PRIu64 " queue_peak=%" PRIu64 " worker_queue_peak=%" PRIu64
+             " barrier_us=%" PRIu64 " voice_lock_us=%" PRIu64
+             " worker_work_us=%" PRIu64 " worker_lock_wait_us=%" PRIu64
+             " worker_mix_hold_us=%" PRIu64 " worker_wait_us=%" PRIu64
+             " worker_wakes=%" PRIu64,
+             end_time - vwd->profile_last_us, vwd->num_workers,
++            vwd->num_workers - vwd->apu_participates, vwd->apu_participates,
+             vwd->profile_frames, vwd->profile_jobs, vwd->profile_queue_peak,
+             vwd->profile_worker_queue_peak, vwd->profile_barrier_us,
+             vwd->profile_voice_lock_us, work, lock_wait, mix_hold, wait, wakes);
+@@ -1911,6 +1936,10 @@
+     int num_workers = g_config.audio.vp.num_workers ?: SDL_GetNumLogicalCPUCores();
+ #endif
+     vwd->num_workers = MAX(1, MIN(num_workers, MAX_VOICE_WORKERS));
++    vwd->apu_participates = false;
++#ifdef BOXDROID_XBOX_RUNTIME
++    vwd->apu_participates = boxdroid_android_requested_apu_participation();
++#endif
+     vwd->workers = g_malloc0_n(vwd->num_workers, sizeof(VoiceWorker));
+     vwd->workers_should_exit = false;
+     vwd->workers_pending = 0;
+@@ -1931,6 +1960,9 @@
+         VoiceWorker *worker = &vwd->workers[i];
+         worker->apu = d;
+         worker->worker_id = i;
++        if (vwd->apu_participates && i == 0) {
++            continue;
++        }
+         qemu_cond_init(&worker->work_pending);
+         vwd->workers_pending |= UINT64_C(1) << i;
+         char name[16];
+@@ -1950,11 +1982,13 @@
+ 
+     qemu_mutex_lock(&vwd->lock);
+     vwd->workers_should_exit = true;
+-    for (int i = 0; i < vwd->num_workers; i++) {
++    for (int i = vwd->apu_participates ? 1 : 0;
++         i < vwd->num_workers; i++) {
+         qemu_cond_signal(&vwd->workers[i].work_pending);
+     }
+     qemu_mutex_unlock(&vwd->lock);
+-    for (int i = 0; i < vwd->num_workers; i++) {
++    for (int i = vwd->apu_participates ? 1 : 0;
++         i < vwd->num_workers; i++) {
+         qemu_thread_join(&vwd->workers[i].thread);
+         qemu_cond_destroy(&vwd->workers[i].work_pending);
+     }
+@@ -1977,13 +2011,16 @@
+         if (now - last_check_us >= 1000000) {
+             VoiceWorkDispatch *vwd = &d->vp.voice_work_dispatch;
+             int requested = boxdroid_android_requested_voice_workers();
+-            if (requested != vwd->num_workers) {
++            bool participation = boxdroid_android_requested_apu_participation();
++            if (requested != vwd->num_workers ||
++                participation != vwd->apu_participates) {
+                 assert(!vwd->queue_len && !vwd->workers_pending);
+                 voice_work_finalize(d);
+                 g_config.audio.vp.num_workers = requested;
+                 voice_work_init(d);
+                 __android_log_print(ANDROID_LOG_INFO, "BoxDroid",
+-                    "VOICE_POOL workers=%d quiescent_reconfigure=1", requested);
++                    "VOICE_POOL workers=%d apu_participates=%d quiescent_reconfigure=1",
++                    vwd->num_workers, vwd->apu_participates);
+             }
+             last_check_us = now;
+         }
+diff --git a/hw/xbox/mcpx/apu/vp/vp.h b/hw/xbox/mcpx/apu/vp/vp.h
+--- a/hw/xbox/mcpx/apu/vp/vp.h
++++ b/hw/xbox/mcpx/apu/vp/vp.h
+@@ -74,6 +74,7 @@
+     int num_workers;
+     VoiceWorker *workers;
+     bool workers_should_exit;
++    bool apu_participates;
+     uint64_t workers_pending;
+     QemuCond work_finished;
+     float mixbins[NUM_MIXBINS][NUM_SAMPLES_PER_FRAME];
+diff --git a/hw/xbox/mcpx/apu/apu.c b/hw/xbox/mcpx/apu/apu.c
+--- a/hw/xbox/mcpx/apu/apu.c
++++ b/hw/xbox/mcpx/apu/apu.c
+@@ -314,6 +314,11 @@
+ static void *mcpx_apu_frame_thread(void *arg)
+ {
+     MCPXAPUState *d = MCPX_APU_DEVICE(arg);
++#ifdef BOXDROID_XBOX_RUNTIME
++    /* The optional inline voice cohort uses the same memory access paths as
++     * registered background voice workers. Register for the owner's lifetime. */
++    rcu_register_thread();
++#endif
+     qemu_mutex_lock(&d->lock);
+     while (!qatomic_read(&d->exiting)) {
+         if (d->pause_requested) {
+@@ -367,6 +372,9 @@
+ #endif
+     }
+     qemu_mutex_unlock(&d->lock);
++#ifdef BOXDROID_XBOX_RUNTIME
++    rcu_unregister_thread();
++#endif
+     return NULL;
+ }
+ 
