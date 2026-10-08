@@ -1,0 +1,28 @@
+From: BoxDroid <boxdroid@localhost>
+Subject: [PATCH] nv2a/vulkan: invalidate only the downloaded surface range
+
+Downstream status: not submitted upstream. The core renderer owns cache invalidation and GPU completion.
+
+Retain transfer barriers and queue completion before host access.
+Avoid cache maintenance over unused staging memory on non-coherent devices.
+
+diff --git a/hw/xbox/nv2a/pgraph/vk/surface.c b/hw/xbox/nv2a/pgraph/vk/surface.c
+--- a/hw/xbox/nv2a/pgraph/vk/surface.c
++++ b/hw/xbox/nv2a/pgraph/vk/surface.c
+@@ -728,9 +728,13 @@
+                           r->storage_buffers[BUFFER_STAGING_DST].allocation,
+                           &mapped_memory_ptr));
+ 
+-    vmaInvalidateAllocation(r->allocator,
+-                            r->storage_buffers[BUFFER_STAGING_DST].allocation,
+-                            0, VK_WHOLE_SIZE);
++    /* The queue completion and HOST_READ barrier above make this copy
++     * available to the CPU. Only invalidate the downloaded image, not the
++     * entire 64 MiB staging allocation. VMA aligns non-coherent ranges to
++     * nonCoherentAtomSize; depth/stencil packing fits within this host size. */
++    VK_CHECK(vmaInvalidateAllocation(
++        r->allocator, r->storage_buffers[BUFFER_STAGING_DST].allocation,
++        0, downloaded_image_size));
+ #ifdef BOXDROID_XBOX_RUNTIME
+     if (boxdroid_target_32a) {
+         uint32_t sample_ordinal = __atomic_add_fetch(

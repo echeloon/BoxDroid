@@ -1,5 +1,5 @@
-#ifdef BOXDROID_RUNTIME
 #include <chrono>
+#ifdef BOXDROID_RUNTIME
 #include <pixman.h>
 #endif
 #define VK_USE_PLATFORM_ANDROID_KHR 1
@@ -7,6 +7,8 @@
 #include <android/log.h>
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
+#include <sys/system_properties.h>
+#include <pthread.h>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_android.h>
 
@@ -20,6 +22,8 @@
 #include <sstream>
 #include <string>
 #include <vector>
+
+#include "boxdroid-frame-queue.h"
 
 namespace {
 constexpr char kTag[] = "BoxDroid";
@@ -56,7 +60,29 @@ AspectFit aspectFit(uint32_t sourceWidth, uint32_t sourceHeight,
 // Surface callbacks and QEMU frame delivery run on different native threads.
 // Serialize presenter resources so a resize cannot tear down an active upload.
 std::mutex presenterLock;
+// Serialize producer mode changes with Java surface lifecycle calls. The worker
+// takes only presenterLock, so draining/joining never holds its resource lock.
+std::mutex presentationLifecycleLock;
 std::atomic<uint32_t> overlayPresentedFrames{0};
+std::atomic<bool> surfaceRetiring{false};
+std::atomic<bool> asyncPresentation{true};
+
+bool propertyEnabled(const char *name, bool fallback) {
+    char value[PROP_VALUE_MAX]{};
+    if (!__system_property_get(name, value)) return fallback;
+    return std::strcmp(value, "0") != 0 && std::strcmp(value, "false") != 0;
+}
+
+bool profilingEnabled() {
+    static const bool enabled = propertyEnabled("debug.boxdroid.profile", false);
+    return enabled;
+}
+
+bool asyncPresentationEnabled() {
+    return asyncPresentation.load(std::memory_order_acquire);
+}
+
+bool consumeQueuedFrame(const boxdroid::FrameQueue::Frame &frame);
 
 struct Presenter {
     void *loader = nullptr;
@@ -116,6 +142,10 @@ struct Presenter {
     VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
     VkSemaphore acquired = VK_NULL_HANDLE;
     VkSemaphore rendered = VK_NULL_HANDLE;
+    VkBuffer stagingBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory stagingMemory = VK_NULL_HANDLE;
+    void *stagingMapped = nullptr;
+    VkDeviceSize stagingCapacity = 0;
     ANativeWindow *window = nullptr;
     std::vector<VkImage> images;
     std::vector<VkSurfaceFormatKHR> supportedFormats;
@@ -164,6 +194,17 @@ struct Presenter {
     std::string gpuName;
     std::string lastError;
 } p;
+
+// Construct after presenter resources so destruction joins the worker before
+// the presenter's owned vectors are freed. Retire first to cancel an acquire
+// retry if the library is unloaded without the Java shutdown callback.
+boxdroid::FrameQueue frameQueue(consumeQueuedFrame);
+struct PresentationWorkerLifetime {
+    ~PresentationWorkerLifetime() {
+        surfaceRetiring.store(true, std::memory_order_release);
+        frameQueue.stop();
+    }
+} presentationWorkerLifetime;
 
 // The Xemu renderer uses Volk's process-wide Vulkan dispatch table. This
 // diagnostic presenter owns a separate instance/device, so it must also own
@@ -217,6 +258,13 @@ void log(int priority, const std::string &message) {
     __android_log_write(priority, kTag, message.c_str());
 }
 
+void startPresentationWorker() {
+    if (!frameQueue.start()) {
+        asyncPresentation.store(false, std::memory_order_release);
+        log(ANDROID_LOG_WARN, "PRESENT_WORKER_UNAVAILABLE using synchronous presentation");
+    }
+}
+
 std::string hexValue(uint32_t value) {
     std::ostringstream stream;
     stream << "0x" << std::hex << value;
@@ -248,8 +296,10 @@ void noteSuboptimal(const char *operation) {
 }
 
 bool check(VkResult r, const char *operation) {
-    log(r == VK_SUCCESS || r == VK_SUBOPTIMAL_KHR ? ANDROID_LOG_INFO : ANDROID_LOG_ERROR,
-        std::string(operation) + "=" + resultName(r) + " (" + std::to_string(r) + ")");
+    if (r != VK_SUCCESS) {
+        log(r == VK_SUBOPTIMAL_KHR ? ANDROID_LOG_WARN : ANDROID_LOG_ERROR,
+            std::string(operation) + "=" + resultName(r) + " (" + std::to_string(r) + ")");
+    }
     if (r == VK_ERROR_OUT_OF_DATE_KHR) ++p.outOfDate;
     if (r == VK_SUBOPTIMAL_KHR) noteSuboptimal(operation);
     if (r == VK_ERROR_SURFACE_LOST_KHR) ++p.surfaceLost;
@@ -492,9 +542,63 @@ bool createSurface(JNIEnv *env, jobject javaSurface, uint32_t width, uint32_t he
     return createSwapchain() && redrawLastFrame();
 }
 
+void destroyStaging() {
+    if (p.stagingMapped) vkUnmapMemory(p.device, p.stagingMemory);
+    if (p.stagingBuffer) vkDestroyBuffer(p.device, p.stagingBuffer, nullptr);
+    if (p.stagingMemory) vkFreeMemory(p.device, p.stagingMemory, nullptr);
+    p.stagingBuffer = VK_NULL_HANDLE;
+    p.stagingMemory = VK_NULL_HANDLE;
+    p.stagingMapped = nullptr;
+    p.stagingCapacity = 0;
+}
+
+bool ensureStaging(VkDeviceSize bytes) {
+    if (p.stagingCapacity >= bytes) return true;
+    // Called under presenterLock after the previous upload's queue completion.
+    // The mapped coherent buffer is reused only after vkQueueWaitIdle below.
+    destroyStaging();
+    VkBufferCreateInfo info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    info.size = bytes;
+    info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    if (!check(vkCreateBuffer(p.device, &info, nullptr, &p.stagingBuffer), "vkCreateBuffer(frame)")) return false;
+    VkMemoryRequirements requirements{};
+    vkGetBufferMemoryRequirements(p.device, p.stagingBuffer, &requirements);
+    VkPhysicalDeviceMemoryProperties properties{};
+    vkGetPhysicalDeviceMemoryProperties(p.gpu, &properties);
+    uint32_t memoryType = UINT32_MAX;
+    for (uint32_t i = 0; i < properties.memoryTypeCount; ++i) {
+        const auto flags = properties.memoryTypes[i].propertyFlags;
+        if ((requirements.memoryTypeBits & (1u << i)) &&
+            (flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) &&
+            (flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
+            memoryType = i;
+            break;
+        }
+    }
+    if (memoryType == UINT32_MAX) {
+        p.lastError = "no host-visible coherent Vulkan memory for NV2A frame upload";
+        log(ANDROID_LOG_ERROR, p.lastError);
+        destroyStaging();
+        return false;
+    }
+    VkMemoryAllocateInfo allocation{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    allocation.allocationSize = requirements.size;
+    allocation.memoryTypeIndex = memoryType;
+    if (!check(vkAllocateMemory(p.device, &allocation, nullptr, &p.stagingMemory), "vkAllocateMemory(frame)") ||
+        !check(vkBindBufferMemory(p.device, p.stagingBuffer, p.stagingMemory, 0), "vkBindBufferMemory(frame)") ||
+        !check(vkMapMemory(p.device, p.stagingMemory, 0, allocation.allocationSize, 0, &p.stagingMapped), "vkMapMemory(frame)")) {
+        destroyStaging();
+        return false;
+    }
+    p.stagingCapacity = bytes;
+    return true;
+}
+
 void destroySwapchain() {
     p.frameGeometryValid = false;
     if (p.device) vkDeviceWaitIdle(p.device);
+    destroyStaging();
     if (p.acquired) { vkDestroySemaphore(p.device, p.acquired, nullptr); p.acquired = VK_NULL_HANDLE; }
     if (p.rendered) { vkDestroySemaphore(p.device, p.rendered, nullptr); p.rendered = VK_NULL_HANDLE; }
     if (p.commandPool) { vkDestroyCommandPool(p.device, p.commandPool, nullptr); p.commandPool = VK_NULL_HANDLE; p.commandBuffer = VK_NULL_HANDLE; }
@@ -659,8 +763,17 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
     using PerfClock = std::chrono::steady_clock;
     auto perfStart = PerfClock::now();
 #endif
+    const bool hasPixels = pixels && sourceWidth && sourceHeight && sourceStride >= sourceWidth * 4;
+    if (hasPixels && !ensureStaging(static_cast<VkDeviceSize>(p.extent.width) * p.extent.height * 4)) return false;
     uint32_t index = 0;
-    VkResult r = vkAcquireNextImageKHR(p.device, p.swapchain, UINT64_MAX, p.acquired, VK_NULL_HANDLE, &index);
+    VkResult r;
+    // A finite acquisition lets surface retirement interrupt a blocked worker.
+    // While the surface is live, retry without discarding the queued frame.
+    do {
+        if (surfaceRetiring.load(std::memory_order_acquire)) return false;
+        r = vkAcquireNextImageKHR(p.device, p.swapchain, 100000000,
+                                 p.acquired, VK_NULL_HANDLE, &index);
+    } while (r == VK_TIMEOUT || r == VK_NOT_READY);
     if (r == VK_ERROR_OUT_OF_DATE_KHR) {
         ++p.outOfDate;
         log(ANDROID_LOG_WARN, "vkAcquireNextImageKHR=VK_ERROR_OUT_OF_DATE_KHR");
@@ -679,9 +792,8 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
 #ifdef BOXDROID_RUNTIME
     auto perfAcquired = PerfClock::now();
 #endif
-    VkBuffer stagingBuffer = VK_NULL_HANDLE;
-    VkDeviceMemory stagingMemory = VK_NULL_HANDLE;
-    if (pixels && sourceWidth && sourceHeight && sourceStride >= sourceWidth * 4) {
+    VkBuffer stagingBuffer = hasPixels ? p.stagingBuffer : VK_NULL_HANDLE;
+    if (hasPixels) {
         const AspectFit fit = aspectFit(sourceWidth, sourceHeight, p.extent.width, p.extent.height);
         const uint32_t destinationWidth = fit.width;
         const uint32_t destinationHeight = fit.height;
@@ -709,50 +821,7 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
                 std::to_string(destinationY) + " aspect_fit=1 pre_transform=" +
                 hexValue(p.swapchainPreTransform));
         }
-        VkBufferCreateInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-        bufferInfo.size = static_cast<VkDeviceSize>(p.extent.width) * p.extent.height * 4;
-        bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        if (!check(vkCreateBuffer(p.device, &bufferInfo, nullptr, &stagingBuffer), "vkCreateBuffer(frame)")) return false;
-        VkMemoryRequirements requirements{};
-        vkGetBufferMemoryRequirements(p.device, stagingBuffer, &requirements);
-        VkPhysicalDeviceMemoryProperties memoryProperties{};
-        vkGetPhysicalDeviceMemoryProperties(p.gpu, &memoryProperties);
-        uint32_t memoryType = UINT32_MAX;
-        for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; ++i) {
-            const auto flags = memoryProperties.memoryTypes[i].propertyFlags;
-            if ((requirements.memoryTypeBits & (1u << i)) &&
-                (flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) &&
-                (flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
-                memoryType = i;
-                break;
-            }
-        }
-        if (memoryType == UINT32_MAX) {
-            vkDestroyBuffer(p.device, stagingBuffer, nullptr);
-            p.lastError = "no host-visible coherent Vulkan memory for NV2A frame upload";
-            log(ANDROID_LOG_ERROR, p.lastError);
-            return false;
-        }
-        VkMemoryAllocateInfo allocation{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
-        allocation.allocationSize = requirements.size;
-        allocation.memoryTypeIndex = memoryType;
-        if (!check(vkAllocateMemory(p.device, &allocation, nullptr, &stagingMemory), "vkAllocateMemory(frame)")) {
-            vkDestroyBuffer(p.device, stagingBuffer, nullptr);
-            return false;
-        }
-        if (!check(vkBindBufferMemory(p.device, stagingBuffer, stagingMemory, 0), "vkBindBufferMemory(frame)")) {
-            vkFreeMemory(p.device, stagingMemory, nullptr);
-            vkDestroyBuffer(p.device, stagingBuffer, nullptr);
-            return false;
-        }
-        void *mapped = nullptr;
-        if (!check(vkMapMemory(p.device, stagingMemory, 0, allocation.allocationSize, 0, &mapped), "vkMapMemory(frame)")) {
-            vkFreeMemory(p.device, stagingMemory, nullptr);
-            vkDestroyBuffer(p.device, stagingBuffer, nullptr);
-            return false;
-        }
-        auto *dst = static_cast<uint8_t *>(mapped);
+        auto *dst = static_cast<uint8_t *>(p.stagingMapped);
         const size_t destinationBytes = static_cast<size_t>(p.extent.width) * p.extent.height * 4;
         std::memset(dst, 0, destinationBytes);
         for (size_t i = 0; i < destinationBytes / 4; ++i) dst[i * 4 + 3] = 255;
@@ -767,9 +836,6 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
         if (!srcImage || !dstImage) {
             if (srcImage) pixman_image_unref(srcImage);
             if (dstImage) pixman_image_unref(dstImage);
-            vkUnmapMemory(p.device, stagingMemory);
-            vkDestroyBuffer(p.device, stagingBuffer, nullptr);
-            vkFreeMemory(p.device, stagingMemory, nullptr);
             return false;
         }
         pixman_transform_t transform;
@@ -798,7 +864,6 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
             }
         }
 #endif
-        vkUnmapMemory(p.device, stagingMemory);
     }
 #ifdef BOXDROID_RUNTIME
     auto perfPrepared = PerfClock::now();
@@ -869,10 +934,6 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
     }
     else if (r != VK_SUCCESS) { ++p.failedPresents; check(r, "vkQueuePresentKHR"); return false; }
     if (!check(vkQueueWaitIdle(p.queue), "vkQueueWaitIdle")) { ++p.failedPresents; return false; }
-    if (stagingBuffer) {
-        vkDestroyBuffer(p.device, stagingBuffer, nullptr);
-        vkFreeMemory(p.device, stagingMemory, nullptr);
-    }
     if (r == VK_ERROR_OUT_OF_DATE_KHR) {
         ++p.failedPresents;
         p.lastError = resultName(r);
@@ -885,18 +946,18 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
     acquire+=micros(perfStart,perfAcquired); prepare+=micros(perfAcquired,perfPrepared);
     submitTime+=micros(perfPrepared,perfSubmitted); presentTime+=micros(perfSubmitted,perfPresented);
     idle+=micros(perfPresented,PerfClock::now());
-    if (++count == 30) {
+    if (++count == 30 && profilingEnabled()) {
         __android_log_print(ANDROID_LOG_INFO,"BoxDroid",
             "WSI frames=%llu acquire_us=%llu prepare_us=%llu submit_us=%llu present_us=%llu idle_us=%llu",
             (unsigned long long)count,(unsigned long long)acquire,(unsigned long long)prepare,
             (unsigned long long)submitTime,(unsigned long long)presentTime,(unsigned long long)idle);
-        count=acquire=prepare=submitTime=presentTime=idle=0;
     }
+    if (count >= 30) count=acquire=prepare=submitTime=presentTime=idle=0;
 #endif
     ++p.presents;
     overlayPresentedFrames.store(p.presents, std::memory_order_relaxed);
     if (p.generation == 1) ++p.frameBeforeRecreate; else ++p.frameAfterRecreate;
-    if ((p.presents % 30) == 0) log(ANDROID_LOG_INFO, "FRAME presented=" + std::to_string(p.presents) + " generation=" + std::to_string(p.generation));
+    if (profilingEnabled() && (p.presents % 30) == 0) log(ANDROID_LOG_INFO, "FRAME presented=" + std::to_string(p.presents) + " generation=" + std::to_string(p.generation));
     return true;
 }
 
@@ -906,6 +967,60 @@ void destroySurface() {
     if (p.surface) { vkDestroySurfaceKHR(p.instance, p.surface, nullptr); p.surface = VK_NULL_HANDLE; ++p.surfaceDestroys; }
     if (p.window) { ANativeWindow_release(p.window); p.window = nullptr; }
     log(ANDROID_LOG_INFO, "SURFACE_DESTROY count=" + std::to_string(p.surfaceDestroys));
+}
+
+bool presentOwnedPixels(const uint8_t *pixels, uint32_t width,
+                       uint32_t height, uint32_t stride) {
+    std::lock_guard<std::mutex> guard(presenterLock);
+    if (!p.surface || surfaceRetiring.load(std::memory_order_acquire)) return false;
+    p.lastFrame.assign(pixels, pixels + static_cast<size_t>(stride) * height);
+    p.lastSourceWidth = width;
+    p.lastSourceHeight = height;
+    p.lastSourceStride = stride;
+    return presentFrame(true, p.lastFrame.data(), width, height, stride);
+}
+
+void recordPresentation(boxdroid::FrameQueue::Clock::time_point queued,
+                        boxdroid::FrameQueue::Clock::time_point begin, bool ok) {
+    if (!profilingEnabled()) return;
+    using Queue = boxdroid::FrameQueue;
+    const auto end = Queue::Clock::now();
+    const auto monoUs = std::chrono::duration_cast<std::chrono::microseconds>(
+        end.time_since_epoch()).count();
+    // Opt-in per-frame timestamps permit exact interval and latency percentiles.
+    __android_log_print(ANDROID_LOG_INFO, kTag,
+        "PRESENT_FRAME mono_us=%lld queue_us=%llu service_us=%llu ok=%d async=%d",
+        static_cast<long long>(monoUs),
+        static_cast<unsigned long long>(Queue::micros(queued, begin)),
+        static_cast<unsigned long long>(Queue::micros(begin, end)),
+        ok, asyncPresentationEnabled());
+    static auto lastReport = Queue::Clock::now();
+    if (Queue::micros(lastReport, end) >= 1000000) {
+        const auto stats = frameQueue.snapshot();
+        __android_log_print(ANDROID_LOG_INFO, kTag,
+            "PRESENT_QUEUE submitted=%llu completed=%llu failed=%llu canceled=%llu max_depth=%llu blocked_us=%llu idle_us=%llu",
+            static_cast<unsigned long long>(stats.submitted),
+            static_cast<unsigned long long>(stats.completed),
+            static_cast<unsigned long long>(stats.failed),
+            static_cast<unsigned long long>(stats.canceled),
+            static_cast<unsigned long long>(stats.maxDepth),
+            static_cast<unsigned long long>(stats.blockedUs),
+            static_cast<unsigned long long>(stats.idleUs));
+        lastReport = end;
+    }
+}
+
+bool consumeQueuedFrame(const boxdroid::FrameQueue::Frame &frame) {
+    thread_local const bool named = [] {
+        pthread_setname_np(pthread_self(), "boxdroid-wsi");
+        return true;
+    }();
+    (void)named;
+    const auto begin = boxdroid::FrameQueue::Clock::now();
+    const bool ok = presentOwnedPixels(frame.pixels.data(), frame.width,
+                                      frame.height, frame.stride);
+    recordPresentation(frame.queued, begin, ok);
+    return ok;
 }
 
 std::string diagnostics() {
@@ -959,6 +1074,7 @@ extern "C" JNIEXPORT void JNICALL Java_org_boxdroid_MainActivity_nativeSurfaceDe
 extern "C" JNIEXPORT jstring JNICALL Java_org_boxdroid_MainActivity_nativeDiagnostics(JNIEnv *, jobject);
 extern "C" JNIEXPORT void JNICALL Java_org_boxdroid_MainActivity_nativeShutdown(JNIEnv *, jobject);
 extern "C" JNIEXPORT jlong JNICALL Java_org_boxdroid_OverlayActivity_nativePresentedFrames(JNIEnv *, jobject);
+extern "C" JNIEXPORT jlong JNICALL Java_org_boxdroid_PerformanceActivity_nativePresentedFrames(JNIEnv *, jobject);
 
 extern "C" bool boxdroid_android_present_rgba(const uint8_t *, uint32_t,
                                                 uint32_t, uint32_t);
@@ -967,30 +1083,58 @@ extern "C" bool boxdroid_android_present_rgba(const uint8_t *pixels,
                                                 uint32_t width,
                                                 uint32_t height,
                                                 uint32_t stride) {
-    std::lock_guard<std::mutex> guard(presenterLock);
     if (!pixels || !width || !height || static_cast<uint64_t>(stride) <
         static_cast<uint64_t>(width) * 4) return false;
-    p.lastFrame.assign(pixels, pixels + static_cast<size_t>(stride) * height);
-    p.lastSourceWidth = width;
-    p.lastSourceHeight = height;
-    p.lastSourceStride = stride;
-    return presentFrame(true, p.lastFrame.data(), width, height, stride);
+    std::lock_guard<std::mutex> lifecycle(presentationLifecycleLock);
+    if (surfaceRetiring.load(std::memory_order_acquire)) return false;
+    if (profilingEnabled()) {
+        static auto lastCheck = boxdroid::FrameQueue::Clock::now();
+        const auto now = boxdroid::FrameQueue::Clock::now();
+        if (boxdroid::FrameQueue::micros(lastCheck, now) >= 1000000) {
+            const bool requested = propertyEnabled("debug.boxdroid.async_present", true);
+            if (requested != asyncPresentationEnabled()) {
+                frameQueue.drain();
+                frameQueue.stop();
+                asyncPresentation.store(requested, std::memory_order_release);
+                if (requested) startPresentationWorker();
+                log(ANDROID_LOG_INFO, "PRESENT_MODE async=" + std::to_string(requested) + " drained=1");
+            }
+            lastCheck = now;
+        }
+    }
+    if (asyncPresentationEnabled()) return frameQueue.push(pixels, width, height, stride);
+    const auto begin = boxdroid::FrameQueue::Clock::now();
+    const bool ok = presentOwnedPixels(pixels, width, height, stride);
+    recordPresentation(begin, begin, ok);
+    return ok;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_org_boxdroid_MainActivity_nativeSurfaceCreated(JNIEnv *env, jobject, jobject surface, jint width, jint height, jint generation) {
+    surfaceRetiring.store(true, std::memory_order_release);
+    std::lock_guard<std::mutex> lifecycle(presentationLifecycleLock);
+    frameQueue.stop();
     std::lock_guard<std::mutex> guard(presenterLock);
+    if (p.surface) destroySurface();
+    surfaceRetiring.store(false, std::memory_order_release);
+    asyncPresentation.store(propertyEnabled("debug.boxdroid.async_present", true), std::memory_order_release);
     const bool ok = createSurface(env, surface, static_cast<uint32_t>(std::max(width, 1)),
         static_cast<uint32_t>(std::max(height, 1)), static_cast<uint32_t>(generation));
     log(ok ? ANDROID_LOG_INFO : ANDROID_LOG_ERROR, std::string("SURFACE_CREATED result=") + (ok ? "PASS" : "FAIL") + " generation=" + std::to_string(generation));
+    if (ok && asyncPresentationEnabled()) startPresentationWorker();
     return ok ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_org_boxdroid_MainActivity_nativeSurfaceChanged(JNIEnv *, jobject, jint width, jint height) {
+    surfaceRetiring.store(true, std::memory_order_release);
+    std::lock_guard<std::mutex> lifecycle(presentationLifecycleLock);
+    frameQueue.stop();
     std::lock_guard<std::mutex> guard(presenterLock);
+    surfaceRetiring.store(false, std::memory_order_release);
     const bool ok = resizeSurface(static_cast<uint32_t>(std::max(width, 1)), static_cast<uint32_t>(std::max(height, 1)));
     log(ok ? ANDROID_LOG_INFO : ANDROID_LOG_ERROR, std::string("SURFACE_CHANGED result=") + (ok ? "PASS" : "FAIL"));
+    if (ok && asyncPresentationEnabled()) startPresentationWorker();
     return ok ? JNI_TRUE : JNI_FALSE;
 }
 
@@ -1002,6 +1146,9 @@ Java_org_boxdroid_MainActivity_nativePresentFrame(JNIEnv *, jobject) {
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_boxdroid_MainActivity_nativeSurfaceDestroyed(JNIEnv *, jobject) {
+    surfaceRetiring.store(true, std::memory_order_release);
+    std::lock_guard<std::mutex> lifecycle(presentationLifecycleLock);
+    frameQueue.stop();
     std::lock_guard<std::mutex> guard(presenterLock);
     destroySurface();
 }
@@ -1023,6 +1170,9 @@ Java_org_boxdroid_OverlayActivity_nativePresentedFrames(JNIEnv *, jobject) {
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_boxdroid_MainActivity_nativeShutdown(JNIEnv *, jobject) {
+    surfaceRetiring.store(true, std::memory_order_release);
+    std::lock_guard<std::mutex> lifecycle(presentationLifecycleLock);
+    frameQueue.stop();
     std::lock_guard<std::mutex> guard(presenterLock);
     destroySurface();
     if (p.device) {

@@ -1,0 +1,57 @@
+From: BoxDroid <boxdroid@localhost>
+Subject: [PATCH] mcpx/apu: allow opt-in Android DSP backend comparisons
+
+Downstream status: not submitted upstream. Preserve the interpreter default
+and original GP/EP execution ordering. Profiling can compare the already
+linked upstream Cranelift backend on AArch64. Switch only at the owning APU
+thread's quiescent frame boundary using existing upstream state migration.
+This is an experiment control, not a normal-gameplay backend change.
+
+diff --git a/hw/xbox/mcpx/apu/dsp/gp_ep.c b/hw/xbox/mcpx/apu/dsp/gp_ep.c
+--- a/hw/xbox/mcpx/apu/dsp/gp_ep.c
++++ b/hw/xbox/mcpx/apu/dsp/gp_ep.c
+@@ -21,6 +21,12 @@
+ 
+ #include "hw/xbox/mcpx/apu/apu_int.h"
+ 
++#ifdef BOXDROID_XBOX_RUNTIME
++#include <android/log.h>
++extern bool boxdroid_performance_profile_active(void);
++extern bool boxdroid_android_requested_dsp_jit(void);
++#endif
++
+ static const int16_t ep_silence[256][2] = { 0 };
+ 
+ void mcpx_apu_update_dsp_preference(MCPXAPUState *d)
+@@ -30,8 +36,29 @@
+     d->monitor.point = MCPX_APU_DEBUG_MON_GP_OR_EP;
+     d->gp.realtime = true;
+     d->ep.realtime = true;
+-    dsp_set_engine(d->gp.dsp, false);
+-    dsp_set_engine(d->ep.dsp, false);
++    /* Keep the portable backend in normal play. Opt-in profiling may compare
++     * the existing upstream JIT at a quiescent frame boundary. Both DSPs use
++     * upstream state export/import; no DSP instructions execute concurrently
++     * with migration and the original GP/EP ordering remains unchanged. */
++    bool use_jit = false;
++#ifdef BOXDROID_XBOX_RUNTIME
++    static int64_t last_check_us;
++    if (boxdroid_performance_profile_active()) {
++        int64_t now_us = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
++        if (now_us - last_check_us >= 1000000) {
++            bool requested = boxdroid_android_requested_dsp_jit();
++            if (requested != g_config.audio.use_dsp_jit) {
++                g_config.audio.use_dsp_jit = requested;
++                __android_log_print(ANDROID_LOG_INFO, "BoxDroid",
++                    "DSP_ENGINE jit=%d migration=upstream_quiescent", requested);
++            }
++            last_check_us = now_us;
++        }
++        use_jit = g_config.audio.use_dsp_jit;
++    }
++#endif
++    dsp_set_engine(d->gp.dsp, use_jit);
++    dsp_set_engine(d->ep.dsp, use_jit);
+ #else
+     static int last_known_dsp_pref = -1;
+     static int last_known_jit_pref = -1;

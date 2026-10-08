@@ -1,0 +1,84 @@
+From: BoxDroid <boxdroid@localhost>
+Subject: [PATCH] nv2a/vulkan: grow host download staging on demand
+
+Downstream status: not submitted upstream. The core renderer owns the buffer and every download submission.
+
+Keep the original maximum surface capacity and all guest-visible
+completion points. Avoid reserving a 64 MiB readback allocation for typical
+640x480 surfaces; mobile cache maintenance can cover the whole allocation
+even when Vulkan is given a smaller range. Upload and compute capacities
+remain independent. Growth waits for the queue before replacing the buffer.
+
+diff --git a/hw/xbox/nv2a/pgraph/vk/buffer.c b/hw/xbox/nv2a/pgraph/vk/buffer.c
+--- a/hw/xbox/nv2a/pgraph/vk/buffer.c
++++ b/hw/xbox/nv2a/pgraph/vk/buffer.c
+@@ -41,6 +41,23 @@
+     vmaDestroyBuffer(r->allocator, buffer->buffer, buffer->allocation);
+     buffer->buffer = VK_NULL_HANDLE;
+     buffer->allocation = VK_NULL_HANDLE;
++}
++
++/* This buffer is used only by synchronous surface-to-host downloads.
++ * Previous single-time submissions have completed before the next download;
++ * explicitly wait again on the rare growth path before replacing storage. */
++void pgraph_vk_ensure_download_buffer(PGRAPHState *pg, size_t bytes)
++{
++    PGRAPHVkState *r = pg->vk_renderer_state;
++    StorageBuffer *buffer = &r->storage_buffers[BUFFER_STAGING_DST];
++    if (bytes <= buffer->buffer_size) {
++        return;
++    }
++    assert(bytes <= 4096 * 4096 * 4);
++    VK_CHECK(vkQueueWaitIdle(r->queue));
++    destroy_buffer(pg, buffer);
++    buffer->buffer_size = MIN(ROUND_UP(bytes, 2 * MiB), 4096 * 4096 * 4);
++    create_buffer(pg, buffer);
+ }
+ 
+ void pgraph_vk_init_buffers(NV2AState *d)
+@@ -73,13 +90,15 @@
+     r->storage_buffers[BUFFER_STAGING_DST] = (StorageBuffer){
+         .alloc_info = host_alloc_create_info,
+         .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT,
++        /* Some mobile drivers maintain caches over an entire allocation even
++         * for an image-sized invalidation. Start small and grow on demand. */
++        .buffer_size = 2 * MiB,
++    };
++
++    r->storage_buffers[BUFFER_STAGING_SRC] = (StorageBuffer){
++        .alloc_info = host_alloc_create_info,
++        .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+         .buffer_size = 4096 * 4096 * 4,
+-    };
+-
+-    r->storage_buffers[BUFFER_STAGING_SRC] = (StorageBuffer){
+-        .alloc_info = host_alloc_create_info,
+-        .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+-        .buffer_size = r->storage_buffers[BUFFER_STAGING_DST].buffer_size,
+     };
+ 
+     r->storage_buffers[BUFFER_COMPUTE_DST] = (StorageBuffer){
+diff --git a/hw/xbox/nv2a/pgraph/vk/surface.c b/hw/xbox/nv2a/pgraph/vk/surface.c
+--- a/hw/xbox/nv2a/pgraph/vk/surface.c
++++ b/hw/xbox/nv2a/pgraph/vk/surface.c
+@@ -536,7 +536,8 @@
+ 
+     size_t downloaded_image_size = surface->host_fmt.host_bytes_per_pixel *
+                                    surface->width * surface->height;
+-    assert((downloaded_image_size) <=
++    pgraph_vk_ensure_download_buffer(pg, downloaded_image_size);
++    assert(downloaded_image_size <=
+            r->storage_buffers[BUFFER_STAGING_DST].buffer_size);
+ 
+     int copy_buffer_idx = use_compute_to_convert_depth_stencil_format ?
+diff --git a/hw/xbox/nv2a/pgraph/vk/renderer.h b/hw/xbox/nv2a/pgraph/vk/renderer.h
+--- a/hw/xbox/nv2a/pgraph/vk/renderer.h
++++ b/hw/xbox/nv2a/pgraph/vk/renderer.h
+@@ -487,6 +487,7 @@
+ void pgraph_vk_destroy_shader_module(PGRAPHVkState *r, ShaderModuleInfo *info);
+ 
+ // buffer.c
++void pgraph_vk_ensure_download_buffer(PGRAPHState *pg, size_t bytes);
+ void pgraph_vk_init_buffers(NV2AState *d);
+ void pgraph_vk_finalize_buffers(NV2AState *d);
+ bool pgraph_vk_buffer_has_space_for(PGRAPHState *pg, int index,
