@@ -22,6 +22,14 @@ export BOXDROID_INPUT=1
 export BOXDROID_OPTIMIZED_BUILD="${BOXDROID_OPTIMIZED_BUILD:-1}"
 BUILD_ROOT="$BOXDROID_WORK_ROOT/android-arm64"
 
+# Build the pinned app-local loader and its namespace hooks, never a GPU driver.
+cmake -S "$ROOT/native/android/driver" -B "$BUILD_ROOT/driver" \
+    -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" \
+    -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-28 -DCMAKE_BUILD_TYPE=Release
+cmake --build "$BUILD_ROOT/driver" -j"${JOBS:-4}"
+mkdir -p "$BUILD_ROOT/jniLibs/arm64-v8a"
+find "$BUILD_ROOT/driver" -name '*.so' -exec cp {} "$BUILD_ROOT/jniLibs/arm64-v8a/" \;
+
 # Reconstruct and incrementally build every time, including when a .so exists.
 # Otherwise native source changes silently leave stale code inside the APK.
 ./scripts/build-native.sh

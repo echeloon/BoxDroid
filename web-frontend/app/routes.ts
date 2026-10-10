@@ -8,6 +8,6 @@ export default [
     route("/", "routes/matrix-layout.tsx", [
         index("routes/_index.tsx"),
         route("library", "routes/library.tsx"),
-        route("settings", "routes/settings.tsx"),
+        route("settings/*", "routes/settings.tsx"),
     ]),
 ] satisfies RouteConfig;

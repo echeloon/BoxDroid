@@ -29,6 +29,8 @@ android {
         }
     }
 
+    packaging { jniLibs { useLegacyPackaging = true } }
+
     buildTypes {
         debug { debuggable true; jniDebuggable true }
         release { minifyEnabled false }

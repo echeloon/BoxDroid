@@ -19,6 +19,8 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".GraphicsDriverProbe" android:exported="false" android:process=":drivercheck" android:screenOrientation="landscape" />
+
         <activity
             android:name=".GameActivity"
             android:configChanges="orientation|screenSize|smallestScreenSize"
