@@ -1,0 +1,90 @@
+From: BoxDroid downstream
+Subject: [PATCH] Profile voice formats and worker work in Android APU
+
+Record active mono, stereo and multipass work per worker once per second when
+BoxDroid performance profiling is enabled. This is observational and leaves
+normal play unchanged.
+
+diff --git a/hw/xbox/mcpx/apu/vp/vp.c b/hw/xbox/mcpx/apu/vp/vp.c
+index cc7e55761c..f22c8d635c 100644
+--- a/hw/xbox/mcpx/apu/vp/vp.c
++++ b/hw/xbox/mcpx/apu/vp/vp.c
+@@ -1313,7 +1313,8 @@ static void get_multipass_samples(MCPXAPUState *d,
+ static void voice_process(MCPXAPUState *d,
+                           float mixbins[NUM_MIXBINS][NUM_SAMPLES_PER_FRAME],
+                           float sample_buf[NUM_SAMPLES_PER_FRAME][2],
+-                          uint16_t v, int voice_list)
++                          uint16_t v, int voice_list,
++                          VoiceWorker *worker, bool profile)
+ {
+     assert(v < MCPX_HW_MAX_VOICES);
+     bool stereo = voice_get_mask(d, v, NV_PAVS_VOICE_CFG_FMT,
+@@ -1358,6 +1359,18 @@ static void voice_process(MCPXAPUState *d,
+     bool multipass = voice_get_mask(d, v, NV_PAVS_VOICE_CFG_FMT,
+                                     NV_PAVS_VOICE_CFG_FMT_MULTIPASS);
+     dbg->multipass = multipass;
++#ifdef BOXDROID_XBOX_RUNTIME
++    if (profile) {
++        worker->profile_jobs++;
++        if (multipass) {
++            worker->profile_multipass_jobs++;
++        } else if (stereo) {
++            worker->profile_stereo_jobs++;
++        } else {
++            worker->profile_mono_jobs++;
++        }
++    }
++#endif
+ 
+     if (multipass) {
+         get_multipass_samples(d, mixbins, v, samples);
+@@ -1631,6 +1644,8 @@ static void voice_work_process(VoiceWorker *self)
+     uint64_t worker_bit = UINT64_C(1) << worker_id;
+ #ifdef BOXDROID_XBOX_RUNTIME
+     const bool profile = boxdroid_performance_profile_active();
++#else
++    const bool profile = false;
+ #endif
+ 
+     int64_t start_time = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
+@@ -1646,7 +1661,8 @@ static void voice_work_process(VoiceWorker *self)
+         }
+         for (int i = 0; i < self->queue_len; i++) {
+             voice_process(d, self->mixbins, self->sample_buf,
+-                          self->queue[i].voice, self->queue[i].list);
++                          self->queue[i].voice, self->queue[i].list,
++                          self, profile);
+         }
+ 
+ #ifdef BOXDROID_XBOX_RUNTIME
+@@ -1894,6 +1910,17 @@ voice_work_dispatch(MCPXAPUState *d,
+         uint64_t work = 0, lock_wait = 0, mix_hold = 0, wait = 0, wakes = 0;
+         for (int i = 0; i < vwd->num_workers; i++) {
+             VoiceWorker *worker = &vwd->workers[i];
++            __android_log_print(ANDROID_LOG_INFO, "BoxDroid",
++                "VOICE_WORKER_PROFILE elapsed_us=%" PRId64
++                " worker=%d jobs=%" PRIu64 " mono=%" PRIu64
++                " stereo=%" PRIu64 " multipass=%" PRIu64
++                " work_us=%" PRIu64 " lock_wait_us=%" PRIu64,
++                end_time - vwd->profile_last_us, i,
++                worker->profile_jobs, worker->profile_mono_jobs,
++                worker->profile_stereo_jobs, worker->profile_multipass_jobs,
++                worker->profile_work_us, worker->profile_lock_wait_us);
++            worker->profile_jobs = worker->profile_mono_jobs = 0;
++            worker->profile_stereo_jobs = worker->profile_multipass_jobs = 0;
+             work += worker->profile_work_us;
+             lock_wait += worker->profile_lock_wait_us;
+             mix_hold += worker->profile_mix_hold_us;
+diff --git a/hw/xbox/mcpx/apu/vp/vp.h b/hw/xbox/mcpx/apu/vp/vp.h
+index 4b4775fe8f..da510639a3 100644
+--- a/hw/xbox/mcpx/apu/vp/vp.h
++++ b/hw/xbox/mcpx/apu/vp/vp.h
+@@ -66,6 +66,8 @@ typedef struct VoiceWorker {
+     /* Accessed only under the dispatcher mutex. Never guest-visible. */
+     uint64_t profile_work_us, profile_lock_wait_us, profile_mix_hold_us;
+     uint64_t profile_wait_us, profile_wakes;
++    uint64_t profile_jobs, profile_mono_jobs, profile_stereo_jobs;
++    uint64_t profile_multipass_jobs;
+ #endif
+ } VoiceWorker;
+ 

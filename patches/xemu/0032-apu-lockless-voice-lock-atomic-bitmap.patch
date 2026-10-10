@@ -1,0 +1,64 @@
+From: BoxDroid <boxdroid@localhost>
+Subject: [PATCH] mcpx/apu: make voice_lock lockless with atomic bitmap operations
+
+Downstream status: not submitted upstream. The voice lock bitmap tracks
+which voices are being updated by the guest.
+
+Previously, voice_lock acquired d->lock (coarse APU mutex) while holding
+the Big QEMU Lock (BQL) on the guest CPU thread. Because d->lock is held
+coarsely by the APU worker across voice worker scheduling and DSP
+processing, the guest CPU spent 400-500 ms/s blocked in voice_lock.
+
+Operate on d->vp.voice_locked using atomic bitwise operations (qatomic_or
+and qatomic_and) and signal d->cond without holding d->lock, eliminating
+lock contention on the guest execution critical path.
+
+diff --git a/hw/xbox/mcpx/apu/vp/vp.c b/hw/xbox/mcpx/apu/vp/vp.c
+index a8d46e3f15..4bffd7d941 100644
+--- a/hw/xbox/mcpx/apu/vp/vp.c
++++ b/hw/xbox/mcpx/apu/vp/vp.c
+@@ -140,36 +140,27 @@ static void voice_lock(MCPXAPUState *d, uint16_t v, bool lock)
+ {
+     assert(v < MCPX_HW_MAX_VOICES);
+ #ifdef BOXDROID_RUNTIME
+-    int64_t timing_begin = g_get_monotonic_time();
+-    qatomic_inc(&boxdroid_voice_lock_waiters);
+-#endif
+-    qemu_mutex_lock(&d->lock);
+-#ifdef BOXDROID_RUNTIME
+-    qatomic_dec(&boxdroid_voice_lock_waiters);
+-    static uint64_t calls, wait_us, maximum;
++    static uint64_t calls;
+     static int64_t report;
+     int64_t now = g_get_monotonic_time();
+     if (!report) report = now;
+-    uint64_t elapsed = now - timing_begin;
+-    ++calls; wait_us += elapsed; maximum = MAX(maximum, elapsed);
++    ++calls;
+     if (now - report >= G_USEC_PER_SEC) {
+         __android_log_print(ANDROID_LOG_INFO, "BoxDroid",
+-            "APU_VOICE_WAIT interval_us=%lld calls=%llu wait_us=%llu maximum_us=%llu",
+-            (long long)(now-report), (unsigned long long)calls,
+-            (unsigned long long)wait_us, (unsigned long long)maximum);
+-        calls = wait_us = maximum = 0; report = now;
++            "APU_VOICE_WAIT interval_us=%lld calls=%llu wait_us=0 maximum_us=0",
++            (long long)(now-report), (unsigned long long)calls);
++        calls = 0; report = now;
+     }
+ #endif
+ 
+-    uint64_t mask = 1LL << (v % 64);
++    uint64_t mask = 1ULL << (v % 64);
+     if (lock) {
+-        d->vp.voice_locked[v / 64] |= mask;
++        qatomic_or(&d->vp.voice_locked[v / 64], mask);
+     } else {
+-        d->vp.voice_locked[v / 64] &= ~mask;
++        qatomic_and(&d->vp.voice_locked[v / 64], ~mask);
+     }
+ 
+     qemu_cond_signal(&d->cond);
+-    qemu_mutex_unlock(&d->lock);
+ }
+ 
+ static bool is_voice_locked(MCPXAPUState *d, uint16_t v)

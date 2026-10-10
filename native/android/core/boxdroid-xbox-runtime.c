@@ -569,15 +569,28 @@ void boxdroid_lookup_pc(uint64_t pc)
     ++x87_exec.events[0];
     if ((++ticks & 1023) || done) return;
     int64_t begin = __atomic_load_n(&timing_pc_start, __ATOMIC_RELAXED);
-    if (!begin) return;
+    if (!begin) {
+        char prop[PROP_VALUE_MAX] = {0};
+        if (__system_property_get("debug.boxdroid.sample_pc", prop) && prop[0] == '1') {
+            begin = g_get_monotonic_time();
+            __atomic_store_n(&timing_pc_start, begin, __ATOMIC_RELAXED);
+            done = false;
+            samples = 0;
+            overflow = 0;
+            memset(pcs, 0, sizeof(pcs));
+        } else {
+            return;
+        }
+    }
     int64_t now = g_get_monotonic_time();
     if (now - begin >= 5 * G_USEC_PER_SEC) {
         done = true;
+        __atomic_store_n(&timing_pc_start, 0, __ATOMIC_RELAXED);
         __android_log_print(ANDROID_LOG_INFO, "BoxDroid4",
             "LOOKUP_SAMPLE elapsed_us=%lld samples=%llu overflow=%llu stride=1024",
             (long long)(now-begin), (unsigned long long)samples,
             (unsigned long long)overflow);
-        for (unsigned rank = 0; rank < 12; ++rank) {
+        for (unsigned rank = 0; rank < 20; ++rank) {
             int best = -1;
             for (unsigned i = 0; i < G_N_ELEMENTS(pcs); ++i)
                 if (pcs[i].hits && (best < 0 || pcs[i].hits > pcs[best].hits)) best = i;

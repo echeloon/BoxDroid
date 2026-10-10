@@ -1,0 +1,432 @@
+diff --git a/fpu/softfloat.c b/fpu/softfloat.c
+index 8094358c2e..809ee01331 100644
+--- a/fpu/softfloat.c
++++ b/fpu/softfloat.c
+@@ -474,6 +474,167 @@ static inline bool is_anynorm(FloatClass c)
+     return float_cmask(c) & float_cmask_anynorm;
+ }
+ 
++#if defined(BOXDROID_XBOX_RUNTIME)
++#include <sys/system_properties.h>
++static int boxdroid_fast_fpu_state = -1;
++static uint32_t boxdroid_fast_fpu_check_cnt = 0;
++static inline bool boxdroid_use_fast_fpu(void)
++{
++    if (unlikely(boxdroid_fast_fpu_state < 0 || (++boxdroid_fast_fpu_check_cnt & 0xffff) == 1)) {
++        char prop[PROP_VALUE_MAX] = {0};
++        if (__system_property_get("debug.boxdroid.fast_fpu", prop) > 0) {
++            boxdroid_fast_fpu_state = (prop[0] != '0');
++        } else {
++            boxdroid_fast_fpu_state = 1;
++        }
++    }
++    return boxdroid_fast_fpu_state == 1;
++}
++#else
++static inline bool boxdroid_use_fast_fpu(void)
++{
++    const char *env = getenv("BOXDROID_FAST_FPU");
++    if (env) {
++        return env[0] != '0';
++    }
++    return true;
++}
++#endif
++
++
++
++static inline bool f80_to_double_fast(floatx80 a, double *out)
++{
++    if (unlikely((a.low & 0x7ffULL) != 0)) {
++        return false;
++    }
++    uint32_t exp = a.high & 0x7fff;
++    uint32_t sign = (a.high >> 15) & 1;
++    if (likely(exp >= (16383 - 1022) && exp <= (16383 + 1023) && (a.low & 0x8000000000000000ULL))) {
++        int32_t exp_dbl = (int32_t)exp - 16383 + 1023;
++        uint64_t mant_dbl = (a.low >> 11) & 0x000fffffffffffffULL;
++        union { uint64_t u; double d; } res;
++        res.u = ((uint64_t)sign << 63) | ((uint64_t)exp_dbl << 52) | mant_dbl;
++        *out = res.d;
++        return true;
++    }
++    if (unlikely(exp == 0 && a.low == 0)) {
++        union { uint64_t u; double d; } res;
++        res.u = (uint64_t)sign << 63;
++        *out = res.d;
++        return true;
++    }
++    return false;
++}
++
++static inline FloatRelation floatx80_compare_fast_exact(floatx80 a, floatx80 b)
++{
++    uint32_t exp_a = a.high & 0x7fff;
++    uint32_t exp_b = b.high & 0x7fff;
++    if (unlikely(exp_a == 0x7fff || exp_b == 0x7fff)) {
++        return float_relation_unordered;
++    }
++    if (unlikely(((a.low >> 63) == 0 && exp_a != 0) || ((b.low >> 63) == 0 && exp_b != 0))) {
++        return float_relation_unordered;
++    }
++    bool a_zero = (exp_a == 0 && a.low == 0);
++    bool b_zero = (exp_b == 0 && b.low == 0);
++    if (unlikely(a_zero && b_zero)) {
++        return float_relation_equal;
++    }
++    uint32_t sign_a = (a.high >> 15) & 1;
++    uint32_t sign_b = (b.high >> 15) & 1;
++    if (sign_a != sign_b) {
++        if (a_zero) return sign_b ? float_relation_greater : float_relation_less;
++        if (b_zero) return sign_a ? float_relation_less : float_relation_greater;
++        return sign_a ? float_relation_less : float_relation_greater;
++    }
++    if (a.high == b.high && a.low == b.low) {
++        return float_relation_equal;
++    }
++    bool a_mag_greater = (exp_a > exp_b) || (exp_a == exp_b && a.low > b.low);
++    if (sign_a) {
++        return a_mag_greater ? float_relation_less : float_relation_greater;
++    } else {
++        return a_mag_greater ? float_relation_greater : float_relation_less;
++    }
++}
++
++static inline bool double_to_f80_fast(double d, floatx80 *out)
++{
++    union { double d; uint64_t u; } u = { .d = d };
++    uint32_t sign = (u.u >> 63) & 1;
++    uint32_t exp_dbl = (u.u >> 52) & 0x7ff;
++    uint64_t mant_dbl = u.u & 0x000fffffffffffffULL;
++    if (likely(exp_dbl > 0 && exp_dbl < 0x7ff)) {
++        uint32_t exp_80 = exp_dbl - 1023 + 16383;
++        uint64_t low = (1ULL << 63) | (mant_dbl << 11);
++        uint16_t high = (uint16_t)((sign << 15) | exp_80);
++        *out = (floatx80){ .low = low, .high = high };
++        return true;
++    }
++    if (unlikely(exp_dbl == 0 && mant_dbl == 0)) {
++        *out = (floatx80){ .low = 0, .high = (uint16_t)(sign << 15) };
++        return true;
++    }
++    return false;
++}
++
++static inline bool float32_to_floatx80_fast(uint32_t a, floatx80 *out)
++{
++    uint32_t exp = (a >> 23) & 0xff;
++    uint32_t mant = a & 0x007fffff;
++    if (likely(exp > 0 && exp < 0xff)) {
++        uint16_t high = (uint16_t)(((a >> 31) << 15) | (exp + 16256));
++        uint64_t low = (1ULL << 63) | ((uint64_t)mant << 40);
++        *out = (floatx80){ .low = low, .high = high };
++        return true;
++    }
++    if (unlikely((a & 0x7fffffff) == 0)) {
++        *out = (floatx80){ .low = 0, .high = (uint16_t)((a >> 31) << 15) };
++        return true;
++    }
++    return false;
++}
++
++static inline bool float64_to_floatx80_fast(uint64_t a, floatx80 *out)
++{
++    uint32_t exp = (a >> 52) & 0x7ff;
++    uint64_t mant = a & 0x000fffffffffffffULL;
++    if (likely(exp > 0 && exp < 0x7ff)) {
++        uint16_t high = (uint16_t)(((a >> 63) << 15) | (exp + 15360));
++        uint64_t low = (1ULL << 63) | (mant << 11);
++        *out = (floatx80){ .low = low, .high = high };
++        return true;
++    }
++    if (unlikely((a & 0x7fffffffffffffffULL) == 0)) {
++        *out = (floatx80){ .low = 0, .high = (uint16_t)((a >> 63) << 15) };
++        return true;
++    }
++    return false;
++}
++
++static inline bool int64_to_floatx80_fast(int64_t a, floatx80 *out)
++{
++    if (unlikely(a == 0)) {
++        *out = (floatx80){ .low = 0, .high = 0 };
++        return true;
++    }
++    if (unlikely(a == INT64_MIN)) {
++        *out = (floatx80){ .low = 0x8000000000000000ULL, .high = 0x8000 | (16383 + 63) };
++        return true;
++    }
++    uint32_t sign = (a < 0) ? 1 : 0;
++    uint64_t val = (a < 0) ? (uint64_t)-a : (uint64_t)a;
++    int lz = __builtin_clzll(val);
++    uint32_t exp = 63 - lz;
++    uint64_t low = val << lz;
++    uint16_t high = (uint16_t)((sign << 15) | (16383 + exp));
++    *out = (floatx80){ .low = low, .high = high };
++    return true;
++}
++
++
+ /*
+  * Structure holding all of the decomposed parts of a float.
+  * The exponent is unbiased and the fraction is normalized.
+@@ -2096,6 +2257,21 @@ float128 float128_sub(float128 a, float128 b, float_status *status)
+ static floatx80 QEMU_FLATTEN
+ floatx80_addsub(floatx80 a, floatx80 b, float_status *status, bool subtract)
+ {
++    if (likely(boxdroid_use_fast_fpu() &&
++               status->float_rounding_mode == float_round_nearest_even)) {
++        double da, db;
++        if (likely(f80_to_double_fast(a, &da) && f80_to_double_fast(b, &db))) {
++            double dres = subtract ? (da - db) : (da + db);
++            floatx80 res;
++            if (likely(double_to_f80_fast(dres, &res))) {
++                if (status->floatx80_rounding_precision == floatx80_precision_s) {
++                    res.low = (res.low + 0x800000000ULL) & ~0xfffffffffULL;
++                }
++                return res;
++            }
++        }
++    }
++
+     FloatParts128 pa, pb, *pr;
+ 
+     if (!floatx80_unpack_canonical(&pa, a, status) ||
+@@ -2218,6 +2394,24 @@ float128_mul(float128 a, float128 b, float_status *status)
+ floatx80 QEMU_FLATTEN
+ floatx80_mul(floatx80 a, floatx80 b, float_status *status)
+ {
++    if (likely(boxdroid_use_fast_fpu() &&
++               status->float_rounding_mode == float_round_nearest_even)) {
++        double da, db;
++        if (likely(f80_to_double_fast(a, &da) && f80_to_double_fast(b, &db))) {
++            int exp_sum = (int)(a.high & 0x7fff) + (int)(b.high & 0x7fff) - 16383;
++            if (likely(exp_sum >= (16383 - 1000) && exp_sum <= (16383 + 1000))) {
++                double dres = da * db;
++                floatx80 res;
++                if (likely(double_to_f80_fast(dres, &res))) {
++                    if (status->floatx80_rounding_precision == floatx80_precision_s) {
++                        res.low = (res.low + 0x800000000ULL) & ~0xfffffffffULL;
++                    }
++                    return res;
++                }
++            }
++        }
++    }
++
+     FloatParts128 pa, pb, *pr;
+ 
+     if (!floatx80_unpack_canonical(&pa, a, status) ||
+@@ -2625,6 +2819,24 @@ float128_div(float128 a, float128 b, float_status *status)
+ 
+ floatx80 floatx80_div(floatx80 a, floatx80 b, float_status *status)
+ {
++    if (likely(boxdroid_use_fast_fpu() &&
++               status->float_rounding_mode == float_round_nearest_even)) {
++        double da, db;
++        if (likely(f80_to_double_fast(a, &da) && f80_to_double_fast(b, &db))) {
++            int exp_diff = (int)(a.high & 0x7fff) - (int)(b.high & 0x7fff);
++            if (likely(db != 0.0 && exp_diff >= -1000 && exp_diff <= 1000)) {
++                double dres = da / db;
++                floatx80 res;
++                if (likely(double_to_f80_fast(dres, &res))) {
++                    if (status->floatx80_rounding_precision == floatx80_precision_s) {
++                        res.low = (res.low + 0x800000000ULL) & ~0xfffffffffULL;
++                    }
++                    return res;
++                }
++            }
++        }
++    }
++
+     FloatParts128 pa, pb, *pr;
+ 
+     if (!floatx80_unpack_canonical(&pa, a, status) ||
+@@ -2988,6 +3200,19 @@ float128 float64_to_float128(float64 a, float_status *s)
+ 
+ float32 floatx80_to_float32(floatx80 a, float_status *s)
+ {
++    if (likely(boxdroid_use_fast_fpu() &&
++               s->float_rounding_mode == float_round_nearest_even)) {
++        double d;
++        if (likely(f80_to_double_fast(a, &d))) {
++            if (likely(fabs(d) < 3.4028234663852886e+38 &&
++                       (fabs(d) > 1.1754943508222875e-38 || d == 0.0))) {
++                union { float f; uint32_t u; } x;
++                x.f = (float)d;
++                return x.u;
++            }
++        }
++    }
++
+     FloatParts64 p64;
+     FloatParts128 p128;
+ 
+@@ -3001,6 +3226,16 @@ float32 floatx80_to_float32(floatx80 a, float_status *s)
+ 
+ float64 floatx80_to_float64(floatx80 a, float_status *s)
+ {
++    if (likely(boxdroid_use_fast_fpu() &&
++               s->float_rounding_mode == float_round_nearest_even)) {
++        double d;
++        if (likely(f80_to_double_fast(a, &d))) {
++            union { double d; uint64_t u; } x;
++            x.d = d;
++            return x.u;
++        }
++    }
++
+     FloatParts64 p64;
+     FloatParts128 p128;
+ 
+@@ -3026,6 +3261,13 @@ float128 floatx80_to_float128(floatx80 a, float_status *s)
+ 
+ floatx80 float32_to_floatx80(float32 a, float_status *s)
+ {
++    if (likely(boxdroid_use_fast_fpu())) {
++        floatx80 res;
++        if (likely(float32_to_floatx80_fast(a, &res))) {
++            return res;
++        }
++    }
++
+     FloatParts64 p64;
+     FloatParts128 p128;
+ 
+@@ -3036,6 +3278,13 @@ floatx80 float32_to_floatx80(float32 a, float_status *s)
+ 
+ floatx80 float64_to_floatx80(float64 a, float_status *s)
+ {
++    if (likely(boxdroid_use_fast_fpu())) {
++        floatx80 res;
++        if (likely(float64_to_floatx80_fast(a, &res))) {
++            return res;
++        }
++    }
++
+     FloatParts64 p64;
+     FloatParts128 p128;
+ 
+@@ -3104,6 +3353,28 @@ float128 float128_round_to_int(float128 a, float_status *s)
+ 
+ floatx80 floatx80_round_to_int(floatx80 a, float_status *status)
+ {
++    if (likely(boxdroid_use_fast_fpu())) {
++        double d;
++        if (likely(f80_to_double_fast(a, &d))) {
++            double r;
++            if (status->float_rounding_mode == float_round_nearest_even) {
++                r = rint(d);
++            } else if (status->float_rounding_mode == float_round_to_zero) {
++                r = trunc(d);
++            } else if (status->float_rounding_mode == float_round_down) {
++                r = floor(d);
++            } else if (status->float_rounding_mode == float_round_up) {
++                r = ceil(d);
++            } else {
++                goto fallback;
++            }
++            floatx80 res;
++            if (likely(double_to_f80_fast(r, &res))) {
++                return res;
++            }
++        }
++    }
++fallback: ;
+     FloatParts128 p;
+ 
+     if (!floatx80_unpack_canonical(&p, a, status)) {
+@@ -3321,6 +3592,19 @@ static Int128 float128_to_int128_scalbn(float128 a, FloatRoundMode rmode,
+ static int32_t floatx80_to_int32_scalbn(floatx80 a, FloatRoundMode rmode,
+                                         int scale, float_status *s)
+ {
++    if (likely(boxdroid_use_fast_fpu() && scale == 0)) {
++        double d;
++        if (likely(f80_to_double_fast(a, &d))) {
++            if (likely(d >= (double)INT32_MIN && d <= (double)INT32_MAX)) {
++                if (rmode == float_round_to_zero) {
++                    return (int32_t)d;
++                } else if (rmode == float_round_nearest_even) {
++                    return (int32_t)rint(d);
++                }
++            }
++        }
++    }
++
+     FloatParts128 p;
+ 
+     if (!floatx80_unpack_canonical(&p, a, s)) {
+@@ -3332,6 +3616,19 @@ static int32_t floatx80_to_int32_scalbn(floatx80 a, FloatRoundMode rmode,
+ static int64_t floatx80_to_int64_scalbn(floatx80 a, FloatRoundMode rmode,
+                                         int scale, float_status *s)
+ {
++    if (likely(boxdroid_use_fast_fpu() && scale == 0)) {
++        double d;
++        if (likely(f80_to_double_fast(a, &d))) {
++            if (likely(d >= -9223372036854774784.0 && d <= 9223372036854774784.0)) {
++                if (rmode == float_round_to_zero) {
++                    return (int64_t)d;
++                } else if (rmode == float_round_nearest_even) {
++                    return (int64_t)rint(d);
++                }
++            }
++        }
++    }
++
+     FloatParts128 p;
+ 
+     if (!floatx80_unpack_canonical(&p, a, s)) {
+@@ -4121,6 +4418,13 @@ float128 int32_to_float128(int32_t a, float_status *status)
+ 
+ floatx80 int64_to_floatx80(int64_t a, float_status *status)
+ {
++    if (likely(boxdroid_use_fast_fpu())) {
++        floatx80 res;
++        if (likely(int64_to_floatx80_fast(a, &res))) {
++            return res;
++        }
++    }
++
+     FloatParts128 p;
+ 
+     parts_sint_to_float(&p, a, 0, status);
+@@ -4589,6 +4893,13 @@ FloatRelation float128_compare_quiet(float128 a, float128 b, float_status *s)
+ static FloatRelation QEMU_FLATTEN
+ floatx80_do_compare(floatx80 a, floatx80 b, float_status *s, bool is_quiet)
+ {
++    if (likely(boxdroid_use_fast_fpu())) {
++        FloatRelation rel = floatx80_compare_fast_exact(a, b);
++        if (likely(rel != float_relation_unordered)) {
++            return rel;
++        }
++    }
++
+     FloatParts128 pa, pb;
+ 
+     if (!floatx80_unpack_canonical(&pa, a, s) ||
+@@ -4784,6 +5095,25 @@ float128 QEMU_FLATTEN float128_sqrt(float128 a, float_status *status)
+ 
+ floatx80 floatx80_sqrt(floatx80 a, float_status *s)
+ {
++    if (likely(boxdroid_use_fast_fpu() &&
++               s->float_rounding_mode == float_round_nearest_even)) {
++        double d;
++        if (likely(f80_to_double_fast(a, &d))) {
++            if (likely(d > 0.0)) {
++                double r = sqrt(d);
++                floatx80 res;
++                if (likely(double_to_f80_fast(r, &res))) {
++                    if (s->floatx80_rounding_precision == floatx80_precision_s) {
++                        res.low = (res.low + 0x800000000ULL) & ~0xfffffffffULL;
++                    }
++                    return res;
++                }
++            } else if (d == 0.0) {
++                return a;
++            }
++        }
++    }
++
+     FloatParts128 p;
+ 
+     if (!floatx80_unpack_canonical(&p, a, s)) {

@@ -1,0 +1,59 @@
+diff --git a/accel/tcg/tb-jmp-cache.h b/accel/tcg/tb-jmp-cache.h
+index c3a505e394..9aacc66e76 100644
+--- a/accel/tcg/tb-jmp-cache.h
++++ b/accel/tcg/tb-jmp-cache.h
+@@ -12,7 +12,7 @@
+ #include "qemu/rcu.h"
+ #include "exec/cpu-common.h"
+ 
+-#define TB_JMP_CACHE_BITS 12
++#define TB_JMP_CACHE_BITS 14
+ #define TB_JMP_CACHE_SIZE (1 << TB_JMP_CACHE_BITS)
+ 
+ /*
+diff --git a/accel/tcg/tb-maint.c b/accel/tcg/tb-maint.c
+index d21a8bd42f..9277c7ccf9 100644
+--- a/accel/tcg/tb-maint.c
++++ b/accel/tcg/tb-maint.c
+@@ -902,21 +902,13 @@ static inline void tb_jmp_unlink(TranslationBlock *dest)
+ static void tb_jmp_cache_inval_tb(TranslationBlock *tb)
+ {
+     CPUState *cpu;
++    uint32_t h = tb_jmp_cache_hash_func(tb->pc);
+ 
+-    if (tb_cflags(tb) & CF_PCREL) {
+-        /* A TB may be at any virtual address */
+-        CPU_FOREACH(cpu) {
+-            tcg_flush_jmp_cache(cpu);
+-        }
+-    } else {
+-        uint32_t h = tb_jmp_cache_hash_func(tb->pc);
+-
+-        CPU_FOREACH(cpu) {
+-            CPUJumpCache *jc = cpu->tb_jmp_cache;
++    CPU_FOREACH(cpu) {
++        CPUJumpCache *jc = cpu->tb_jmp_cache;
+ 
+-            if (qatomic_read(&jc->array[h].tb) == tb) {
+-                qatomic_set(&jc->array[h].tb, NULL);
+-            }
++        if (jc && qatomic_read(&jc->array[h].tb) == tb) {
++            qatomic_set(&jc->array[h].tb, NULL);
+         }
+     }
+ }
+diff --git a/accel/tcg/translate-all.c b/accel/tcg/translate-all.c
+index 0871388c6c..65e9baefcb 100644
+--- a/accel/tcg/translate-all.c
++++ b/accel/tcg/translate-all.c
+@@ -328,9 +328,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
+ 
+     gen_code_buf = tcg_ctx->code_gen_ptr;
+     tb->tc.ptr = tcg_splitwx_to_rx(gen_code_buf);
+-    if (!(s.cflags & CF_PCREL)) {
+-        tb->pc = s.pc;
+-    }
++    tb->pc = s.pc;
+     tb->cs_base = s.cs_base;
+     tb->flags = s.flags;
+     tb->cflags = s.cflags;
