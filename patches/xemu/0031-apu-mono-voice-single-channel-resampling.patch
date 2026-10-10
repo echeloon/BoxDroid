@@ -1,0 +1,159 @@
+From: BoxDroid <boxdroid@localhost>
+Subject: [PATCH] mcpx/apu: resample mono voices using single-channel resampler
+
+Downstream status: not submitted upstream. The APU owns voice resampling,
+channel allocation, and voice filtering.
+
+Over 75% of active voice jobs in measured Xbox titles (such as Sega GT)
+are mono. Previously, voice_resample hardcoded two-channel resampling via
+libsamplerate SRC_SINC_FASTEST, duplicating mono samples across both
+channels prior to resampling and performing identical sinc filter
+computation twice.
+
+Resample mono voices as a single channel, then unpack into stereo
+in-place via backward expansion. Destroy and reallocate the resampler
+if a voice changes channel count across invocations, and release any
+active resamplers in mcpx_apu_vp_finalize.
+
+diff --git a/hw/xbox/mcpx/apu/vp/vp.c b/hw/xbox/mcpx/apu/vp/vp.c
+index f22c8d6..a8d46e3 100644
+--- a/hw/xbox/mcpx/apu/vp/vp.c
++++ b/hw/xbox/mcpx/apu/vp/vp.c
+@@ -859,7 +859,7 @@ static float voice_step_envelope(MCPXAPUState *d, uint16_t v, uint32_t reg_0,
+     }
+ }
+ 
+-static int voice_get_samples(MCPXAPUState *d, uint32_t v, float samples[][2],
++static int voice_get_samples(MCPXAPUState *d, uint32_t v, float *samples,
+                        int num_samples_requested)
+ {
+     assert(v < MCPX_HW_MAX_VOICES);
+@@ -1063,10 +1063,10 @@ static int voice_get_samples(MCPXAPUState *d, uint32_t v, float samples[][2],
+                 adpcm_block_index = block_index;
+             }
+ 
+-            samples[sample_count][0] =
++            samples[sample_count * channels] =
+                 int16_to_float(adpcm_decoded[block_position * channels]);
+             if (stereo) {
+-                samples[sample_count][1] = int16_to_float(
++                samples[sample_count * channels + 1] = int16_to_float(
+                     adpcm_decoded[block_position * channels + 1]);
+             }
+         } else {
+@@ -1105,14 +1105,10 @@ static int voice_get_samples(MCPXAPUState *d, uint32_t v, float samples[][2],
+                     assert(!"Invalid sample size for NV_PAYS_VOICE_CFG_FMT");
+                     break;
+                 }
+-                samples[sample_count][channel] = fval;
++                samples[sample_count * channels + channel] = fval;
+                 addr += container_size;
+             }
+         }
+-
+-        if (!stereo) {
+-            samples[sample_count][1] = samples[sample_count][0];
+-        }
+     }
+ 
+     if (cbo >= ebo) {
+@@ -1151,6 +1147,9 @@ static long voice_resample_callback(void *cb_data, float **data)
+     uint16_t v = filter->voice;
+     assert(v < MCPX_HW_MAX_VOICES);
+     MCPXAPUState *d = container_of(filter, MCPXAPUState, vp.filters[v]);
++    bool stereo = voice_get_mask(d, v, NV_PAVS_VOICE_CFG_FMT,
++                                 NV_PAVS_VOICE_CFG_FMT_STEREO);
++    int channels = stereo ? 2 : 1;
+ 
+     int sample_count = 0;
+     while (sample_count < NUM_SAMPLES_PER_FRAME) {
+@@ -1160,7 +1159,7 @@ static long voice_resample_callback(void *cb_data, float **data)
+             break;
+         }
+         int count = voice_get_samples(
+-            d, v, (float(*)[2]) & filter->resample_buf[2 * sample_count],
++            d, v, &filter->resample_buf[sample_count * channels],
+             NUM_SAMPLES_PER_FRAME - sample_count);
+         if (count < 0) {
+             break;
+@@ -1170,8 +1169,8 @@ static long voice_resample_callback(void *cb_data, float **data)
+ 
+     if (sample_count < NUM_SAMPLES_PER_FRAME) {
+         /* Starvation causes SRC hang on repeated calls. Provide silence. */
+-        memset(&filter->resample_buf[2*sample_count], 0,
+-            2*(NUM_SAMPLES_PER_FRAME-sample_count)*sizeof(float));
++        memset(&filter->resample_buf[sample_count * channels], 0,
++            (NUM_SAMPLES_PER_FRAME - sample_count) * channels * sizeof(float));
+         sample_count = NUM_SAMPLES_PER_FRAME;
+     }
+ 
+@@ -1184,9 +1183,18 @@ static int voice_resample(MCPXAPUState *d, uint16_t v, float samples[][2],
+ {
+     assert(v < MCPX_HW_MAX_VOICES);
+     MCPXAPUVoiceFilter *filter = &d->vp.filters[v];
++    bool stereo = voice_get_mask(d, v, NV_PAVS_VOICE_CFG_FMT,
++                                 NV_PAVS_VOICE_CFG_FMT_STEREO);
++    int channels = stereo ? 2 : 1;
++
++    if (filter->resampler != NULL && filter->resampler_channels != channels) {
++        src_delete(filter->resampler);
++        filter->resampler = NULL;
++    }
+ 
+     if (filter->resampler == NULL) {
+         filter->voice = v;
++        filter->resampler_channels = channels;
+         int err;
+ 
+         /* Note: Using a sinc based resampler for quality. Unsure about
+@@ -1194,9 +1202,8 @@ static int voice_resample(MCPXAPUState *d, uint16_t v, float samples[][2],
+          * which case using this resampler is overkill, but quality is good
+          * so use it for now.
+          */
+-        // FIXME: Don't do 2ch resampling if this is a mono voice
+         filter->resampler = src_callback_new(&voice_resample_callback,
+-                                           SRC_SINC_FASTEST, 2, &err, filter);
++                                           SRC_SINC_FASTEST, channels, &err, filter);
+         if (filter->resampler == NULL) {
+             fprintf(stderr, "src error: %s\n", src_strerror(err));
+             assert(0);
+@@ -1215,6 +1222,14 @@ static int voice_resample(MCPXAPUState *d, uint16_t v, float samples[][2],
+             return -1;
+     }
+ 
++    if (!stereo && count > 0) {
++        float *flat = (float *)samples;
++        for (int i = count - 1; i >= 0; i--) {
++            samples[i][0] = flat[i];
++            samples[i][1] = flat[i];
++        }
++    }
++
+     return count;
+ }
+ 
+@@ -2110,6 +2125,12 @@ void mcpx_apu_vp_init(MCPXAPUState *d)
+ void mcpx_apu_vp_finalize(MCPXAPUState *d)
+ {
+     voice_work_finalize(d);
++    for (int v = 0; v < ARRAY_SIZE(d->vp.filters); v++) {
++        if (d->vp.filters[v].resampler) {
++            src_delete(d->vp.filters[v].resampler);
++            d->vp.filters[v].resampler = NULL;
++        }
++    }
+ }
+ 
+ void mcpx_apu_vp_reset(MCPXAPUState *d)
+diff --git a/hw/xbox/mcpx/apu/vp/vp.h b/hw/xbox/mcpx/apu/vp/vp.h
+index da51063..1480e05 100644
+--- a/hw/xbox/mcpx/apu/vp/vp.h
++++ b/hw/xbox/mcpx/apu/vp/vp.h
+@@ -42,6 +42,7 @@ typedef struct MCPXAPUVPSSLData {
+ 
+ typedef struct MCPXAPUVoiceFilter {
+     uint16_t voice;
++    int resampler_channels;
+     float resample_buf[NUM_SAMPLES_PER_FRAME * 2];
+     SRC_STATE *resampler;
+     sv_filter svf[2];
