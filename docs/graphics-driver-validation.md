@@ -1,7 +1,10 @@
 # BoxDroid custom Vulkan drivers — implementation and device validation
 
 Validated on 2026-10-10 using Retroid Pocket 5, Android 13/API 33, ADB serial `20537a44`.
-All implementation changes are uncommitted on `vulkan-turnip`.
+This report records the original validation before commit `5d06e62` on
+`vulkan-turnip`. Its Git status and source inventory below are historical
+snapshots. See [the final source audit](graphics-driver-audit.md) for subsequent
+vendor trimming, license packaging, and the final audit commit's file inventory.
 
 Evidence is retained locally in `build/validation/vulkan-turnip/` (ignored build artifacts).
 The [condensed driver proof](../build/validation/vulkan-turnip/driver-proof.txt) contains the loader and physical-device records.
