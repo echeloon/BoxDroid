@@ -25,6 +25,60 @@
 
 #include "boxdroid-frame-queue.h"
 
+// The presenter and Xemu own separate dispatch tables, backed by one selected loader.
+extern "C" void *boxdroid_vk_proc();
+extern "C" void boxdroid_vk_diagnostic(void *, void *, void *, const char *);
+extern "C" JNIEXPORT jstring JNICALL Java_org_boxdroid_MainActivity_nativeConfigureGraphicsDriver(JNIEnv *, jobject, jstring, jstring, jstring, jstring);
+static PFN_vkGetInstanceProcAddr customDriverProc = nullptr;
+extern "C" void *boxdroid_vk_proc() { return reinterpret_cast<void *>(customDriverProc); }
+
+extern "C" void boxdroid_vk_diagnostic(void *instanceHandle, void *gpuHandle, void *procHandle, const char *consumer) {
+    auto instance = reinterpret_cast<VkInstance>(instanceHandle);
+    auto gpu = reinterpret_cast<VkPhysicalDevice>(gpuHandle);
+    auto getProc = reinterpret_cast<PFN_vkGetInstanceProcAddr>(procHandle);
+    auto properties = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties>(getProc(instance, "vkGetPhysicalDeviceProperties"));
+    VkPhysicalDeviceProperties props{};
+    properties(gpu, &props);
+    VkPhysicalDeviceDriverProperties driver{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES};
+    auto props2 = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2>(getProc(instance, "vkGetPhysicalDeviceProperties2"));
+    auto enumerate = reinterpret_cast<PFN_vkEnumerateDeviceExtensionProperties>(getProc(instance, "vkEnumerateDeviceExtensionProperties"));
+    uint32_t count = 0;
+    enumerate(gpu, nullptr, &count, nullptr);
+    std::vector<VkExtensionProperties> extensions(count);
+    enumerate(gpu, nullptr, &count, extensions.data());
+    bool supported = props.apiVersion >= VK_API_VERSION_1_2;
+    for (const auto &ext : extensions) if (std::strcmp(ext.extensionName, VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME) == 0) supported = true;
+    if (props2 && supported) {
+        VkPhysicalDeviceProperties2 p2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+        p2.pNext = &driver;
+        props2(gpu, &p2);
+    }
+    __android_log_print(ANDROID_LOG_INFO, "BoxDroid-Driver",
+        "VULKAN_DRIVER consumer=%s mode=%s device=%s vendor=0x%04x deviceID=0x%04x driverVersion=%u api=%u driverName=%s driverInfo=%s driverID=%u",
+        consumer, customDriverProc ? "CUSTOM" : "SYSTEM", props.deviceName, props.vendorID, props.deviceID,
+        props.driverVersion, props.apiVersion, driver.driverName, driver.driverInfo, driver.driverID);
+}
+
+extern "C" JNIEXPORT jstring JNICALL Java_org_boxdroid_MainActivity_nativeConfigureGraphicsDriver(JNIEnv *env, jobject, jstring hooks, jstring directory, jstring library, jstring temporary) {
+    const char *h = env->GetStringUTFChars(hooks, nullptr), *d = env->GetStringUTFChars(directory, nullptr),
+        *n = env->GetStringUTFChars(library, nullptr), *t = env->GetStringUTFChars(temporary, nullptr);
+    void *support = dlopen("libboxdroid_driver.so", RTLD_NOW | RTLD_LOCAL);
+    std::string error;
+    if (!support) { const char *detail = dlerror(); error = detail ? detail : "Cannot load custom driver support"; }
+    else {
+        auto configure = reinterpret_cast<const char *(*)(const char *, const char *, const char *, const char *)>(dlsym(support, "boxdroid_driver_configure"));
+        auto getProc = reinterpret_cast<void *(*)()>(dlsym(support, "boxdroid_driver_proc"));
+        if (!configure || !getProc) error = "Custom driver support entry points missing";
+        else {
+            error = configure(h, d, n, t);
+            if (error.empty()) customDriverProc = reinterpret_cast<PFN_vkGetInstanceProcAddr>(getProc());
+        }
+    }
+    env->ReleaseStringUTFChars(hooks, h); env->ReleaseStringUTFChars(directory, d);
+    env->ReleaseStringUTFChars(library, n); env->ReleaseStringUTFChars(temporary, t);
+    return env->NewStringUTF(error.c_str());
+}
+
 namespace {
 constexpr char kTag[] = "BoxDroid";
 
@@ -434,6 +488,9 @@ bool resizeSurface(uint32_t width, uint32_t height, bool redraw = true) {
 }
 
 bool createInstance() {
+    if (customDriverProc) {
+        p.getInstanceProcAddr = customDriverProc;
+    } else {
     p.loader = dlopen("libvulkan.so", RTLD_NOW | RTLD_LOCAL);
     if (!p.loader) {
         p.lastError = std::string("dlopen(libvulkan.so) failed: ") + dlerror();
@@ -442,6 +499,7 @@ bool createInstance() {
     }
     p.getInstanceProcAddr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(
         dlsym(p.loader, "vkGetInstanceProcAddr"));
+    }
     if (!p.getInstanceProcAddr) {
         p.lastError = "libvulkan.so is missing vkGetInstanceProcAddr";
         log(ANDROID_LOG_ERROR, p.lastError);
@@ -522,6 +580,7 @@ bool createSurface(JNIEnv *env, jobject javaSurface, uint32_t width, uint32_t he
             log(ANDROID_LOG_ERROR, p.lastError);
             return false;
         }
+        boxdroid_vk_diagnostic(p.instance, p.gpu, reinterpret_cast<void *>(p.getInstanceProcAddr), "presenter");
         log(ANDROID_LOG_INFO, "GPU=" + p.gpuName + " queue_family=" + std::to_string(p.queueFamily) + " graphics=1 present=1");
         float priority = 1.0f;
         VkDeviceQueueCreateInfo qi{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};

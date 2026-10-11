@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import { Outlet } from "react-router";
-import { AsciiRain } from "../components/neonblade-ui/ascii-rain";
 
 function AsciiRain() {
   const canvasRef = useRef<HTMLCanvasElement>(null);

@@ -35,16 +35,30 @@ public class FrontendActivity extends Activity {
     private static final int REQUEST_CODE_SELECT_HDD = 1004;
     private static final int REQUEST_CODE_START_GAME = 1005;
     private long gameStartTime;
+    private GraphicsDriverStore drivers;
+    private volatile java.io.File driverStage;
+    private volatile boolean driverBusy;
+    private static final int REQUEST_DRIVER_ZIP = 1006;
+    private static final int REQUEST_DRIVER_PROBE = 1007;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         prefs = getSharedPreferences("boxdroid_games", Context.MODE_PRIVATE);
         loadGames();
+        drivers = new GraphicsDriverStore(this);
+        drivers.recoverInterruptedStartup();
+        if (savedInstanceState != null && savedInstanceState.containsKey("driverStage")) {
+            driverStage = new java.io.File(savedInstanceState.getString("driverStage"));
+            driverBusy = true;
+        }
+
+        drivers.cleanupInterruptedImport(driverStage);
 
         android.widget.FrameLayout container = new android.widget.FrameLayout(this);
         container.setBackgroundColor(android.graphics.Color.BLUE); // Blue background to test
         
+        if ((getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) WebView.setWebContentsDebuggingEnabled(true);
         webView = new WebView(this);
         webView.setDefaultFocusHighlightEnabled(false);
         android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
@@ -151,8 +165,7 @@ public class FrontendActivity extends Activity {
                     case KeyEvent.KEYCODE_ENTER: action = "activate"; break;
                     case KeyEvent.KEYCODE_BUTTON_B:
                     case KeyEvent.KEYCODE_BACK:
-                        if (webView.canGoBack()) webView.goBack();
-                        else onBackPressed();
+                        onBackPressed();
                         return true;
                     default: return super.dispatchKeyEvent(event);
                 }
@@ -193,6 +206,9 @@ public class FrontendActivity extends Activity {
                 obj.put("mcpx_uri", getFileRef("mcpx_uri", "Select MCPX"));
                 obj.put("bios_uri", getFileRef("bios_uri", "Select BIOS"));
                 obj.put("hdd_uri", getFileRef("hdd_uri", "Select HDD Image"));
+                JSONObject driver = drivers.frontendState();
+                driver.put("busy", driverBusy);
+                obj.put("graphicsDriver", driver);
             } catch (JSONException e) {
                 e.printStackTrace();
             }
@@ -212,6 +228,39 @@ public class FrontendActivity extends Activity {
                 ref.put("name", defaultName);
             }
             return ref;
+        }
+
+        @JavascriptInterface
+        public void loadGraphicsDriver() {
+            runOnUiThread(() -> {
+                if (driverBusy) return;
+                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.setType("*/*");
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                startActivityForResult(intent, REQUEST_DRIVER_ZIP);
+            });
+        }
+
+        @JavascriptInterface
+        public void selectGraphicsDriver(String mode) {
+            runOnUiThread(() -> {
+                if (driverBusy) return;
+                try {
+                    if (!mode.equals("SYSTEM") && !mode.equals("CUSTOM")) throw new Exception("Invalid driver mode");
+                    drivers.select(mode.equals("CUSTOM"));
+                } catch (Exception e) { drivers.error(e.getMessage()); }
+                notifyWeb("settings_changed");
+            });
+        }
+
+        @JavascriptInterface
+        public void deleteGraphicsDriver() {
+            runOnUiThread(() -> {
+                if (driverBusy) return;
+                try { drivers.remove(); } catch (Exception e) { drivers.error(e.getMessage()); }
+                notifyWeb("settings_changed");
+            });
         }
 
         @JavascriptInterface
@@ -292,7 +341,41 @@ public class FrontendActivity extends Activity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_DRIVER_PROBE) {
+            try {
+                if (resultCode != RESULT_OK) throw new Exception(data == null ? "Driver validation process failed" : data.getStringExtra("error"));
+                if (driverStage == null) throw new Exception("Driver import state was lost");
+                drivers.commit(driverStage);
+            } catch (Exception e) { drivers.error("Driver import failed: " + e.getMessage()); }
+            finally {
+                if (driverStage != null) try { GraphicsDriverStore.deleteTree(driverStage); } catch (Exception e) { android.util.Log.e("BoxDroid-Driver", "Staging cleanup failed", e); }
+                driverStage = null; driverBusy = false; notifyWeb("settings_changed");
+            }
+            return;
+        }
+        if (requestCode == REQUEST_DRIVER_ZIP) {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                final Uri selected = data.getData();
+                driverBusy = true; notifyWeb("settings_changed");
+                new Thread(() -> {
+                    try {
+                        driverStage = drivers.importZip(this, selected);
+                        runOnUiThread(() -> {
+                            Intent probe = new Intent(this, GraphicsDriverProbe.class);
+                            probe.putExtra("directory", driverStage.getAbsolutePath());
+                            startActivityForResult(probe, REQUEST_DRIVER_PROBE);
+                        });
+                    } catch (Exception e) {
+                        drivers.error("Driver import failed: " + e.getMessage());
+                        driverBusy = false; notifyWeb("settings_changed");
+                    }
+                }, "DriverImport").start();
+            }
+            return;
+        }
         if (requestCode == REQUEST_CODE_START_GAME) {
+            drivers.recoverInterruptedStartup();
+            notifyWeb("settings_changed");
             if (resultCode == RESULT_CANCELED && (System.currentTimeMillis() - gameStartTime) < 5000) {
                 android.widget.Toast.makeText(this, "Could Not Load Game, Check your system files again", android.widget.Toast.LENGTH_LONG).show();
             }
@@ -330,12 +413,21 @@ public class FrontendActivity extends Activity {
     }
 
     @Override
+    protected void onSaveInstanceState(Bundle out) {
+        if (driverStage != null) out.putString("driverStage", driverStage.getAbsolutePath());
+        super.onSaveInstanceState(out);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (webView != null) notifyWeb("settings_changed");
+    }
+
+    @Override
     public void onBackPressed() {
-        if (webView.canGoBack()) {
-            webView.goBack();
-        } else {
-            super.onBackPressed();
-        }
+        webView.evaluateJavascript("(function(){var back=Array.from(document.querySelectorAll('a[href]')).find(function(item){return item.textContent.trim()==='Back';});if(back){back.click();return true;}return false;})()",
+            handled -> { if (!"true".equals(handled)) finish(); });
     }
 
     private void loadGames() {

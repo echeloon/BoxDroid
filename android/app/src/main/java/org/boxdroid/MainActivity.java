@@ -21,6 +21,36 @@ public class MainActivity extends Activity {
     private static final String TAG = "BoxDroid_";
     private static final ExecutorService NATIVE = Executors.newSingleThreadExecutor();
     private boolean surfaceReady;
+    private boolean graphicsConfigured;
+    private boolean customGraphics;
+    private GraphicsDriverStore graphicsDrivers;
+    private native String nativeConfigureGraphicsDriver(String hooks, String directory, String library, String temporary);
+
+    private void configureGraphicsDriver() {
+        if (graphicsConfigured) return;
+        graphicsConfigured = true;
+        graphicsDrivers = new GraphicsDriverStore(this);
+        org.json.JSONObject choice = graphicsDrivers.read();
+        if (!choice.optString("mode", "SYSTEM").equals("CUSTOM")) {
+            Log.i("BoxDroid-Driver", "LOADER_SELECTED mode=SYSTEM override=none");
+            return;
+        }
+        try {
+            graphicsDrivers.startupMarker().createNewFile();
+            org.json.JSONObject metadata = graphicsDrivers.metadata(graphicsDrivers.installed());
+            String error = nativeConfigureGraphicsDriver(getApplicationInfo().nativeLibraryDir,
+                graphicsDrivers.installed().getAbsolutePath(), metadata.getString("libraryName"), getCacheDir().getAbsolutePath());
+            if (!error.isEmpty()) throw new Exception(error);
+            customGraphics = true;
+            Log.i("BoxDroid-Driver", "LOADER_SELECTED mode=CUSTOM before=presenter-instance-and-xemu-instance");
+        } catch (Exception e) { graphicsDrivers.fallback(e.getMessage()); }
+    }
+
+    private void graphicsStartResult(int result) {
+        if (!customGraphics) return;
+        if (result == 0) graphicsDrivers.startupMarker().delete();
+        else graphicsDrivers.fallback("Custom Vulkan runtime initialization failed: " + result);
+    }
     private boolean xboxStarted;
     private boolean stopping;
     private android.os.ParcelFileDescriptor biosFd;
@@ -116,9 +146,12 @@ public class MainActivity extends Activity {
                 final int currentGeneration = ++generation;
                 Surface surface = holder.getSurface();
                 NATIVE.execute(() -> {
+                    configureGraphicsDriver();
                     boolean ready = nativeSurfaceCreated(surface, width, height, currentGeneration);
                     if (!ready) {
                         Log.e(TAG, "ANDROID_WSI_INIT_FAIL");
+                        if (customGraphics) graphicsDrivers.fallback("Custom Vulkan Android surface initialization failed; next launch uses System Driver");
+                        runOnUiThread(thisActivity()::finish);
                         return;
                     }
                     surfaceReady = true;
@@ -138,6 +171,8 @@ public class MainActivity extends Activity {
             }
         });
     }
+
+    private MainActivity thisActivity() { return this; }
 
     private void configurePresentationWindow() {
         getWindow().getDecorView().setBackgroundColor(Color.BLACK);
@@ -219,6 +254,7 @@ public class MainActivity extends Activity {
             beforeNativeRuntimeStart();
             int result = nativeXboxStart(biosPath, mcpxPath,
                     hddPath, log.getAbsolutePath());
+            graphicsStartResult(result);
             Log.i(TAG, "XBOX_INIT_RESULT=" + result + " qemu_log=" + log.getAbsolutePath());
         });
     }
@@ -277,6 +313,7 @@ public class MainActivity extends Activity {
             Log.i(TAG, "M55_EMULATOR_START_REQUEST dvd_fd_validated=1 dvd_size=" + dvdSize);
             int result = nativeXboxStartWithDvd(biosPath, mcpxPath,
                     hddPath, log.getAbsolutePath(), dvdFd, dvdSize);
+            graphicsStartResult(result);
             Log.i(TAG, "M55_EMULATOR_START_RESULT=" + result);
             if (result != 0) xboxStarted = false;
             final int startResult = result;

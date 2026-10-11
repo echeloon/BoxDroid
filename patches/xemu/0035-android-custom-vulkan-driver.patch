@@ -1,0 +1,31 @@
+--- a/hw/xbox/nv2a/pgraph/vk/instance.c
++++ b/hw/xbox/nv2a/pgraph/vk/instance.c
+@@ -149,6 +149,14 @@
+     PGRAPHVkState *r = pg->vk_renderer_state;
+     VkResult result;
+ 
++#if defined(__ANDROID__) && defined(BOXDROID_RUNTIME)
++    extern void *boxdroid_vk_proc(void) __attribute__((weak));
++    void *custom_proc = boxdroid_vk_proc ? boxdroid_vk_proc() : NULL;
++    if (custom_proc) {
++        volkInitializeCustom((PFN_vkGetInstanceProcAddr)custom_proc);
++        result = VK_SUCCESS;
++    } else
++#endif
+     result = volkInitialize();
+     if (result != VK_SUCCESS) {
+         error_setg(errp, "volkInitialize failed");
+@@ -419,6 +427,13 @@
+     }
+ 
+     vkGetPhysicalDeviceProperties(r->physical_device, &r->device_props);
++#if defined(__ANDROID__) && defined(BOXDROID_RUNTIME)
++    extern void boxdroid_vk_diagnostic(void *, void *, void *, const char *) __attribute__((weak));
++    if (boxdroid_vk_diagnostic) {
++        boxdroid_vk_diagnostic(r->instance, r->physical_device,
++                              (void *)vkGetInstanceProcAddr, "xemu-renderer");
++    }
++#endif
+     xemu_settings_set_string(&g_config.display.vulkan.preferred_physical_device,
+                              r->device_props.deviceName);
+     r->vk_api_version = MIN(r->vk_api_version, r->device_props.apiVersion);
