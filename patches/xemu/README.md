@@ -37,6 +37,13 @@ pin and update the gitlink only through an explicit baseline update.
 | 0027 | Declare the standalone PTIMER correctness test's Pixman dependency; production timer behavior is unchanged. |
 | 0028 | Invoke Android's measured placement policy once on the serial TCG thread before guest execution; retain scheduler placement on unsupported or restricted topologies. |
 | 0029 | Opt-in APU owner participation in one independent voice cohort alongside existing workers; keep guest list/multipass grouping and the completed-mix barrier. Mode changes join at a quiescent boundary. Default retains the discovered bounded background pool. |
+| 0030 | Sparse APU voice workload profiling and metrics. |
+| 0031 | Mono voice single-channel audio resampling optimization. |
+| 0032 | Lockless APU voice lock using atomic bitmap operations, eliminating BQL voice lock contention. |
+| 0033 | Fast hardware floatx80 operations with precision control fallback. |
+| 0034 | TCG jump cache size scaling (16K entries) and pc-retention invalidation. |
+| 0035 | Android custom Vulkan driver support via libadrenotools. |
+| 0036 | Elide implicit inter-core memory barriers during serial uniprocessor guest execution. |
 
 The Vulkan renderer owns download buffers and completion, and the APU owns
 voice dispatch and DSP state. These paths cannot be changed safely from an

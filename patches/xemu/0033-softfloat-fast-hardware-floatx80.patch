@@ -1,5 +1,5 @@
 diff --git a/fpu/softfloat.c b/fpu/softfloat.c
-index 8094358c2e..809ee01331 100644
+index 8094358c2e..3d67aa809f 100644
 --- a/fpu/softfloat.c
 +++ b/fpu/softfloat.c
 @@ -474,6 +474,167 @@ static inline bool is_anynorm(FloatClass c)
@@ -170,12 +170,14 @@ index 8094358c2e..809ee01331 100644
  /*
   * Structure holding all of the decomposed parts of a float.
   * The exponent is unbiased and the fraction is normalized.
-@@ -2096,6 +2257,21 @@ float128 float128_sub(float128 a, float128 b, float_status *status)
+@@ -2096,6 +2257,23 @@ float128 float128_sub(float128 a, float128 b, float_status *status)
  static floatx80 QEMU_FLATTEN
  floatx80_addsub(floatx80 a, floatx80 b, float_status *status, bool subtract)
  {
 +    if (likely(boxdroid_use_fast_fpu() &&
-+               status->float_rounding_mode == float_round_nearest_even)) {
++               status->float_rounding_mode == float_round_nearest_even &&
++               (status->floatx80_rounding_precision == floatx80_precision_d ||
++                status->floatx80_rounding_precision == floatx80_precision_s))) {
 +        double da, db;
 +        if (likely(f80_to_double_fast(a, &da) && f80_to_double_fast(b, &db))) {
 +            double dres = subtract ? (da - db) : (da + db);
@@ -192,12 +194,14 @@ index 8094358c2e..809ee01331 100644
      FloatParts128 pa, pb, *pr;
  
      if (!floatx80_unpack_canonical(&pa, a, status) ||
-@@ -2218,6 +2394,24 @@ float128_mul(float128 a, float128 b, float_status *status)
+@@ -2218,6 +2396,26 @@ float128_mul(float128 a, float128 b, float_status *status)
  floatx80 QEMU_FLATTEN
  floatx80_mul(floatx80 a, floatx80 b, float_status *status)
  {
 +    if (likely(boxdroid_use_fast_fpu() &&
-+               status->float_rounding_mode == float_round_nearest_even)) {
++               status->float_rounding_mode == float_round_nearest_even &&
++               (status->floatx80_rounding_precision == floatx80_precision_d ||
++                status->floatx80_rounding_precision == floatx80_precision_s))) {
 +        double da, db;
 +        if (likely(f80_to_double_fast(a, &da) && f80_to_double_fast(b, &db))) {
 +            int exp_sum = (int)(a.high & 0x7fff) + (int)(b.high & 0x7fff) - 16383;
@@ -217,12 +221,14 @@ index 8094358c2e..809ee01331 100644
      FloatParts128 pa, pb, *pr;
  
      if (!floatx80_unpack_canonical(&pa, a, status) ||
-@@ -2625,6 +2819,24 @@ float128_div(float128 a, float128 b, float_status *status)
+@@ -2625,6 +2823,26 @@ float128_div(float128 a, float128 b, float_status *status)
  
  floatx80 floatx80_div(floatx80 a, floatx80 b, float_status *status)
  {
 +    if (likely(boxdroid_use_fast_fpu() &&
-+               status->float_rounding_mode == float_round_nearest_even)) {
++               status->float_rounding_mode == float_round_nearest_even &&
++               (status->floatx80_rounding_precision == floatx80_precision_d ||
++                status->floatx80_rounding_precision == floatx80_precision_s))) {
 +        double da, db;
 +        if (likely(f80_to_double_fast(a, &da) && f80_to_double_fast(b, &db))) {
 +            int exp_diff = (int)(a.high & 0x7fff) - (int)(b.high & 0x7fff);
@@ -242,7 +248,7 @@ index 8094358c2e..809ee01331 100644
      FloatParts128 pa, pb, *pr;
  
      if (!floatx80_unpack_canonical(&pa, a, status) ||
-@@ -2988,6 +3200,19 @@ float128 float64_to_float128(float64 a, float_status *s)
+@@ -2988,6 +3206,19 @@ float128 float64_to_float128(float64 a, float_status *s)
  
  float32 floatx80_to_float32(floatx80 a, float_status *s)
  {
@@ -262,7 +268,7 @@ index 8094358c2e..809ee01331 100644
      FloatParts64 p64;
      FloatParts128 p128;
  
-@@ -3001,6 +3226,16 @@ float32 floatx80_to_float32(floatx80 a, float_status *s)
+@@ -3001,6 +3232,16 @@ float32 floatx80_to_float32(floatx80 a, float_status *s)
  
  float64 floatx80_to_float64(floatx80 a, float_status *s)
  {
@@ -279,7 +285,7 @@ index 8094358c2e..809ee01331 100644
      FloatParts64 p64;
      FloatParts128 p128;
  
-@@ -3026,6 +3261,13 @@ float128 floatx80_to_float128(floatx80 a, float_status *s)
+@@ -3026,6 +3267,13 @@ float128 floatx80_to_float128(floatx80 a, float_status *s)
  
  floatx80 float32_to_floatx80(float32 a, float_status *s)
  {
@@ -293,7 +299,7 @@ index 8094358c2e..809ee01331 100644
      FloatParts64 p64;
      FloatParts128 p128;
  
-@@ -3036,6 +3278,13 @@ floatx80 float32_to_floatx80(float32 a, float_status *s)
+@@ -3036,6 +3284,13 @@ floatx80 float32_to_floatx80(float32 a, float_status *s)
  
  floatx80 float64_to_floatx80(float64 a, float_status *s)
  {
@@ -307,7 +313,7 @@ index 8094358c2e..809ee01331 100644
      FloatParts64 p64;
      FloatParts128 p128;
  
-@@ -3104,6 +3353,28 @@ float128 float128_round_to_int(float128 a, float_status *s)
+@@ -3104,6 +3359,28 @@ float128 float128_round_to_int(float128 a, float_status *s)
  
  floatx80 floatx80_round_to_int(floatx80 a, float_status *status)
  {
@@ -336,7 +342,7 @@ index 8094358c2e..809ee01331 100644
      FloatParts128 p;
  
      if (!floatx80_unpack_canonical(&p, a, status)) {
-@@ -3321,6 +3592,19 @@ static Int128 float128_to_int128_scalbn(float128 a, FloatRoundMode rmode,
+@@ -3321,6 +3598,19 @@ static Int128 float128_to_int128_scalbn(float128 a, FloatRoundMode rmode,
  static int32_t floatx80_to_int32_scalbn(floatx80 a, FloatRoundMode rmode,
                                          int scale, float_status *s)
  {
@@ -356,7 +362,7 @@ index 8094358c2e..809ee01331 100644
      FloatParts128 p;
  
      if (!floatx80_unpack_canonical(&p, a, s)) {
-@@ -3332,6 +3616,19 @@ static int32_t floatx80_to_int32_scalbn(floatx80 a, FloatRoundMode rmode,
+@@ -3332,6 +3622,19 @@ static int32_t floatx80_to_int32_scalbn(floatx80 a, FloatRoundMode rmode,
  static int64_t floatx80_to_int64_scalbn(floatx80 a, FloatRoundMode rmode,
                                          int scale, float_status *s)
  {
@@ -376,7 +382,7 @@ index 8094358c2e..809ee01331 100644
      FloatParts128 p;
  
      if (!floatx80_unpack_canonical(&p, a, s)) {
-@@ -4121,6 +4418,13 @@ float128 int32_to_float128(int32_t a, float_status *status)
+@@ -4121,6 +4424,13 @@ float128 int32_to_float128(int32_t a, float_status *status)
  
  floatx80 int64_to_floatx80(int64_t a, float_status *status)
  {
@@ -390,7 +396,7 @@ index 8094358c2e..809ee01331 100644
      FloatParts128 p;
  
      parts_sint_to_float(&p, a, 0, status);
-@@ -4589,6 +4893,13 @@ FloatRelation float128_compare_quiet(float128 a, float128 b, float_status *s)
+@@ -4589,6 +4899,13 @@ FloatRelation float128_compare_quiet(float128 a, float128 b, float_status *s)
  static FloatRelation QEMU_FLATTEN
  floatx80_do_compare(floatx80 a, floatx80 b, float_status *s, bool is_quiet)
  {
@@ -404,7 +410,7 @@ index 8094358c2e..809ee01331 100644
      FloatParts128 pa, pb;
  
      if (!floatx80_unpack_canonical(&pa, a, s) ||
-@@ -4784,6 +5095,25 @@ float128 QEMU_FLATTEN float128_sqrt(float128 a, float_status *status)
+@@ -4784,6 +5101,25 @@ float128 QEMU_FLATTEN float128_sqrt(float128 a, float_status *status)
  
  floatx80 floatx80_sqrt(floatx80 a, float_status *s)
  {

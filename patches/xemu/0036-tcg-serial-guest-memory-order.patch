@@ -1,0 +1,48 @@
+diff --git a/accel/tcg/backend-ldst.h b/accel/tcg/backend-ldst.h
+index 9c3a407a5a..a458dc3868 100644
+--- a/accel/tcg/backend-ldst.h
++++ b/accel/tcg/backend-ldst.h
+@@ -10,6 +10,7 @@
+ #define ACCEL_TCG_BACKEND_LDST_H
+ 
+ #include "tcg-target-mo.h"
++#include "exec/translation-block.h"
+ 
+ /**
+  * tcg_req_mo:
+@@ -33,7 +34,8 @@
+  */
+ #define cpu_req_mo(cpu, type)     \
+     do {                          \
+-        if (tcg_req_mo(cpu->cc->tcg_ops->guest_default_memory_order, type)) { \
++        if (tcg_cflags_has(cpu, CF_PARALLEL) && \
++            tcg_req_mo(cpu->cc->tcg_ops->guest_default_memory_order, type)) { \
+             smp_mb();             \
+         }                         \
+     } while (0)
+diff --git a/accel/tcg/translate-all.c b/accel/tcg/translate-all.c
+--- a/accel/tcg/translate-all.c
++++ b/accel/tcg/translate-all.c
+@@ -340,7 +340,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
+ 
+     tcg_ctx->gen_tb = tb;
+     tcg_ctx->addr_type = target_long_bits() == 32 ? TCG_TYPE_I32 : TCG_TYPE_I64;
+-    tcg_ctx->guest_mo = cpu->cc->tcg_ops->guest_default_memory_order;
++    tcg_ctx->guest_mo = (tb->cflags & CF_PARALLEL) ? cpu->cc->tcg_ops->guest_default_memory_order : 0;
+ 
+  restart_translate:
+     trace_translate_block(tb, s.pc, tb->tc.ptr);
+diff --git a/tcg/tcg-op-ldst.c b/tcg/tcg-op-ldst.c
+index 7716c3ad7c..543e402ff8 100644
+--- a/tcg/tcg-op-ldst.c
++++ b/tcg/tcg-op-ldst.c
+@@ -128,6 +128,9 @@ static void gen_st_i64(TCGv_i64 v, TCGTemp *addr, MemOpIdx oi)
+ 
+ static void tcg_gen_req_mo(TCGBar type)
+ {
++    if (!(tcg_ctx->gen_tb->cflags & CF_PARALLEL)) {
++        return;
++    }
+     type &= tcg_ctx->guest_mo;
+     type &= ~TCG_TARGET_DEFAULT_MO;
+     if (type) {
