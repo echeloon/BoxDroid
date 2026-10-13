@@ -13,10 +13,16 @@ diff --git a/fpu/softfloat.c b/fpu/softfloat.c
  /*
   * Structure holding all of the decomposed parts of a float.
   * The exponent is unbiased and the fraction is normalized.
-@@ -2096,6 +2098,13 @@
- static floatx80 QEMU_FLATTEN
- floatx80_addsub(floatx80 a, floatx80 b, float_status *status, bool subtract)
- {
+@@ -2093,9 +2095,16 @@
+     return float128_addsub(a, b, status, true);
+ }
+
+-static floatx80 QEMU_FLATTEN
+-floatx80_addsub(floatx80 a, floatx80 b, float_status *status, bool subtract)
+-{
++static floatx80 QEMU_FLATTEN __attribute__((noinline))
++floatx80_addsub_slow(floatx80 a, floatx80 b, float_status *status, bool subtract)
++{
 +    floatx80 fast;
 +    if (boxdroid_f80_arithmetic(a, b, status,
 +                              subtract ? BOXDROID_FP_SUB : BOXDROID_FP_ADD,
@@ -27,10 +33,36 @@ diff --git a/fpu/softfloat.c b/fpu/softfloat.c
      FloatParts128 pa, pb, *pr;
 
      if (!floatx80_unpack_canonical(&pa, a, status) ||
-@@ -2218,6 +2227,11 @@
- floatx80 QEMU_FLATTEN
- floatx80_mul(floatx80 a, floatx80 b, float_status *status)
+@@ -2107,6 +2116,19 @@
+     return floatx80_round_pack_canonical(pr, status);
+ }
+
++static inline QEMU_ALWAYS_INLINE floatx80
++floatx80_addsub(floatx80 a, floatx80 b, float_status *status, bool subtract)
++{
++    floatx80 fast;
++    if (boxdroid_f80_double53(a, b, status,
++                            subtract ? BOXDROID_FP_SUB : BOXDROID_FP_ADD,
++                            &fast)) {
++        return fast;
++    }
++    return floatx80_addsub_slow(a, b, status, subtract);
++}
++
++
+ floatx80 floatx80_add(floatx80 a, floatx80 b, float_status *status)
  {
+     return floatx80_addsub(a, b, status, false);
+@@ -2215,9 +2237,14 @@
+     return float128_round_pack_canonical(pr, status);
+ }
+
+-floatx80 QEMU_FLATTEN
+-floatx80_mul(floatx80 a, floatx80 b, float_status *status)
+-{
++static floatx80 QEMU_FLATTEN __attribute__((noinline))
++floatx80_mul_slow(floatx80 a, floatx80 b, float_status *status)
++{
 +    floatx80 fast;
 +    if (boxdroid_f80_arithmetic(a, b, status, BOXDROID_FP_MUL, &fast)) {
 +        return fast;
@@ -39,10 +71,32 @@ diff --git a/fpu/softfloat.c b/fpu/softfloat.c
      FloatParts128 pa, pb, *pr;
 
      if (!floatx80_unpack_canonical(&pa, a, status) ||
-@@ -2625,6 +2639,11 @@
+@@ -2228,6 +2255,16 @@
+     pr = parts_mul(&pa, &pb, status);
+     return floatx80_round_pack_canonical(pr, status);
+ }
++
++floatx80 floatx80_mul(floatx80 a, floatx80 b, float_status *status)
++{
++    floatx80 fast;
++    if (boxdroid_f80_double53(a, b, status, BOXDROID_FP_MUL, &fast)) {
++        return fast;
++    }
++    return floatx80_mul_slow(a, b, status);
++}
++
 
- floatx80 floatx80_div(floatx80 a, floatx80 b, float_status *status)
- {
+ /*
+  * Fused multiply-add
+@@ -2623,8 +2660,14 @@
+     return float128_round_pack_canonical(pr, status);
+ }
+
+-floatx80 floatx80_div(floatx80 a, floatx80 b, float_status *status)
+-{
++static floatx80 QEMU_FLATTEN __attribute__((noinline))
++floatx80_div_slow(floatx80 a, floatx80 b, float_status *status)
++{
 +    floatx80 fast;
 +    if (boxdroid_f80_arithmetic(a, b, status, BOXDROID_FP_DIV, &fast)) {
 +        return fast;
@@ -51,7 +105,24 @@ diff --git a/fpu/softfloat.c b/fpu/softfloat.c
      FloatParts128 pa, pb, *pr;
 
      if (!floatx80_unpack_canonical(&pa, a, status) ||
-@@ -2988,6 +3007,11 @@
+@@ -2635,6 +2678,16 @@
+     pr = parts_div(&pa, &pb, status);
+     return floatx80_round_pack_canonical(pr, status);
+ }
++
++floatx80 floatx80_div(floatx80 a, floatx80 b, float_status *status)
++{
++    floatx80 fast;
++    if (boxdroid_f80_double53(a, b, status, BOXDROID_FP_DIV, &fast)) {
++        return fast;
++    }
++    return floatx80_div_slow(a, b, status);
++}
++
+
+ /*
+  * Remainder
+@@ -2988,6 +3041,11 @@
 
  float32 floatx80_to_float32(floatx80 a, float_status *s)
  {
@@ -63,7 +134,7 @@ diff --git a/fpu/softfloat.c b/fpu/softfloat.c
      FloatParts64 p64;
      FloatParts128 p128;
 
-@@ -3001,6 +3025,11 @@
+@@ -3001,6 +3059,11 @@
 
  float64 floatx80_to_float64(floatx80 a, float_status *s)
  {
@@ -75,7 +146,7 @@ diff --git a/fpu/softfloat.c b/fpu/softfloat.c
      FloatParts64 p64;
      FloatParts128 p128;
 
-@@ -3026,6 +3055,11 @@
+@@ -3026,6 +3089,11 @@
 
  floatx80 float32_to_floatx80(float32 a, float_status *s)
  {
@@ -87,7 +158,7 @@ diff --git a/fpu/softfloat.c b/fpu/softfloat.c
      FloatParts64 p64;
      FloatParts128 p128;
 
-@@ -3036,6 +3070,11 @@
+@@ -3036,6 +3104,11 @@
 
  floatx80 float64_to_floatx80(float64 a, float_status *s)
  {
@@ -99,7 +170,7 @@ diff --git a/fpu/softfloat.c b/fpu/softfloat.c
      FloatParts64 p64;
      FloatParts128 p128;
 
-@@ -3104,6 +3143,11 @@
+@@ -3104,6 +3177,11 @@
 
  floatx80 floatx80_round_to_int(floatx80 a, float_status *status)
  {
@@ -111,7 +182,7 @@ diff --git a/fpu/softfloat.c b/fpu/softfloat.c
      FloatParts128 p;
 
      if (!floatx80_unpack_canonical(&p, a, status)) {
-@@ -3321,6 +3365,11 @@
+@@ -3321,6 +3399,11 @@
  static int32_t floatx80_to_int32_scalbn(floatx80 a, FloatRoundMode rmode,
                                          int scale, float_status *s)
  {
@@ -123,7 +194,7 @@ diff --git a/fpu/softfloat.c b/fpu/softfloat.c
      FloatParts128 p;
 
      if (!floatx80_unpack_canonical(&p, a, s)) {
-@@ -3332,6 +3381,11 @@
+@@ -3332,6 +3415,11 @@
  static int64_t floatx80_to_int64_scalbn(floatx80 a, FloatRoundMode rmode,
                                          int scale, float_status *s)
  {
@@ -135,7 +206,7 @@ diff --git a/fpu/softfloat.c b/fpu/softfloat.c
      FloatParts128 p;
 
      if (!floatx80_unpack_canonical(&p, a, s)) {
-@@ -4121,6 +4175,11 @@
+@@ -4121,6 +4209,11 @@
 
  floatx80 int64_to_floatx80(int64_t a, float_status *status)
  {
@@ -147,7 +218,7 @@ diff --git a/fpu/softfloat.c b/fpu/softfloat.c
      FloatParts128 p;
 
      parts_sint_to_float(&p, a, 0, status);
-@@ -4589,6 +4648,13 @@
+@@ -4589,6 +4682,13 @@
  static FloatRelation QEMU_FLATTEN
  floatx80_do_compare(floatx80 a, floatx80 b, float_status *s, bool is_quiet)
  {
@@ -161,10 +232,15 @@ diff --git a/fpu/softfloat.c b/fpu/softfloat.c
      FloatParts128 pa, pb;
 
      if (!floatx80_unpack_canonical(&pa, a, s) ||
-@@ -4784,6 +4850,11 @@
+@@ -4782,8 +4882,14 @@
+     return float128_round_pack_canonical(&p, status);
+ }
 
- floatx80 floatx80_sqrt(floatx80 a, float_status *s)
- {
+-floatx80 floatx80_sqrt(floatx80 a, float_status *s)
+-{
++static floatx80 QEMU_FLATTEN __attribute__((noinline))
++floatx80_sqrt_slow(floatx80 a, float_status *s)
++{
 +    floatx80 fast;
 +    if (boxdroid_f80_arithmetic(a, a, s, BOXDROID_FP_SQRT, &fast)) {
 +        return fast;
@@ -173,11 +249,28 @@ diff --git a/fpu/softfloat.c b/fpu/softfloat.c
      FloatParts128 p;
 
      if (!floatx80_unpack_canonical(&p, a, s)) {
+@@ -4792,6 +4898,16 @@
+     parts_sqrt(&p, s, &floatx80_params[s->floatx80_rounding_precision]);
+     return floatx80_round_pack_canonical(&p, s);
+ }
++
++floatx80 floatx80_sqrt(floatx80 a, float_status *s)
++{
++    floatx80 fast;
++    if (boxdroid_f80_double53(a, a, s, BOXDROID_FP_SQRT, &fast)) {
++        return fast;
++    }
++    return floatx80_sqrt_slow(a, s);
++}
++
+
+ /*
+  * log2
 diff --git a/fpu/boxdroid-floatx80.h b/fpu/boxdroid-floatx80.h
 new file mode 100644
 --- /dev/null
 +++ b/fpu/boxdroid-floatx80.h
-@@ -0,0 +1,947 @@
+@@ -0,0 +1,1023 @@
 +/* SPDX-License-Identifier: BSD-2-Clause
 + * Exact normal-number floatx80 acceleration. See the downstream correction
 + * report for domains and the double-rounding argument. Special encodings and
@@ -188,6 +281,7 @@ new file mode 100644
 +
 +#ifdef BOXDROID_FAST_FPU_TEST
 +uint64_t boxdroid_fast_fpu_hits;
++uint64_t boxdroid_double53_hits;
 +#define BOXDROID_FP_HIT() (++boxdroid_fast_fpu_hits)
 +#else
 +#define BOXDROID_FP_HIT() ((void)0)
@@ -198,29 +292,35 @@ new file mode 100644
 +#ifdef __aarch64__
 +#include <android/log.h>
 +#endif
++/* Keep rare property lookup/auditing out of every hot conversion's frame. */
++static __attribute__((noinline)) void boxdroid_refresh_fast_fpu(float_status *s)
++{
++    char prop[PROP_VALUE_MAX] = { 0 };
++#ifdef __aarch64__
++    if (!s->boxdroid_fast_fpu_state &&
++        __system_property_get("debug.boxdroid.fpu_audit", prop) > 0 && prop[0] == '1') {
++        uint64_t host_control;
++        asm volatile("mrs %0, fpcr" : "=r"(host_control));
++        __android_log_print(ANDROID_LOG_INFO, "BoxDroidFpu",
++                            "X87_HOST_FPCR value=0x%llx", (unsigned long long)host_control);
++    }
++#endif
++    s->boxdroid_fast_fpu_state =
++        (__system_property_get("debug.boxdroid.fast_fpu", prop) <= 0 ||
++         prop[0] != '0') ? 1 : 2;
++}
++
 +static inline bool boxdroid_use_fast_fpu(float_status *s)
 +{
-+    /* float_status already belongs to the caller that updates its exception
-+     * flags. Keep this nonarchitectural cache there: Android dynamic TLS
-+     * otherwise resolves several addresses on every x87 operation. */
++    /* Caller-owned status cache: no TLS and no new control-word cache that
++     * would need invalidation on temporary SoftFloat precision changes. */
 +    if (unlikely(!s->boxdroid_fast_fpu_state ||
 +                 (++s->boxdroid_fast_fpu_checks & 0xffff) == 1)) {
-+        char prop[PROP_VALUE_MAX] = { 0 };
-+#ifdef __aarch64__
-+        if (!s->boxdroid_fast_fpu_state &&
-+            __system_property_get("debug.boxdroid.fpu_audit", prop) > 0 && prop[0] == '1') {
-+            uint64_t host_control;
-+            asm volatile("mrs %0, fpcr" : "=r"(host_control));
-+            __android_log_print(ANDROID_LOG_INFO, "BoxDroidFpu",
-+                                "X87_HOST_FPCR value=0x%llx", (unsigned long long)host_control);
-+        }
-+#endif
-+        s->boxdroid_fast_fpu_state =
-+            (__system_property_get("debug.boxdroid.fast_fpu", prop) <= 0 ||
-+             prop[0] != '0') ? 1 : 2;
++        boxdroid_refresh_fast_fpu(s);
 +    }
 +    return s->boxdroid_fast_fpu_state == 1;
 +}
++
 +#else
 +static inline bool boxdroid_use_fast_fpu(float_status *s)
 +{
@@ -491,6 +591,75 @@ new file mode 100644
 +#else
 +static inline bool boxdroid_fp_nearest(void) { return false; }
 +#endif
++
++/* Dedicated common PC=53/RN path. Canonical 53-bit operands with unbiased
++ * exponents in [-450,450] map directly to normal binary64. Add/sub cancellation
++ * is zero or >=2^-502, products/quotients stay above 2^-901 and below 2^902,
++ * and sqrt stays normal. Thus no exponent exception, FZ/DN effect or second
++ * rounding is possible. Only IXC can change; sticky guest flags are retained.
++ * All other encodings, precisions, modes and exponent domains use the existing
++ * exact implementation. No x87 control-word state is cached here. */
++static inline QEMU_ALWAYS_INLINE bool
++boxdroid_f80_double53(floatx80 a, floatx80 b, float_status *s,
++                     enum BoxDroidFPOp op, floatx80 *out)
++{
++#if defined(__aarch64__)
++    unsigned ea = a.high & 0x7fff, eb = b.high & 0x7fff;
++    if (s->floatx80_rounding_precision != floatx80_precision_d ||
++        s->float_rounding_mode != float_round_nearest_even ||
++        ea - (16383 - 450) > 900 || eb - (16383 - 450) > 900 ||
++        !((a.low & b.low) >> 63) || ((a.low | b.low) & 0x7ff) ||
++        (op == BOXDROID_FP_SQRT && (a.high & 0x8000)) ||
++        !boxdroid_use_fast_fpu(s) || !boxdroid_fp_nearest()) {
++        return false;
++    }
++    union { uint64_t u; double d; } da, db, r;
++    da.u = ((uint64_t)(a.high & 0x8000) << 48) |
++           ((uint64_t)(ea - 15360) << 52) |
++           ((a.low >> 11) & UINT64_C(0xfffffffffffff));
++    db.u = ((uint64_t)(b.high & 0x8000) << 48) |
++           ((uint64_t)(eb - 15360) << 52) |
++           ((b.low >> 11) & UINT64_C(0xfffffffffffff));
++    if (unlikely(!(s->float_exception_flags & float_flag_inexact))) {
++        uint64_t fpsr;
++        r.d = boxdroid_host_op(da.d, db.d, op, &fpsr, true);
++        if (fpsr & ~UINT64_C(0x10)) return false;
++        float_raise(fpsr & 0x10 ? float_flag_inexact : 0, s);
++    } else {
++        /* Constant op at each caller allows one inlined FP instruction. */
++        switch (op) {
++        case BOXDROID_FP_ADD:
++            asm volatile("fadd %d0, %d1, %d2" : "=w"(r.d) : "w"(da.d), "w"(db.d));
++            break;
++        case BOXDROID_FP_SUB:
++            asm volatile("fsub %d0, %d1, %d2" : "=w"(r.d) : "w"(da.d), "w"(db.d));
++            break;
++        case BOXDROID_FP_MUL:
++            asm volatile("fmul %d0, %d1, %d2" : "=w"(r.d) : "w"(da.d), "w"(db.d));
++            break;
++        case BOXDROID_FP_DIV:
++            asm volatile("fdiv %d0, %d1, %d2" : "=w"(r.d) : "w"(da.d), "w"(db.d));
++            break;
++        case BOXDROID_FP_SQRT:
++            asm volatile("fsqrt %d0, %d1" : "=w"(r.d) : "w"(da.d));
++            break;
++        default: return false;
++        }
++    }
++    unsigned e = (r.u >> 52) & 0x7ff;
++    *out = (floatx80) {
++        .high = ((r.u >> 48) & 0x8000) | (e ? e + 15360 : 0),
++        .low = e ? (UINT64_C(1) << 63) | (r.u << 11) : 0,
++    };
++#ifdef BOXDROID_FAST_FPU_TEST
++    ++boxdroid_double53_hits;
++#endif
++    BOXDROID_FP_HIT();
++    return true;
++#else
++    return false;
++#endif
++}
 +
 +/* Exact identities also accept full 64-bit significands. Precision rounding
 + * is still required in PC=24/53; exponent boundaries remain SoftFloat. */

@@ -76,3 +76,7 @@ when comparing modes. The upstream helper ordering is retained in every mode.
 [Main-to-candidate attribution](../../docs/performance/pandora-main-attribution.md)
 records the controlled patch matrix, per-title marginal costs and diagnostic
 counters against exact current main behavior.
+
+[Exact DOUBLE53 optimization](../../docs/performance/pandora-double53-optimization.md)
+records the subsequent 0033 hot-path changes, differential validation and
+matched performance gains with corrected 0032 and 0036 held fixed.
