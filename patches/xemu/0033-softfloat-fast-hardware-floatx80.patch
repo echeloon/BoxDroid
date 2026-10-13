@@ -1,432 +1,1427 @@
+From: BoxDroid downstream
+Subject: [PATCH] softfloat: exact floatx80 host acceleration with status propagation
+
 diff --git a/fpu/softfloat.c b/fpu/softfloat.c
-index 8094358c2e..809ee01331 100644
 --- a/fpu/softfloat.c
 +++ b/fpu/softfloat.c
-@@ -474,6 +474,167 @@ static inline bool is_anynorm(FloatClass c)
+@@ -474,6 +474,8 @@
      return float_cmask(c) & float_cmask_anynorm;
  }
- 
-+#if defined(BOXDROID_XBOX_RUNTIME)
-+#include <sys/system_properties.h>
-+static int boxdroid_fast_fpu_state = -1;
-+static uint32_t boxdroid_fast_fpu_check_cnt = 0;
-+static inline bool boxdroid_use_fast_fpu(void)
-+{
-+    if (unlikely(boxdroid_fast_fpu_state < 0 || (++boxdroid_fast_fpu_check_cnt & 0xffff) == 1)) {
-+        char prop[PROP_VALUE_MAX] = {0};
-+        if (__system_property_get("debug.boxdroid.fast_fpu", prop) > 0) {
-+            boxdroid_fast_fpu_state = (prop[0] != '0');
-+        } else {
-+            boxdroid_fast_fpu_state = 1;
-+        }
-+    }
-+    return boxdroid_fast_fpu_state == 1;
-+}
-+#else
-+static inline bool boxdroid_use_fast_fpu(void)
-+{
-+    const char *env = getenv("BOXDROID_FAST_FPU");
-+    if (env) {
-+        return env[0] != '0';
-+    }
-+    return true;
-+}
-+#endif
-+
-+
-+
-+static inline bool f80_to_double_fast(floatx80 a, double *out)
-+{
-+    if (unlikely((a.low & 0x7ffULL) != 0)) {
-+        return false;
-+    }
-+    uint32_t exp = a.high & 0x7fff;
-+    uint32_t sign = (a.high >> 15) & 1;
-+    if (likely(exp >= (16383 - 1022) && exp <= (16383 + 1023) && (a.low & 0x8000000000000000ULL))) {
-+        int32_t exp_dbl = (int32_t)exp - 16383 + 1023;
-+        uint64_t mant_dbl = (a.low >> 11) & 0x000fffffffffffffULL;
-+        union { uint64_t u; double d; } res;
-+        res.u = ((uint64_t)sign << 63) | ((uint64_t)exp_dbl << 52) | mant_dbl;
-+        *out = res.d;
-+        return true;
-+    }
-+    if (unlikely(exp == 0 && a.low == 0)) {
-+        union { uint64_t u; double d; } res;
-+        res.u = (uint64_t)sign << 63;
-+        *out = res.d;
-+        return true;
-+    }
-+    return false;
-+}
-+
-+static inline FloatRelation floatx80_compare_fast_exact(floatx80 a, floatx80 b)
-+{
-+    uint32_t exp_a = a.high & 0x7fff;
-+    uint32_t exp_b = b.high & 0x7fff;
-+    if (unlikely(exp_a == 0x7fff || exp_b == 0x7fff)) {
-+        return float_relation_unordered;
-+    }
-+    if (unlikely(((a.low >> 63) == 0 && exp_a != 0) || ((b.low >> 63) == 0 && exp_b != 0))) {
-+        return float_relation_unordered;
-+    }
-+    bool a_zero = (exp_a == 0 && a.low == 0);
-+    bool b_zero = (exp_b == 0 && b.low == 0);
-+    if (unlikely(a_zero && b_zero)) {
-+        return float_relation_equal;
-+    }
-+    uint32_t sign_a = (a.high >> 15) & 1;
-+    uint32_t sign_b = (b.high >> 15) & 1;
-+    if (sign_a != sign_b) {
-+        if (a_zero) return sign_b ? float_relation_greater : float_relation_less;
-+        if (b_zero) return sign_a ? float_relation_less : float_relation_greater;
-+        return sign_a ? float_relation_less : float_relation_greater;
-+    }
-+    if (a.high == b.high && a.low == b.low) {
-+        return float_relation_equal;
-+    }
-+    bool a_mag_greater = (exp_a > exp_b) || (exp_a == exp_b && a.low > b.low);
-+    if (sign_a) {
-+        return a_mag_greater ? float_relation_less : float_relation_greater;
-+    } else {
-+        return a_mag_greater ? float_relation_greater : float_relation_less;
-+    }
-+}
-+
-+static inline bool double_to_f80_fast(double d, floatx80 *out)
-+{
-+    union { double d; uint64_t u; } u = { .d = d };
-+    uint32_t sign = (u.u >> 63) & 1;
-+    uint32_t exp_dbl = (u.u >> 52) & 0x7ff;
-+    uint64_t mant_dbl = u.u & 0x000fffffffffffffULL;
-+    if (likely(exp_dbl > 0 && exp_dbl < 0x7ff)) {
-+        uint32_t exp_80 = exp_dbl - 1023 + 16383;
-+        uint64_t low = (1ULL << 63) | (mant_dbl << 11);
-+        uint16_t high = (uint16_t)((sign << 15) | exp_80);
-+        *out = (floatx80){ .low = low, .high = high };
-+        return true;
-+    }
-+    if (unlikely(exp_dbl == 0 && mant_dbl == 0)) {
-+        *out = (floatx80){ .low = 0, .high = (uint16_t)(sign << 15) };
-+        return true;
-+    }
-+    return false;
-+}
-+
-+static inline bool float32_to_floatx80_fast(uint32_t a, floatx80 *out)
-+{
-+    uint32_t exp = (a >> 23) & 0xff;
-+    uint32_t mant = a & 0x007fffff;
-+    if (likely(exp > 0 && exp < 0xff)) {
-+        uint16_t high = (uint16_t)(((a >> 31) << 15) | (exp + 16256));
-+        uint64_t low = (1ULL << 63) | ((uint64_t)mant << 40);
-+        *out = (floatx80){ .low = low, .high = high };
-+        return true;
-+    }
-+    if (unlikely((a & 0x7fffffff) == 0)) {
-+        *out = (floatx80){ .low = 0, .high = (uint16_t)((a >> 31) << 15) };
-+        return true;
-+    }
-+    return false;
-+}
-+
-+static inline bool float64_to_floatx80_fast(uint64_t a, floatx80 *out)
-+{
-+    uint32_t exp = (a >> 52) & 0x7ff;
-+    uint64_t mant = a & 0x000fffffffffffffULL;
-+    if (likely(exp > 0 && exp < 0x7ff)) {
-+        uint16_t high = (uint16_t)(((a >> 63) << 15) | (exp + 15360));
-+        uint64_t low = (1ULL << 63) | (mant << 11);
-+        *out = (floatx80){ .low = low, .high = high };
-+        return true;
-+    }
-+    if (unlikely((a & 0x7fffffffffffffffULL) == 0)) {
-+        *out = (floatx80){ .low = 0, .high = (uint16_t)((a >> 63) << 15) };
-+        return true;
-+    }
-+    return false;
-+}
-+
-+static inline bool int64_to_floatx80_fast(int64_t a, floatx80 *out)
-+{
-+    if (unlikely(a == 0)) {
-+        *out = (floatx80){ .low = 0, .high = 0 };
-+        return true;
-+    }
-+    if (unlikely(a == INT64_MIN)) {
-+        *out = (floatx80){ .low = 0x8000000000000000ULL, .high = 0x8000 | (16383 + 63) };
-+        return true;
-+    }
-+    uint32_t sign = (a < 0) ? 1 : 0;
-+    uint64_t val = (a < 0) ? (uint64_t)-a : (uint64_t)a;
-+    int lz = __builtin_clzll(val);
-+    uint32_t exp = 63 - lz;
-+    uint64_t low = val << lz;
-+    uint16_t high = (uint16_t)((sign << 15) | (16383 + exp));
-+    *out = (floatx80){ .low = low, .high = high };
-+    return true;
-+}
-+
+
++#include "boxdroid-floatx80.h"
 +
  /*
   * Structure holding all of the decomposed parts of a float.
   * The exponent is unbiased and the fraction is normalized.
-@@ -2096,6 +2257,21 @@ float128 float128_sub(float128 a, float128 b, float_status *status)
- static floatx80 QEMU_FLATTEN
- floatx80_addsub(floatx80 a, floatx80 b, float_status *status, bool subtract)
- {
-+    if (likely(boxdroid_use_fast_fpu() &&
-+               status->float_rounding_mode == float_round_nearest_even)) {
-+        double da, db;
-+        if (likely(f80_to_double_fast(a, &da) && f80_to_double_fast(b, &db))) {
-+            double dres = subtract ? (da - db) : (da + db);
-+            floatx80 res;
-+            if (likely(double_to_f80_fast(dres, &res))) {
-+                if (status->floatx80_rounding_precision == floatx80_precision_s) {
-+                    res.low = (res.low + 0x800000000ULL) & ~0xfffffffffULL;
-+                }
-+                return res;
-+            }
-+        }
+@@ -2093,9 +2095,16 @@
+     return float128_addsub(a, b, status, true);
+ }
+
+-static floatx80 QEMU_FLATTEN
+-floatx80_addsub(floatx80 a, floatx80 b, float_status *status, bool subtract)
+-{
++static floatx80 QEMU_FLATTEN __attribute__((noinline))
++floatx80_addsub_slow(floatx80 a, floatx80 b, float_status *status, bool subtract)
++{
++    floatx80 fast;
++    if (boxdroid_f80_arithmetic(a, b, status,
++                              subtract ? BOXDROID_FP_SUB : BOXDROID_FP_ADD,
++                              &fast)) {
++        return fast;
 +    }
 +
      FloatParts128 pa, pb, *pr;
- 
+
      if (!floatx80_unpack_canonical(&pa, a, status) ||
-@@ -2218,6 +2394,24 @@ float128_mul(float128 a, float128 b, float_status *status)
- floatx80 QEMU_FLATTEN
- floatx80_mul(floatx80 a, floatx80 b, float_status *status)
+@@ -2107,6 +2116,19 @@
+     return floatx80_round_pack_canonical(pr, status);
+ }
+
++static inline QEMU_ALWAYS_INLINE floatx80
++floatx80_addsub(floatx80 a, floatx80 b, float_status *status, bool subtract)
++{
++    floatx80 fast;
++    if (boxdroid_f80_double53(a, b, status,
++                            subtract ? BOXDROID_FP_SUB : BOXDROID_FP_ADD,
++                            &fast)) {
++        return fast;
++    }
++    return floatx80_addsub_slow(a, b, status, subtract);
++}
++
++
+ floatx80 floatx80_add(floatx80 a, floatx80 b, float_status *status)
  {
-+    if (likely(boxdroid_use_fast_fpu() &&
-+               status->float_rounding_mode == float_round_nearest_even)) {
-+        double da, db;
-+        if (likely(f80_to_double_fast(a, &da) && f80_to_double_fast(b, &db))) {
-+            int exp_sum = (int)(a.high & 0x7fff) + (int)(b.high & 0x7fff) - 16383;
-+            if (likely(exp_sum >= (16383 - 1000) && exp_sum <= (16383 + 1000))) {
-+                double dres = da * db;
-+                floatx80 res;
-+                if (likely(double_to_f80_fast(dres, &res))) {
-+                    if (status->floatx80_rounding_precision == floatx80_precision_s) {
-+                        res.low = (res.low + 0x800000000ULL) & ~0xfffffffffULL;
-+                    }
-+                    return res;
-+                }
-+            }
-+        }
+     return floatx80_addsub(a, b, status, false);
+@@ -2215,9 +2237,14 @@
+     return float128_round_pack_canonical(pr, status);
+ }
+
+-floatx80 QEMU_FLATTEN
+-floatx80_mul(floatx80 a, floatx80 b, float_status *status)
+-{
++static floatx80 QEMU_FLATTEN __attribute__((noinline))
++floatx80_mul_slow(floatx80 a, floatx80 b, float_status *status)
++{
++    floatx80 fast;
++    if (boxdroid_f80_arithmetic(a, b, status, BOXDROID_FP_MUL, &fast)) {
++        return fast;
 +    }
 +
      FloatParts128 pa, pb, *pr;
- 
+
      if (!floatx80_unpack_canonical(&pa, a, status) ||
-@@ -2625,6 +2819,24 @@ float128_div(float128 a, float128 b, float_status *status)
- 
- floatx80 floatx80_div(floatx80 a, floatx80 b, float_status *status)
- {
-+    if (likely(boxdroid_use_fast_fpu() &&
-+               status->float_rounding_mode == float_round_nearest_even)) {
-+        double da, db;
-+        if (likely(f80_to_double_fast(a, &da) && f80_to_double_fast(b, &db))) {
-+            int exp_diff = (int)(a.high & 0x7fff) - (int)(b.high & 0x7fff);
-+            if (likely(db != 0.0 && exp_diff >= -1000 && exp_diff <= 1000)) {
-+                double dres = da / db;
-+                floatx80 res;
-+                if (likely(double_to_f80_fast(dres, &res))) {
-+                    if (status->floatx80_rounding_precision == floatx80_precision_s) {
-+                        res.low = (res.low + 0x800000000ULL) & ~0xfffffffffULL;
-+                    }
-+                    return res;
-+                }
-+            }
-+        }
+@@ -2228,6 +2255,16 @@
+     pr = parts_mul(&pa, &pb, status);
+     return floatx80_round_pack_canonical(pr, status);
+ }
++
++floatx80 floatx80_mul(floatx80 a, floatx80 b, float_status *status)
++{
++    floatx80 fast;
++    if (boxdroid_f80_double53(a, b, status, BOXDROID_FP_MUL, &fast)) {
++        return fast;
++    }
++    return floatx80_mul_slow(a, b, status);
++}
++
+
+ /*
+  * Fused multiply-add
+@@ -2623,8 +2660,14 @@
+     return float128_round_pack_canonical(pr, status);
+ }
+
+-floatx80 floatx80_div(floatx80 a, floatx80 b, float_status *status)
+-{
++static floatx80 QEMU_FLATTEN __attribute__((noinline))
++floatx80_div_slow(floatx80 a, floatx80 b, float_status *status)
++{
++    floatx80 fast;
++    if (boxdroid_f80_arithmetic(a, b, status, BOXDROID_FP_DIV, &fast)) {
++        return fast;
 +    }
 +
      FloatParts128 pa, pb, *pr;
- 
+
      if (!floatx80_unpack_canonical(&pa, a, status) ||
-@@ -2988,6 +3200,19 @@ float128 float64_to_float128(float64 a, float_status *s)
- 
+@@ -2635,6 +2678,16 @@
+     pr = parts_div(&pa, &pb, status);
+     return floatx80_round_pack_canonical(pr, status);
+ }
++
++floatx80 floatx80_div(floatx80 a, floatx80 b, float_status *status)
++{
++    floatx80 fast;
++    if (boxdroid_f80_double53(a, b, status, BOXDROID_FP_DIV, &fast)) {
++        return fast;
++    }
++    return floatx80_div_slow(a, b, status);
++}
++
+
+ /*
+  * Remainder
+@@ -2988,6 +3041,11 @@
+
  float32 floatx80_to_float32(floatx80 a, float_status *s)
  {
-+    if (likely(boxdroid_use_fast_fpu() &&
-+               s->float_rounding_mode == float_round_nearest_even)) {
-+        double d;
-+        if (likely(f80_to_double_fast(a, &d))) {
-+            if (likely(fabs(d) < 3.4028234663852886e+38 &&
-+                       (fabs(d) > 1.1754943508222875e-38 || d == 0.0))) {
-+                union { float f; uint32_t u; } x;
-+                x.f = (float)d;
-+                return x.u;
-+            }
-+        }
++    float32 fast;
++    if (boxdroid_f80_to_f32(a, s, &fast)) {
++        return fast;
 +    }
 +
      FloatParts64 p64;
      FloatParts128 p128;
- 
-@@ -3001,6 +3226,16 @@ float32 floatx80_to_float32(floatx80 a, float_status *s)
- 
+
+@@ -3001,6 +3059,11 @@
+
  float64 floatx80_to_float64(floatx80 a, float_status *s)
  {
-+    if (likely(boxdroid_use_fast_fpu() &&
-+               s->float_rounding_mode == float_round_nearest_even)) {
-+        double d;
-+        if (likely(f80_to_double_fast(a, &d))) {
-+            union { double d; uint64_t u; } x;
-+            x.d = d;
-+            return x.u;
-+        }
++    float64 fast;
++    if (boxdroid_f80_to_f64(a, s, &fast)) {
++        return fast;
 +    }
 +
      FloatParts64 p64;
      FloatParts128 p128;
- 
-@@ -3026,6 +3261,13 @@ float128 floatx80_to_float128(floatx80 a, float_status *s)
- 
+
+@@ -3026,6 +3089,11 @@
+
  floatx80 float32_to_floatx80(float32 a, float_status *s)
  {
-+    if (likely(boxdroid_use_fast_fpu())) {
-+        floatx80 res;
-+        if (likely(float32_to_floatx80_fast(a, &res))) {
-+            return res;
-+        }
++    floatx80 fast;
++    if (boxdroid_f32_widen(a, s, &fast)) {
++        return fast;
 +    }
 +
      FloatParts64 p64;
      FloatParts128 p128;
- 
-@@ -3036,6 +3278,13 @@ floatx80 float32_to_floatx80(float32 a, float_status *s)
- 
+
+@@ -3036,6 +3104,11 @@
+
  floatx80 float64_to_floatx80(float64 a, float_status *s)
  {
-+    if (likely(boxdroid_use_fast_fpu())) {
-+        floatx80 res;
-+        if (likely(float64_to_floatx80_fast(a, &res))) {
-+            return res;
-+        }
++    floatx80 fast;
++    if (boxdroid_f64_widen(a, s, &fast)) {
++        return fast;
 +    }
 +
      FloatParts64 p64;
      FloatParts128 p128;
- 
-@@ -3104,6 +3353,28 @@ float128 float128_round_to_int(float128 a, float_status *s)
- 
+
+@@ -3104,6 +3177,11 @@
+
  floatx80 floatx80_round_to_int(floatx80 a, float_status *status)
  {
-+    if (likely(boxdroid_use_fast_fpu())) {
-+        double d;
-+        if (likely(f80_to_double_fast(a, &d))) {
-+            double r;
-+            if (status->float_rounding_mode == float_round_nearest_even) {
-+                r = rint(d);
-+            } else if (status->float_rounding_mode == float_round_to_zero) {
-+                r = trunc(d);
-+            } else if (status->float_rounding_mode == float_round_down) {
-+                r = floor(d);
-+            } else if (status->float_rounding_mode == float_round_up) {
-+                r = ceil(d);
-+            } else {
-+                goto fallback;
-+            }
-+            floatx80 res;
-+            if (likely(double_to_f80_fast(r, &res))) {
-+                return res;
-+            }
-+        }
++    floatx80 fast;
++    if (boxdroid_f80_round_int(a, status, &fast)) {
++        return fast;
 +    }
-+fallback: ;
++
      FloatParts128 p;
- 
+
      if (!floatx80_unpack_canonical(&p, a, status)) {
-@@ -3321,6 +3592,19 @@ static Int128 float128_to_int128_scalbn(float128 a, FloatRoundMode rmode,
+@@ -3321,6 +3399,11 @@
  static int32_t floatx80_to_int32_scalbn(floatx80 a, FloatRoundMode rmode,
                                          int scale, float_status *s)
  {
-+    if (likely(boxdroid_use_fast_fpu() && scale == 0)) {
-+        double d;
-+        if (likely(f80_to_double_fast(a, &d))) {
-+            if (likely(d >= (double)INT32_MIN && d <= (double)INT32_MAX)) {
-+                if (rmode == float_round_to_zero) {
-+                    return (int32_t)d;
-+                } else if (rmode == float_round_nearest_even) {
-+                    return (int32_t)rint(d);
-+                }
-+            }
-+        }
++    int64_t fast;
++    if (scale == 0 && boxdroid_f80_to_int(a, rmode, 32, s, &fast)) {
++        return fast;
 +    }
 +
      FloatParts128 p;
- 
+
      if (!floatx80_unpack_canonical(&p, a, s)) {
-@@ -3332,6 +3616,19 @@ static int32_t floatx80_to_int32_scalbn(floatx80 a, FloatRoundMode rmode,
+@@ -3332,6 +3415,11 @@
  static int64_t floatx80_to_int64_scalbn(floatx80 a, FloatRoundMode rmode,
                                          int scale, float_status *s)
  {
-+    if (likely(boxdroid_use_fast_fpu() && scale == 0)) {
-+        double d;
-+        if (likely(f80_to_double_fast(a, &d))) {
-+            if (likely(d >= -9223372036854774784.0 && d <= 9223372036854774784.0)) {
-+                if (rmode == float_round_to_zero) {
-+                    return (int64_t)d;
-+                } else if (rmode == float_round_nearest_even) {
-+                    return (int64_t)rint(d);
-+                }
-+            }
-+        }
++    int64_t fast;
++    if (scale == 0 && boxdroid_f80_to_int(a, rmode, 64, s, &fast)) {
++        return fast;
 +    }
 +
      FloatParts128 p;
- 
+
      if (!floatx80_unpack_canonical(&p, a, s)) {
-@@ -4121,6 +4418,13 @@ float128 int32_to_float128(int32_t a, float_status *status)
- 
+@@ -4121,6 +4209,11 @@
+
  floatx80 int64_to_floatx80(int64_t a, float_status *status)
  {
-+    if (likely(boxdroid_use_fast_fpu())) {
-+        floatx80 res;
-+        if (likely(int64_to_floatx80_fast(a, &res))) {
-+            return res;
-+        }
++    floatx80 fast;
++    if (boxdroid_i64_widen(a, status, &fast)) {
++        return fast;
 +    }
 +
      FloatParts128 p;
- 
+
      parts_sint_to_float(&p, a, 0, status);
-@@ -4589,6 +4893,13 @@ FloatRelation float128_compare_quiet(float128 a, float128 b, float_status *s)
+@@ -4589,6 +4682,13 @@
  static FloatRelation QEMU_FLATTEN
  floatx80_do_compare(floatx80 a, floatx80 b, float_status *s, bool is_quiet)
  {
-+    if (likely(boxdroid_use_fast_fpu())) {
-+        FloatRelation rel = floatx80_compare_fast_exact(a, b);
-+        if (likely(rel != float_relation_unordered)) {
-+            return rel;
-+        }
++    if (boxdroid_use_fast_fpu(s) && boxdroid_f80_regular(a) &&
++        boxdroid_f80_regular(b)) {
++        FloatRelation rel = boxdroid_f80_compare(a, b);
++        BOXDROID_FP_HIT();
++        return rel;
 +    }
 +
      FloatParts128 pa, pb;
- 
+
      if (!floatx80_unpack_canonical(&pa, a, s) ||
-@@ -4784,6 +5095,25 @@ float128 QEMU_FLATTEN float128_sqrt(float128 a, float_status *status)
- 
- floatx80 floatx80_sqrt(floatx80 a, float_status *s)
- {
-+    if (likely(boxdroid_use_fast_fpu() &&
-+               s->float_rounding_mode == float_round_nearest_even)) {
-+        double d;
-+        if (likely(f80_to_double_fast(a, &d))) {
-+            if (likely(d > 0.0)) {
-+                double r = sqrt(d);
-+                floatx80 res;
-+                if (likely(double_to_f80_fast(r, &res))) {
-+                    if (s->floatx80_rounding_precision == floatx80_precision_s) {
-+                        res.low = (res.low + 0x800000000ULL) & ~0xfffffffffULL;
-+                    }
-+                    return res;
-+                }
-+            } else if (d == 0.0) {
-+                return a;
-+            }
-+        }
+@@ -4782,8 +4882,14 @@
+     return float128_round_pack_canonical(&p, status);
+ }
+
+-floatx80 floatx80_sqrt(floatx80 a, float_status *s)
+-{
++static floatx80 QEMU_FLATTEN __attribute__((noinline))
++floatx80_sqrt_slow(floatx80 a, float_status *s)
++{
++    floatx80 fast;
++    if (boxdroid_f80_arithmetic(a, a, s, BOXDROID_FP_SQRT, &fast)) {
++        return fast;
 +    }
 +
      FloatParts128 p;
- 
+
      if (!floatx80_unpack_canonical(&p, a, s)) {
+@@ -4792,6 +4898,16 @@
+     parts_sqrt(&p, s, &floatx80_params[s->floatx80_rounding_precision]);
+     return floatx80_round_pack_canonical(&p, s);
+ }
++
++floatx80 floatx80_sqrt(floatx80 a, float_status *s)
++{
++    floatx80 fast;
++    if (boxdroid_f80_double53(a, a, s, BOXDROID_FP_SQRT, &fast)) {
++        return fast;
++    }
++    return floatx80_sqrt_slow(a, s);
++}
++
+
+ /*
+  * log2
+diff --git a/fpu/boxdroid-floatx80.h b/fpu/boxdroid-floatx80.h
+new file mode 100644
+--- /dev/null
++++ b/fpu/boxdroid-floatx80.h
+@@ -0,0 +1,1023 @@
++/* SPDX-License-Identifier: BSD-2-Clause
++ * Exact normal-number floatx80 acceleration. See the downstream correction
++ * report for domains and the double-rounding argument. Special encodings and
++ * exponent boundaries remain with SoftFloat. Never compile with fast-math.
++ */
++#ifndef BOXDROID_FLOATX80_H
++#define BOXDROID_FLOATX80_H
++
++#ifdef BOXDROID_FAST_FPU_TEST
++uint64_t boxdroid_fast_fpu_hits;
++uint64_t boxdroid_double53_hits;
++#define BOXDROID_FP_HIT() (++boxdroid_fast_fpu_hits)
++#else
++#define BOXDROID_FP_HIT() ((void)0)
++#endif
++
++#ifdef BOXDROID_XBOX_RUNTIME
++#include <sys/system_properties.h>
++#ifdef __aarch64__
++#include <android/log.h>
++#endif
++/* Keep rare property lookup/auditing out of every hot conversion's frame. */
++static __attribute__((noinline)) void boxdroid_refresh_fast_fpu(float_status *s)
++{
++    char prop[PROP_VALUE_MAX] = { 0 };
++#ifdef __aarch64__
++    if (!s->boxdroid_fast_fpu_state &&
++        __system_property_get("debug.boxdroid.fpu_audit", prop) > 0 && prop[0] == '1') {
++        uint64_t host_control;
++        asm volatile("mrs %0, fpcr" : "=r"(host_control));
++        __android_log_print(ANDROID_LOG_INFO, "BoxDroidFpu",
++                            "X87_HOST_FPCR value=0x%llx", (unsigned long long)host_control);
++    }
++#endif
++    s->boxdroid_fast_fpu_state =
++        (__system_property_get("debug.boxdroid.fast_fpu", prop) <= 0 ||
++         prop[0] != '0') ? 1 : 2;
++}
++
++static inline bool boxdroid_use_fast_fpu(float_status *s)
++{
++    /* Caller-owned status cache: no TLS and no new control-word cache that
++     * would need invalidation on temporary SoftFloat precision changes. */
++    if (unlikely(!s->boxdroid_fast_fpu_state ||
++                 (++s->boxdroid_fast_fpu_checks & 0xffff) == 1)) {
++        boxdroid_refresh_fast_fpu(s);
++    }
++    return s->boxdroid_fast_fpu_state == 1;
++}
++
++#else
++static inline bool boxdroid_use_fast_fpu(float_status *s)
++{
++    (void)s;
++    const char *value = getenv("BOXDROID_FAST_FPU");
++    return !value || value[0] != '0';
++}
++#endif
++
++/* Raw comparisons are valid only for canonical normals and signed zeros. */
++static inline bool boxdroid_f80_regular(floatx80 a)
++{
++    unsigned exp = a.high & 0x7fff;
++    return (exp > 0 && exp < 0x7fff && (a.low >> 63)) ||
++           (exp == 0 && a.low == 0);
++}
++
++static inline FloatRelation boxdroid_f80_compare(floatx80 a, floatx80 b)
++{
++    if (!a.low && !b.low) {
++        return float_relation_equal;
++    }
++    bool sa = a.high >> 15, sb = b.high >> 15;
++    if (sa != sb) {
++        return sa ? float_relation_less : float_relation_greater;
++    }
++    if (a.high == b.high && a.low == b.low) {
++        return float_relation_equal;
++    }
++    bool greater = (a.high & 0x7fff) > (b.high & 0x7fff) ||
++                   (a.high == b.high && a.low > b.low);
++    return greater != sa ? float_relation_greater : float_relation_less;
++}
++
++/* Pure integer rounding; caller commits flags only after all guards pass. */
++static inline bool boxdroid_f80_precision(floatx80 *a, float_status *s,
++                                          int *flags)
++{
++    unsigned shift;
++    switch (s->floatx80_rounding_precision) {
++    case floatx80_precision_x: shift = 0; break;
++    case floatx80_precision_d: shift = 11; break;
++    case floatx80_precision_s: shift = 40; break;
++    default: return false;
++    }
++    if (!shift || !a->low) {
++        return true;
++    }
++    uint64_t unit = UINT64_C(1) << shift;
++    uint64_t lost = a->low & (unit - 1);
++    bool increment;
++    switch (s->float_rounding_mode) {
++    case float_round_nearest_even:
++        increment = lost > unit / 2 ||
++                    (lost == unit / 2 && (a->low & unit));
++        break;
++    case float_round_to_zero: increment = false; break;
++    case float_round_up: increment = lost && !(a->high >> 15); break;
++    case float_round_down: increment = lost && (a->high >> 15); break;
++    default: return false;
++    }
++    uint64_t frac = a->low & ~(unit - 1);
++    if (increment) {
++        uint64_t rounded = frac + unit;
++        if (rounded < frac) {
++            unsigned exp = (a->high & 0x7fff) + 1;
++            if (exp == 0x7fff) {
++                return false;
++            }
++            a->high = (a->high & 0x8000) | exp;
++            rounded = UINT64_C(1) << 63;
++        }
++        frac = rounded;
++    }
++    a->low = frac;
++    if (lost) {
++        *flags |= float_flag_inexact;
++    }
++    return true;
++}
++
++/* Build a normal binary64 operand without a floating-point conversion.
++ * Scaling preserves the exact value, significand and sign. */
++static inline bool boxdroid_f80_scaled(floatx80 a, int scale, double *out)
++{
++    if (!boxdroid_f80_regular(a) || (a.low & 0x7ff)) {
++        return false;
++    }
++    union { uint64_t u; double d; } v;
++    if (!a.low) {
++        v.u = (uint64_t)(a.high >> 15) << 63;
++    } else {
++        int exp = (a.high & 0x7fff) - 16383 - scale + 1023;
++        if (exp <= 0 || exp >= 0x7ff) {
++            return false;
++        }
++        v.u = ((uint64_t)(a.high >> 15) << 63) |
++              ((uint64_t)exp << 52) |
++              ((a.low >> 11) & UINT64_C(0xfffffffffffff));
++    }
++    *out = v.d;
++    return true;
++}
++
++static inline bool boxdroid_f64_scaled(double a, int scale, floatx80 *out)
++{
++    union { double d; uint64_t u; } v = { .d = a };
++    unsigned exp = (v.u >> 52) & 0x7ff;
++    unsigned sign = v.u >> 63;
++    if (!exp) {
++        if (v.u & UINT64_C(0xfffffffffffff)) {
++            return false;
++        }
++        *out = (floatx80) { .high = sign << 15, .low = 0 };
++        return true;
++    }
++    int wide_exp = (int)exp - 1023 + scale + 16383;
++    if (exp == 0x7ff || wide_exp <= 0 || wide_exp >= 0x7fff) {
++        return false;
++    }
++    *out = (floatx80) {
++        .high = (sign << 15) | wide_exp,
++        .low = (UINT64_C(1) << 63) |
++               ((v.u & UINT64_C(0xfffffffffffff)) << 11),
++    };
++    return true;
++}
++
++enum BoxDroidFPOp {
++    BOXDROID_FP_ADD, BOXDROID_FP_SUB, BOXDROID_FP_MUL,
++    BOXDROID_FP_DIV, BOXDROID_FP_SQRT,
++};
++
++#if defined(__aarch64__)
++static inline bool boxdroid_fp_nearest(void)
++{
++    uint64_t fpcr;
++    asm volatile("mrs %0, fpcr" : "=r" (fpcr));
++    /* Scaled inputs are normal and the result is normal or exact zero:
++     * cancellation of 24/53-bit operands is >= 2^-24/2^-53. Other operations
++     * stay in [.5,4]. FZ and DN cannot change this domain. Rounding must be
++     * nearest; traps and every unrecognized control setting are rejected. */
++    return (fpcr & ~(UINT64_C(3) << 24)) == 0;
++}
++
++/* Certified estimates may use any host rounding mode. Integer certification
++ * and final rounding determine the guest result; an inaccurate guess falls
++ * back. Inputs, residual conversions and estimates are all finite normals. */
++static inline bool boxdroid_fp_estimate(void)
++{
++    uint64_t fpcr;
++    asm volatile("mrs %0, fpcr" : "=r"(fpcr));
++    return (fpcr & ~((UINT64_C(3) << 22) | (UINT64_C(3) << 24))) == 0;
++}
++
++/* One asm region prevents compiler motion across FPSR clear/read/restore.
++ * Preserve the caller's host flags; never substitute them for guest flags. */
++#define BOXDROID_HOST_OP(insn) \
++    asm volatile("mrs %0, fpsr\n\t" \
++                 "msr fpsr, xzr\n\t" \
++                 insn " %d2, %d3, %d4\n\t" \
++                 "mrs %1, fpsr\n\t" \
++                 "msr fpsr, %0" \
++                 : "=&r" (saved), "=&r" (*fpsr), "=&w" (result) \
++                 : "w" (a), "w" (b) : "memory")
++static inline double boxdroid_host_op(double a, double b,
++                                       enum BoxDroidFPOp op, uint64_t *fpsr,
++                                       bool observe)
++{
++    uint64_t saved;
++    double result;
++    if (!observe) {
++        /* Callers prove exactness, or the only possible exception is IXC
++         * already sticky and masked in the guest. Host FPSR may accumulate IXC, as with QEMU's
++         * existing unchecked hardfloat paths; FPCR is never changed. */
++        switch (op) {
++        case BOXDROID_FP_ADD:
++            asm volatile("fadd %d0, %d1, %d2" : "=w" (result) : "w" (a), "w" (b));
++            break;
++        case BOXDROID_FP_SUB:
++            asm volatile("fsub %d0, %d1, %d2" : "=w" (result) : "w" (a), "w" (b));
++            break;
++        case BOXDROID_FP_MUL:
++            asm volatile("fmul %d0, %d1, %d2" : "=w" (result) : "w" (a), "w" (b));
++            break;
++        case BOXDROID_FP_DIV:
++            asm volatile("fdiv %d0, %d1, %d2" : "=w" (result) : "w" (a), "w" (b));
++            break;
++        case BOXDROID_FP_SQRT:
++            asm volatile("fsqrt %d0, %d1" : "=w" (result) : "w" (a));
++            break;
++        default: g_assert_not_reached();
++        }
++        *fpsr = 0;
++        return result;
++    }
++    switch (op) {
++    case BOXDROID_FP_ADD: BOXDROID_HOST_OP("fadd"); break;
++    case BOXDROID_FP_SUB: BOXDROID_HOST_OP("fsub"); break;
++    case BOXDROID_FP_MUL: BOXDROID_HOST_OP("fmul"); break;
++    case BOXDROID_FP_DIV: BOXDROID_HOST_OP("fdiv"); break;
++    case BOXDROID_FP_SQRT:
++        asm volatile("mrs %0, fpsr\n\tmsr fpsr, xzr\n\t"
++                     "fsqrt %d2, %d3\n\tmrs %1, fpsr\n\tmsr fpsr, %0"
++                     : "=&r" (saved), "=&r" (*fpsr), "=&w" (result)
++                     : "w" (a) : "memory");
++        break;
++    default: g_assert_not_reached();
++    }
++    return result;
++}
++#undef BOXDROID_HOST_OP
++#define BOXDROID_HOST_OP32(insn) \
++    asm volatile("mrs %0, fpsr\n\t" \
++                 "msr fpsr, xzr\n\t" \
++                 insn " %s2, %s3, %s4\n\t" \
++                 "mrs %1, fpsr\n\t" \
++                 "msr fpsr, %0" \
++                 : "=&r" (saved), "=&r" (*fpsr), "=&w" (result) \
++                 : "w" (a), "w" (b) : "memory")
++static inline float boxdroid_host_op32(float a, float b,
++                                       enum BoxDroidFPOp op, uint64_t *fpsr,
++                                       bool observe)
++{
++    uint64_t saved;
++    float result;
++    if (!observe) {
++        /* Callers prove exactness, or the only possible exception is IXC
++         * already sticky and masked in the guest. Host FPSR may accumulate IXC, as with QEMU's
++         * existing unchecked hardfloat paths; FPCR is never changed. */
++        switch (op) {
++        case BOXDROID_FP_ADD:
++            asm volatile("fadd %s0, %s1, %s2" : "=w" (result) : "w" (a), "w" (b));
++            break;
++        case BOXDROID_FP_SUB:
++            asm volatile("fsub %s0, %s1, %s2" : "=w" (result) : "w" (a), "w" (b));
++            break;
++        case BOXDROID_FP_MUL:
++            asm volatile("fmul %s0, %s1, %s2" : "=w" (result) : "w" (a), "w" (b));
++            break;
++        case BOXDROID_FP_DIV:
++            asm volatile("fdiv %s0, %s1, %s2" : "=w" (result) : "w" (a), "w" (b));
++            break;
++        case BOXDROID_FP_SQRT:
++            asm volatile("fsqrt %s0, %s1" : "=w" (result) : "w" (a));
++            break;
++        default: g_assert_not_reached();
++        }
++        *fpsr = 0;
++        return result;
++    }
++    switch (op) {
++    case BOXDROID_FP_ADD: BOXDROID_HOST_OP32("fadd"); break;
++    case BOXDROID_FP_SUB: BOXDROID_HOST_OP32("fsub"); break;
++    case BOXDROID_FP_MUL: BOXDROID_HOST_OP32("fmul"); break;
++    case BOXDROID_FP_DIV: BOXDROID_HOST_OP32("fdiv"); break;
++    case BOXDROID_FP_SQRT:
++        asm volatile("mrs %0, fpsr\n\tmsr fpsr, xzr\n\t"
++                     "fsqrt %s2, %s3\n\tmrs %1, fpsr\n\tmsr fpsr, %0"
++                     : "=&r" (saved), "=&r" (*fpsr), "=&w" (result)
++                     : "w" (a) : "memory");
++        break;
++    default: g_assert_not_reached();
++    }
++    return result;
++}
++#undef BOXDROID_HOST_OP32
++#else
++static inline bool boxdroid_fp_nearest(void) { return false; }
++#endif
++
++/* Dedicated common PC=53/RN path. Canonical 53-bit operands with unbiased
++ * exponents in [-450,450] map directly to normal binary64. Add/sub cancellation
++ * is zero or >=2^-502, products/quotients stay above 2^-901 and below 2^902,
++ * and sqrt stays normal. Thus no exponent exception, FZ/DN effect or second
++ * rounding is possible. Only IXC can change; sticky guest flags are retained.
++ * All other encodings, precisions, modes and exponent domains use the existing
++ * exact implementation. No x87 control-word state is cached here. */
++static inline QEMU_ALWAYS_INLINE bool
++boxdroid_f80_double53(floatx80 a, floatx80 b, float_status *s,
++                     enum BoxDroidFPOp op, floatx80 *out)
++{
++#if defined(__aarch64__)
++    unsigned ea = a.high & 0x7fff, eb = b.high & 0x7fff;
++    if (s->floatx80_rounding_precision != floatx80_precision_d ||
++        s->float_rounding_mode != float_round_nearest_even ||
++        ea - (16383 - 450) > 900 || eb - (16383 - 450) > 900 ||
++        !((a.low & b.low) >> 63) || ((a.low | b.low) & 0x7ff) ||
++        (op == BOXDROID_FP_SQRT && (a.high & 0x8000)) ||
++        !boxdroid_use_fast_fpu(s) || !boxdroid_fp_nearest()) {
++        return false;
++    }
++    union { uint64_t u; double d; } da, db, r;
++    da.u = ((uint64_t)(a.high & 0x8000) << 48) |
++           ((uint64_t)(ea - 15360) << 52) |
++           ((a.low >> 11) & UINT64_C(0xfffffffffffff));
++    db.u = ((uint64_t)(b.high & 0x8000) << 48) |
++           ((uint64_t)(eb - 15360) << 52) |
++           ((b.low >> 11) & UINT64_C(0xfffffffffffff));
++    if (unlikely(!(s->float_exception_flags & float_flag_inexact))) {
++        uint64_t fpsr;
++        r.d = boxdroid_host_op(da.d, db.d, op, &fpsr, true);
++        if (fpsr & ~UINT64_C(0x10)) return false;
++        float_raise(fpsr & 0x10 ? float_flag_inexact : 0, s);
++    } else {
++        /* Constant op at each caller allows one inlined FP instruction. */
++        switch (op) {
++        case BOXDROID_FP_ADD:
++            asm volatile("fadd %d0, %d1, %d2" : "=w"(r.d) : "w"(da.d), "w"(db.d));
++            break;
++        case BOXDROID_FP_SUB:
++            asm volatile("fsub %d0, %d1, %d2" : "=w"(r.d) : "w"(da.d), "w"(db.d));
++            break;
++        case BOXDROID_FP_MUL:
++            asm volatile("fmul %d0, %d1, %d2" : "=w"(r.d) : "w"(da.d), "w"(db.d));
++            break;
++        case BOXDROID_FP_DIV:
++            asm volatile("fdiv %d0, %d1, %d2" : "=w"(r.d) : "w"(da.d), "w"(db.d));
++            break;
++        case BOXDROID_FP_SQRT:
++            asm volatile("fsqrt %d0, %d1" : "=w"(r.d) : "w"(da.d));
++            break;
++        default: return false;
++        }
++    }
++    unsigned e = (r.u >> 52) & 0x7ff;
++    *out = (floatx80) {
++        .high = ((r.u >> 48) & 0x8000) | (e ? e + 15360 : 0),
++        .low = e ? (UINT64_C(1) << 63) | (r.u << 11) : 0,
++    };
++#ifdef BOXDROID_FAST_FPU_TEST
++    ++boxdroid_double53_hits;
++#endif
++    BOXDROID_FP_HIT();
++    return true;
++#else
++    return false;
++#endif
++}
++
++/* Exact identities also accept full 64-bit significands. Precision rounding
++ * is still required in PC=24/53; exponent boundaries remain SoftFloat. */
++#if defined(__aarch64__)
++static inline bool boxdroid_f80_scaled32(floatx80 a, int scale, float *out)
++{
++    if (a.low & ((UINT64_C(1) << 40) - 1)) return false;
++    union { uint32_t u; float f; } v;
++    if (!a.low) v.u = (uint32_t)(a.high >> 15) << 31;
++    else {
++        int exp = (a.high & 0x7fff) - 16383 - scale + 127;
++        if (exp <= 0 || exp >= 255) return false;
++        v.u = ((uint32_t)(a.high >> 15) << 31) | ((uint32_t)exp << 23) |
++              ((a.low >> 40) & 0x7fffff);
++    }
++    *out = v.f;
++    return true;
++}
++#endif
++
++static inline bool boxdroid_f80_identity(floatx80 a, floatx80 b,
++                                        float_status *s, enum BoxDroidFPOp op,
++                                        floatx80 *out)
++{
++    floatx80 r;
++    int exp, sign = (a.high ^ b.high) & 0x8000;
++    bool apow = a.low == (UINT64_C(1) << 63);
++    bool bpow = b.low == (UINT64_C(1) << 63);
++    switch (op) {
++    case BOXDROID_FP_ADD:
++    case BOXDROID_FP_SUB:
++        if (!a.low && !b.low) return false; /* zero/cancellation sign rules */
++        if (!b.low) r = a;
++        else if (!a.low) {
++            r = b;
++            if (op == BOXDROID_FP_SUB) r.high ^= 0x8000;
++        } else if (a.low == b.low &&
++                   (a.high & 0x7fff) == (b.high & 0x7fff)) {
++            bool opposite = ((a.high ^ b.high) >> 15) ^
++                            (op == BOXDROID_FP_SUB);
++            if (opposite) {
++                r = (floatx80) { .high =
++                    s->float_rounding_mode == float_round_down ? 0x8000 : 0,
++                    .low = 0 };
++            } else {
++                exp = (a.high & 0x7fff) + 1;
++                if (exp >= 0x7fff) return false;
++                r = a;
++                r.high = (a.high & 0x8000) | exp;
++            }
++        } else return false;
++        break;
++    case BOXDROID_FP_MUL:
++        if (!a.low || !b.low) {
++            r = (floatx80) { .high = sign, .low = 0 };
++            break;
++        }
++        if (!apow && !bpow) return false;
++        r = bpow ? a : b;
++        exp = (a.high & 0x7fff) + (b.high & 0x7fff) - 16383;
++        if (exp <= 0 || exp >= 0x7fff) return false;
++        r.high = sign | exp;
++        break;
++    case BOXDROID_FP_DIV:
++        if (!b.low) return false;
++        if (!a.low) {
++            r = (floatx80) { .high = sign, .low = 0 };
++            break;
++        }
++        if (a.low == b.low && (a.high & 0x7fff) == (b.high & 0x7fff)) {
++            r = (floatx80) { .high = sign | 16383,
++                            .low = UINT64_C(1) << 63 };
++            break;
++        }
++        if (!bpow) return false;
++        r = a;
++        exp = (a.high & 0x7fff) - (b.high & 0x7fff) + 16383;
++        if (exp <= 0 || exp >= 0x7fff) return false;
++        r.high = sign | exp;
++        break;
++    case BOXDROID_FP_SQRT:
++        if (!a.low) { r = a; break; }
++        exp = (a.high & 0x7fff) - 16383;
++        if ((a.high >> 15) || !apow || (exp & 1)) return false;
++        r = (floatx80) { .high = 16383 + exp / 2,
++                        .low = UINT64_C(1) << 63 };
++        break;
++    default: return false;
++    }
++    int flags = 0;
++    if (!boxdroid_f80_precision(&r, s, &flags)) return false;
++    *out = r;
++    float_raise(flags, s);
++    BOXDROID_FP_HIT();
++    return true;
++}
++
++#if defined(__SIZEOF_INT128__)
++/* Round a normalized 128-bit significand once, at the selected x87 precision.
++ * sticky represents discarded bits strictly below bit zero. */
++static inline bool boxdroid_f80_round128(__uint128_t n, bool sticky, int exp,
++                                        unsigned sign, float_status *s,
++                                        floatx80 *out)
++{
++    unsigned precision;
++    switch (s->floatx80_rounding_precision) {
++    case floatx80_precision_x: precision = 64; break;
++    case floatx80_precision_d: precision = 53; break;
++    case floatx80_precision_s: precision = 24; break;
++    default: return false;
++    }
++    if (exp <= 0 || exp >= 0x7fff) return false;
++    unsigned shift = 128 - precision, sigshift = 64 - precision;
++    __uint128_t rem = n & (((__uint128_t)1 << shift) - 1);
++    __uint128_t half = (__uint128_t)1 << (shift - 1);
++    uint64_t unit = UINT64_C(1) << sigshift;
++    uint64_t sig = (uint64_t)(n >> 64) & ~(unit - 1);
++    bool lost = rem || sticky, increment;
++    switch (s->float_rounding_mode) {
++    case float_round_nearest_even:
++        increment = rem > half || (rem == half && (sticky || (sig & unit)));
++        break;
++    case float_round_to_zero: increment = false; break;
++    case float_round_up: increment = lost && !sign; break;
++    case float_round_down: increment = lost && sign; break;
++    default: return false;
++    }
++    if (increment) {
++        uint64_t next = sig + unit;
++        if (next < sig) {
++            if (++exp >= 0x7fff) return false;
++            next = UINT64_C(1) << 63;
++        }
++        sig = next;
++    }
++    *out = (floatx80) { .high = (sign << 15) | exp, .low = sig };
++    float_raise(lost ? float_flag_inexact : 0, s);
++    BOXDROID_FP_HIT();
++    return true;
++}
++
++/* Normal finite arithmetic with full 64-bit operands. No host FP state and
++ * no FloatParts unpacking. Large exponent gaps/boundaries use SoftFloat. */
++static inline bool boxdroid_f80_wide_integer(floatx80 a, floatx80 b,
++                                            float_status *s,
++                                            enum BoxDroidFPOp op, floatx80 *out)
++{
++    if (!a.low || !b.low) return false;
++    int ea = (a.high & 0x7fff) - 16383, eb = (b.high & 0x7fff) - 16383;
++    int exp;
++    unsigned sa = a.high >> 15, sb = (b.high >> 15) ^ (op == BOXDROID_FP_SUB);
++    __uint128_t n;
++    bool sticky = false;
++    if (op == BOXDROID_FP_MUL) {
++        n = (__uint128_t)a.low * b.low;
++        bool high = n >> 127;
++        exp = ea + eb + high + 16383;
++        if (!high) n <<= 1;
++        sa ^= sb;
++    } else if (op == BOXDROID_FP_ADD || op == BOXDROID_FP_SUB) {
++        int scale = MAX(ea, eb), da = scale - ea, db = scale - eb;
++        if (da > 64 || db > 64) return false;
++        __uint128_t na = (__uint128_t)a.low << (64 - da);
++        __uint128_t nb = (__uint128_t)b.low << (64 - db);
++        exp = scale + 16383;
++        if (sa == sb) {
++            n = na + nb;
++            if (n < na) {
++                sticky = n & 1;
++                n = (n >> 1) | ((__uint128_t)1 << 127);
++                exp++;
++            }
++        } else {
++            if (na < nb) { n = nb - na; sa = sb; }
++            else n = na - nb;
++            if (!n) {
++                *out = (floatx80) { .high =
++                    s->float_rounding_mode == float_round_down ? 0x8000 : 0 };
++                BOXDROID_FP_HIT();
++                return true;
++            }
++        }
++        unsigned zeros = (n >> 64) ? __builtin_clzll((uint64_t)(n >> 64)) :
++                                    64 + __builtin_clzll((uint64_t)n);
++        n <<= zeros;
++        exp -= zeros;
++    } else return false;
++    return boxdroid_f80_round128(n, sticky, exp, sa, s, out);
++}
++
++#if defined(__aarch64__)
++/* The estimate is never a guest result. Integer inequalities certify the
++ * exact floor; an estimate needing more than one correction falls back. */
++static inline bool boxdroid_f80_refined(floatx80 a, floatx80 b, float_status *s,
++                                      enum BoxDroidFPOp op, floatx80 *out)
++{
++    if (!a.low || !b.low || !boxdroid_fp_estimate()) return false;
++    union { double d; uint64_t u; } da, db, estimate;
++    da.u = UINT64_C(0x3ff0000000000000) | ((a.low >> 11) & UINT64_C(0xfffffffffffff));
++    db.u = UINT64_C(0x3ff0000000000000) | ((b.low >> 11) & UINT64_C(0xfffffffffffff));
++    __uint128_t numerator, product, residual;
++    uint64_t q;
++    int exp;
++    unsigned sign;
++    double denominator;
++    if (op == BOXDROID_FP_DIV) {
++        bool smaller = a.low < b.low;
++        exp = (a.high & 0x7fff) - (b.high & 0x7fff) - smaller + 16383;
++        if (exp <= 0 || exp >= 0x7fff) return false;
++        asm volatile("fdiv %d0, %d1, %d2" : "=w"(estimate.d) : "w"(da.d), "w"(db.d));
++        numerator = (__uint128_t)a.low << (smaller ? 64 : 63);
++        unsigned e = (estimate.u >> 52) & 0x7ff;
++        /* Equal truncated operands can estimate 1 when the full ratio <1. */
++        q = smaller && e == 1023 ? UINT64_MAX :
++            ((estimate.u & UINT64_C(0xfffffffffffff)) | (UINT64_C(1) << 52)) << 11;
++        product = (__uint128_t)q * b.low;
++        denominator = (double)b.low;
++        sign = (a.high ^ b.high) >> 15;
++    } else if (op == BOXDROID_FP_SQRT) {
++        if (a.high >> 15) return false;
++        int ea = (a.high & 0x7fff) - 16383;
++        unsigned parity = ea & 1;
++        exp = (ea - (int)parity) / 2 + 16383;
++        da.u += (uint64_t)parity << 52;
++        asm volatile("fsqrt %d0, %d1" : "=w"(estimate.d) : "w"(da.d));
++        numerator = (__uint128_t)a.low << (63 + parity);
++        unsigned e = (estimate.u >> 52) & 0x7ff;
++        q = e == 1024 ? UINT64_MAX :
++            ((estimate.u & UINT64_C(0xfffffffffffff)) | (UINT64_C(1) << 52)) << 11;
++        product = (__uint128_t)q * q;
++        denominator = 2.0 * (double)q;
++        sign = 0;
++    } else return false;
++    bool negative = product > numerator;
++    residual = negative ? product - numerator : numerator - product;
++    double magnitude = (double)(uint64_t)(residual >> 64) * 0x1p64 +
++                       (double)(uint64_t)residual;
++    double correction = magnitude / denominator;
++    if (correction > 16384) return false;
++    uint64_t delta = (uint64_t)correction;
++    if (negative) q = delta > q ? 0 : q - delta;
++    else q = delta > UINT64_MAX - q ? UINT64_MAX : q + delta;
++    if (op == BOXDROID_FP_DIV) {
++        product = (__uint128_t)q * b.low;
++        if (product > numerator) {
++            if (!q) return false;
++            q--; product -= b.low;
++        } else if (numerator - product >= b.low) {
++            if (q == UINT64_MAX) return false;
++            q++; product += b.low;
++        }
++        if (product > numerator || numerator - product >= b.low) return false;
++        residual = numerator - product;
++    } else {
++        product = (__uint128_t)q * q;
++        if (product > numerator) {
++            if (!q) return false;
++            product -= (__uint128_t)2 * q - 1; q--;
++        } else if (q != UINT64_MAX && numerator - product >= (__uint128_t)2 * q + 1) {
++            product += (__uint128_t)2 * q + 1; q++;
++        }
++        if (product > numerator || (q != UINT64_MAX &&
++            numerator - product >= (__uint128_t)2 * q + 1)) return false;
++        residual = numerator - product;
++    }
++    if (!(q >> 63)) return false;
++    /* Rounding needs only zero and the tail's relation to half an ulp.
++     * Lower precision ties use the integer floor plus a nonzero tail. */
++    uint64_t tail = 0;
++    if (residual) {
++        if (op == BOXDROID_FP_DIV) {
++            __uint128_t twice = residual * 2;
++            tail = twice < b.low ? 1 : twice == b.low ? UINT64_C(1) << 63 :
++                                                         (UINT64_C(1) << 63) + 1;
++        } else {
++            /* sqrt(N)>q+.5 iff N-q*q>q; equality is impossible for integer N. */
++            tail = residual > q ? (UINT64_C(1) << 63) + 1 : 1;
++        }
++    }
++    return boxdroid_f80_round128(((__uint128_t)q << 64) | tail,
++                                false, exp, sign, s, out);
++}
++#endif
++
++#else
++static inline bool boxdroid_f80_wide_integer(floatx80 a, floatx80 b,
++                                            float_status *s,
++                                            enum BoxDroidFPOp op, floatx80 *out)
++{
++    return false;
++}
++#endif
++
++#if defined(__aarch64__)
++/* Exact binary64 operations need no FPSR reconstruction. Bound the aligned
++ * significand width (including a possible carry), or the product width. */
++static inline bool boxdroid_f80_exact_binary64(floatx80 a, floatx80 b,
++        float_status *s, enum BoxDroidFPOp op, floatx80 *out)
++{
++    if (op != BOXDROID_FP_ADD && op != BOXDROID_FP_SUB && op != BOXDROID_FP_MUL)
++        return false;
++    if (!a.low || !b.low || ((a.low | b.low) & 0x7ff)) return false;
++    unsigned pa = 64 - __builtin_ctzll(a.low), pb = 64 - __builtin_ctzll(b.low);
++    int ea = (a.high & 0x7fff) - 16383, eb = (b.high & 0x7fff) - 16383;
++    int scale, sa, sb;
++    if (op == BOXDROID_FP_MUL) {
++        if (pa + pb > 53) return false;
++        scale = ea + eb; sa = ea; sb = eb;
++    } else {
++        scale = MAX(ea, eb); sa = sb = scale;
++        unsigned width = MAX(pa + scale - ea, pb + scale - eb);
++        bool same_sign = (a.high >> 15) == ((b.high >> 15) ^ (op == BOXDROID_FP_SUB));
++        if (width + same_sign > 53) return false;
++    }
++    if (!boxdroid_fp_estimate()) return false;
++    double da, db;
++    if (!boxdroid_f80_scaled(a, sa, &da) || !boxdroid_f80_scaled(b, sb, &db)) return false;
++    uint64_t unused;
++    double value = boxdroid_host_op(da, db, op, &unused, false);
++    floatx80 result;
++    int flags = 0;
++    if (!boxdroid_f64_scaled(value, scale, &result) ||
++        !boxdroid_f80_precision(&result, s, &flags)) return false;
++    *out = result;
++    float_raise(flags, s);
++    BOXDROID_FP_HIT();
++    return true;
++}
++#endif
++
++static inline bool boxdroid_f80_arithmetic(floatx80 a, floatx80 b,
++                                           float_status *s,
++                                           enum BoxDroidFPOp op, floatx80 *out)
++{
++    if (!boxdroid_use_fast_fpu(s) ||
++        !boxdroid_f80_regular(a) || !boxdroid_f80_regular(b)) {
++        return false;
++    }
++    if (boxdroid_f80_identity(a, b, s, op, out)) return true;
++    bool wide = s->floatx80_rounding_precision == floatx80_precision_x ||
++                s->float_rounding_mode != float_round_nearest_even ||
++                ((a.low | b.low) & 0x7ff);
++#if defined(__aarch64__)
++    if (wide && boxdroid_f80_exact_binary64(a, b, s, op, out)) return true;
++#endif
++    if (wide && boxdroid_f80_wide_integer(a, b, s, op, out)) return true;
++#if defined(__aarch64__)
++#if defined(__SIZEOF_INT128__)
++    if (wide && boxdroid_f80_refined(a, b, s, op, out)) return true;
++#endif
++    if (!boxdroid_fp_nearest()) return false;
++    int ea = a.low ? (a.high & 0x7fff) - 16383 : 0;
++    int eb = b.low ? (b.high & 0x7fff) - 16383 : 0;
++    int scale, sa, sb;
++    switch (op) {
++    case BOXDROID_FP_ADD:
++    case BOXDROID_FP_SUB:
++        scale = a.low && b.low ? MAX(ea, eb) : a.low ? ea : eb;
++        sa = sb = scale;
++        break;
++    case BOXDROID_FP_MUL: scale = ea + eb; sa = ea; sb = eb; break;
++    case BOXDROID_FP_DIV:
++        if (!b.low) { return false; }
++        scale = ea - eb; sa = ea; sb = eb; break;
++    case BOXDROID_FP_SQRT:
++        if ((a.high >> 15) && a.low) { return false; }
++        scale = ea >= 0 ? ea / 2 : (ea - 1) / 2;
++        sa = sb = 2 * scale;
++        break;
++    default: return false;
++    }
++    /* Direct binary24 arithmetic avoids double rounding altogether when
++     * both operands are exact binary24 normals after power-of-two scaling. */
++    float fa, fb;
++    if (s->floatx80_rounding_precision == floatx80_precision_s &&
++        s->float_rounding_mode == float_round_nearest_even &&
++        boxdroid_f80_scaled32(a, sa, &fa) &&
++        boxdroid_f80_scaled32(b, sb, &fb)) {
++        uint64_t flags;
++        bool observe = !(s->float_exception_flags & float_flag_inexact);
++        union { float f; uint32_t u; } v = {
++            .f = boxdroid_host_op32(fa, fb, op, &flags, observe) };
++        if (flags & ~UINT64_C(0x10)) return false;
++        unsigned e = (v.u >> 23) & 255, sign = v.u >> 31;
++        floatx80 r;
++        if (!e) {
++            if (v.u & 0x7fffff) return false;
++            r = (floatx80) { .high = sign << 15, .low = 0 };
++        } else {
++            int exp = (int)e - 127 + scale + 16383;
++            if (e == 255 || exp <= 0 || exp >= 0x7fff) return false;
++            r = (floatx80) { .high = (sign << 15) | exp,
++                .low = (UINT64_C(1) << 63) | ((uint64_t)(v.u & 0x7fffff) << 40) };
++        }
++        *out = r;
++        float_raise(!observe || (flags & 0x10) ? float_flag_inexact : 0, s);
++        BOXDROID_FP_HIT();
++        return true;
++    }
++    double da, db;
++    if (!boxdroid_f80_scaled(a, sa, &da) ||
++        !boxdroid_f80_scaled(b, sb, &db)) {
++        return false;
++    }
++    uint64_t fpsr;
++    bool observe = !(s->float_exception_flags & float_flag_inexact) ||
++        s->float_rounding_mode != float_round_nearest_even ||
++        (s->floatx80_rounding_precision != floatx80_precision_s &&
++         s->floatx80_rounding_precision != floatx80_precision_d);
++    double result = boxdroid_host_op(da, db, op, &fpsr, observe);
++    /* Scaled normal arithmetic must not raise an exception other than IXC. */
++    if (fpsr & ~UINT64_C(0x10)) {
++        return false;
++    }
++    bool inexact = !observe || (fpsr & 0x10);
++    if (inexact && (s->float_rounding_mode != float_round_nearest_even ||
++                    s->floatx80_rounding_precision == floatx80_precision_x)) {
++        return false;
++    }
++    floatx80 r;
++    if (!boxdroid_f64_scaled(result, scale, &r)) {
++        return false;
++    }
++    if (!r.low && s->float_rounding_mode != float_round_nearest_even) {
++        return false; /* Directed-rounding cancellation has special zero signs. */
++    }
++    if (s->floatx80_rounding_precision == floatx80_precision_s && inexact &&
++        (r.low & ((UINT64_C(1) << 40) - 1)) == (UINT64_C(1) << 39)) {
++        return false; /* Binary64 rounded exactly onto a binary24 midpoint. */
++    }
++    int flags = inexact ? float_flag_inexact : 0;
++    if (!boxdroid_f80_precision(&r, s, &flags)) {
++        return false;
++    }
++    *out = r;
++    float_raise(flags, s);
++    BOXDROID_FP_HIT();
++    return true;
++#else
++    return false;
++#endif
++}
++
++static inline bool boxdroid_f32_widen(uint32_t a, float_status *s, floatx80 *out)
++{
++    unsigned exp = (a >> 23) & 0xff;
++    if (!boxdroid_use_fast_fpu(s) || exp == 0xff ||
++        (!exp && (a & 0x7fffffff))) { return false; }
++    *out = (floatx80) {
++        .high = ((a >> 31) << 15) | (exp ? exp + 16256 : 0),
++        .low = exp ? (UINT64_C(1) << 63) | ((uint64_t)(a & 0x7fffff) << 40) : 0,
++    };
++    BOXDROID_FP_HIT();
++    return true;
++}
++
++static inline bool boxdroid_f64_widen(uint64_t a, float_status *s, floatx80 *out)
++{
++    union { uint64_t u; double d; } v = { .u = a };
++    floatx80 r;
++    int flags = 0;
++    if (!boxdroid_use_fast_fpu(s) || !boxdroid_f64_scaled(v.d, 0, &r) ||
++        !boxdroid_f80_precision(&r, s, &flags)) { return false; }
++    *out = r;
++    float_raise(flags, s);
++    BOXDROID_FP_HIT();
++    return true;
++}
++
++static inline bool boxdroid_i64_widen(int64_t a, float_status *s, floatx80 *out)
++{
++    if (!boxdroid_use_fast_fpu(s)) { return false; }
++    floatx80 r = { 0 };
++    if (a) {
++        unsigned sign = a < 0;
++        uint64_t mag = sign ? -(uint64_t)a : (uint64_t)a;
++        unsigned shift = __builtin_clzll(mag);
++        r.high = (sign << 15) | (16383 + 63 - shift);
++        r.low = mag << shift;
++    }
++    int flags = 0;
++    if (!boxdroid_f80_precision(&r, s, &flags)) { return false; }
++    *out = r;
++    float_raise(flags, s);
++    BOXDROID_FP_HIT();
++    return true;
++}
++
++/* A normal destination can be rounded and packed exactly with integers.
++ * This also accepts true 64-bit significands and every Xbox rounding mode.
++ * Destination subnormals/overflow and special encodings use SoftFloat. */
++static inline bool boxdroid_f80_narrow(floatx80 a, float_status *s,
++                                      unsigned bits, uint64_t *out)
++{
++    if (!boxdroid_use_fast_fpu(s) || !boxdroid_f80_regular(a)) {
++        return false;
++    }
++    if (!a.low) {
++        *out = (uint64_t)(a.high >> 15) << (bits - 1);
++        BOXDROID_FP_HIT();
++        return true;
++    }
++    int bias = bits == 32 ? 127 : 1023;
++    int exp = (a.high & 0x7fff) - 16383;
++    if (exp < 1 - bias || exp > bias) {
++        return false;
++    }
++    float_status rounding = *s;
++    rounding.floatx80_rounding_precision = bits == 32 ?
++        floatx80_precision_s : floatx80_precision_d;
++    int flags = 0;
++    if (!boxdroid_f80_precision(&a, &rounding, &flags)) {
++        return false;
++    }
++    exp = (a.high & 0x7fff) - 16383;
++    if (exp > bias) {
++        return false;
++    }
++    unsigned frac_bits = bits == 32 ? 23 : 52;
++    *out = ((uint64_t)(a.high >> 15) << (bits - 1)) |
++           ((uint64_t)(exp + bias) << frac_bits) |
++           ((a.low >> (63 - frac_bits)) & ((UINT64_C(1) << frac_bits) - 1));
++    float_raise(flags, s);
++    BOXDROID_FP_HIT();
++    return true;
++}
++
++static inline bool boxdroid_f80_to_f64(floatx80 a, float_status *s, uint64_t *out)
++{
++    return boxdroid_f80_narrow(a, s, 64, out);
++}
++
++static inline bool boxdroid_f80_to_f32(floatx80 a, float_status *s, uint32_t *out)
++{
++    uint64_t result;
++    if (!boxdroid_f80_narrow(a, s, 32, &result)) {
++        return false;
++    }
++    *out = result;
++    return true;
++}
++
++/* Round a canonical finite magnitude to an unsigned integer without first
++ * reducing its significand to binary64. Commit no flags until range checks. */
++static inline bool boxdroid_f80_integer_magnitude(floatx80 a, FloatRoundMode mode,
++                                                 uint64_t *mag, bool *inexact)
++{
++    int e = (a.high & 0x7fff) - 16383;
++    if (!a.low) { *mag = 0; *inexact = false; return true; }
++    if (e > 63) return false;
++    uint64_t lost, half, floor;
++    if (e < 0) {
++        floor = 0;
++        lost = a.low;
++        half = e == -1 ? UINT64_C(1) << 63 : UINT64_MAX;
++    } else if (e == 63) {
++        *mag = a.low; *inexact = false; return true;
++    } else {
++        unsigned shift = 63 - e;
++        floor = a.low >> shift;
++        lost = a.low & ((UINT64_C(1) << shift) - 1);
++        half = UINT64_C(1) << (shift - 1);
++    }
++    bool increment;
++    switch (mode) {
++    case float_round_nearest_even:
++        increment = e < -1 ? false : lost > half ||
++                    (lost == half && (floor & 1));
++        break;
++    case float_round_to_zero: increment = false; break;
++    case float_round_up: increment = lost && !(a.high >> 15); break;
++    case float_round_down: increment = lost && (a.high >> 15); break;
++    default: return false;
++    }
++    *mag = floor + increment;
++    *inexact = lost != 0;
++    return true;
++}
++
++static inline bool boxdroid_f80_round_int(floatx80 a, float_status *s,
++                                         floatx80 *out)
++{
++    if (!boxdroid_use_fast_fpu(s) || !boxdroid_f80_regular(a)) return false;
++    unsigned precision;
++    switch (s->floatx80_rounding_precision) {
++    case floatx80_precision_s: precision = 24; break;
++    case floatx80_precision_d: precision = 53; break;
++    case floatx80_precision_x: precision = 64; break;
++    default: return false;
++    }
++    floatx80 result = a;
++    int flags = 0;
++    /* Round directly to the PC grid when its spacing is >= one integer.
++     * Integer rounding followed by PC rounding can otherwise double-round. */
++    if (a.low && (int)(a.high & 0x7fff) - 16383 >= (int)precision - 1) {
++        if (!boxdroid_f80_precision(&result, s, &flags)) return false;
++    } else {
++        uint64_t mag;
++        bool inexact;
++        if (!boxdroid_f80_integer_magnitude(a, s->float_rounding_mode,
++                                           &mag, &inexact)) return false;
++        result.high = a.high & 0x8000;
++        result.low = 0;
++        if (mag) {
++            unsigned shift = __builtin_clzll(mag);
++            result.high |= 16383 + 63 - shift;
++            result.low = mag << shift;
++        }
++        flags = inexact ? float_flag_inexact : 0;
++    }
++    *out = result;
++    float_raise(flags, s);
++    BOXDROID_FP_HIT();
++    return true;
++}
++
++static inline bool boxdroid_f80_to_int(floatx80 a, FloatRoundMode mode,
++                                      unsigned bits, float_status *s,
++                                      int64_t *out)
++{
++    uint64_t mag;
++    bool inexact;
++    if (!boxdroid_use_fast_fpu(s) || !boxdroid_f80_regular(a) ||
++        !boxdroid_f80_integer_magnitude(a, mode, &mag, &inexact)) return false;
++    bool negative = a.high >> 15;
++    uint64_t limit = UINT64_C(1) << (bits - 1);
++    if (mag > limit - !negative) return false;
++    if (negative) *out = mag == (UINT64_C(1) << 63) ? INT64_MIN : -(int64_t)mag;
++    else *out = mag;
++    if (inexact) float_raise(float_flag_inexact, s);
++    BOXDROID_FP_HIT();
++    return true;
++}
++#endif
+diff --git a/include/fpu/softfloat-types.h b/include/fpu/softfloat-types.h
+--- a/include/fpu/softfloat-types.h
++++ b/include/fpu/softfloat-types.h
+@@ -427,6 +427,12 @@
+     bool rebias_overflow;
+     /* should underflowed results add re_bias to its exponent? */
+     bool rebias_underflow;
++#ifdef BOXDROID_XBOX_RUNTIME
++    /* Caller-owned runtime control cache, not guest floating-point state.
++     * Zero initializes an unknown cache; no dynamic TLS or global writer. */
++    uint32_t boxdroid_fast_fpu_checks;
++    uint8_t boxdroid_fast_fpu_state;
++#endif
+ } float_status;
+
+ #endif /* SOFTFLOAT_TYPES_H */
+diff --git a/target/i386/tcg/fpu_helper.c b/target/i386/tcg/fpu_helper.c
+--- a/target/i386/tcg/fpu_helper.c
++++ b/target/i386/tcg/fpu_helper.c
+@@ -499,6 +499,21 @@
+     return old_flags;
+ }
+
++/* Only basic arithmetic may retain an already sticky precision flag.
++ * Transcendental helpers inspect NEW inexact to refine their numerical result
++ * and must keep the original save/clear protocol. */
++static inline int save_arithmetic_exception_flags(CPUX86State *env)
++{
++    int old_flags = save_exception_flags(env);
++#ifdef BOXDROID_XBOX_RUNTIME
++    if ((old_flags & float_flag_inexact) &&
++        (env->fpus & FPUS_PE) && (env->fpuc & FPUS_PE)) {
++        set_float_exception_flags(float_flag_inexact, &env->fp_status);
++    }
++#endif
++    return old_flags;
++}
++
+ static void merge_exception_flags(CPUX86State *env, int old_flags)
+ {
+ #ifndef USE_HARD_FPU
+@@ -516,7 +531,7 @@
+
+ static inline floatx80 helper_fdiv(CPUX86State *env, floatx80 a, floatx80 b)
+ {
+-    int old_flags = save_exception_flags(env);
++    int old_flags = save_arithmetic_exception_flags(env);
+     floatx80 ret = floatx80_div(a, b, &env->fp_status);
+     merge_exception_flags(env, old_flags);
+     return ret;
+@@ -910,7 +925,7 @@
+         ++x87_operands[31][x87_class(operands[1])];
+     }
+ #endif
+-    int old_flags = save_exception_flags(env);
++    int old_flags = save_arithmetic_exception_flags(env);
+     ST0 = floatx80_add(ST0, FT0, &env->fp_status);
+     merge_exception_flags(env, old_flags);
+ }
+@@ -925,7 +940,7 @@
+         ++x87_operands[32][x87_class(operands[1])];
+     }
+ #endif
+-    int old_flags = save_exception_flags(env);
++    int old_flags = save_arithmetic_exception_flags(env);
+     ST0 = floatx80_mul(ST0, FT0, &env->fp_status);
+     merge_exception_flags(env, old_flags);
+ }
+@@ -940,7 +955,7 @@
+         ++x87_operands[33][x87_class(operands[1])];
+     }
+ #endif
+-    int old_flags = save_exception_flags(env);
++    int old_flags = save_arithmetic_exception_flags(env);
+     ST0 = floatx80_sub(ST0, FT0, &env->fp_status);
+     merge_exception_flags(env, old_flags);
+ }
+@@ -955,7 +970,7 @@
+         ++x87_operands[34][x87_class(operands[1])];
+     }
+ #endif
+-    int old_flags = save_exception_flags(env);
++    int old_flags = save_arithmetic_exception_flags(env);
+     ST0 = floatx80_sub(FT0, ST0, &env->fp_status);
+     merge_exception_flags(env, old_flags);
+ }
+@@ -998,7 +1013,7 @@
+         ++x87_operands[37][x87_class(operands[1])];
+     }
+ #endif
+-    int old_flags = save_exception_flags(env);
++    int old_flags = save_arithmetic_exception_flags(env);
+     ST(st_index) = floatx80_add(ST(st_index), ST0, &env->fp_status);
+     merge_exception_flags(env, old_flags);
+ }
+@@ -1013,7 +1028,7 @@
+         ++x87_operands[38][x87_class(operands[1])];
+     }
+ #endif
+-    int old_flags = save_exception_flags(env);
++    int old_flags = save_arithmetic_exception_flags(env);
+     ST(st_index) = floatx80_mul(ST(st_index), ST0, &env->fp_status);
+     merge_exception_flags(env, old_flags);
+ }
+@@ -1028,7 +1043,7 @@
+         ++x87_operands[39][x87_class(operands[1])];
+     }
+ #endif
+-    int old_flags = save_exception_flags(env);
++    int old_flags = save_arithmetic_exception_flags(env);
+     ST(st_index) = floatx80_sub(ST(st_index), ST0, &env->fp_status);
+     merge_exception_flags(env, old_flags);
+ }
+@@ -1043,7 +1058,7 @@
+         ++x87_operands[40][x87_class(operands[1])];
+     }
+ #endif
+-    int old_flags = save_exception_flags(env);
++    int old_flags = save_arithmetic_exception_flags(env);
+     ST(st_index) = floatx80_sub(ST0, ST(st_index), &env->fp_status);
+     merge_exception_flags(env, old_flags);
+ }
+@@ -2750,7 +2765,7 @@
+ void helper_fsqrt(CPUX86State *env)
+ {
+     X87_SCOPE(69);
+-    int old_flags = save_exception_flags(env);
++    int old_flags = save_arithmetic_exception_flags(env);
+     if (floatx80_is_neg(ST0)) {
+         env->fpus &= ~0x4700;  /* (C3,C2,C1,C0) <-- 0000 */
+         env->fpus |= 0x400;

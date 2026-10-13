@@ -37,6 +37,13 @@ pin and update the gitlink only through an explicit baseline update.
 | 0027 | Declare the standalone PTIMER correctness test's Pixman dependency; production timer behavior is unchanged. |
 | 0028 | Invoke Android's measured placement policy once on the serial TCG thread before guest execution; retain scheduler placement on unsupported or restricted topologies. |
 | 0029 | Opt-in APU owner participation in one independent voice cohort alongside existing workers; keep guest list/multipass grouping and the completed-mix barrier. Mode changes join at a quiescent boundary. Default retains the discovered bounded background pool. |
+| 0030 | Sparse APU voice workload profiling and metrics. |
+| 0031 | Mono voice single-channel audio resampling optimization. |
+| 0032 | Targeted exclusive voice ownership across admission, processing and guest reset/mutation; no frame-wide wait in normal locking. |
+| 0033 | Exact floatx80 acceleration with selected precision, integer-certified extended arithmetic, status flags and guarded SoftFloat fallback. |
+| 0034 | TCG jump cache size scaling (16K entries) and pc-retention invalidation. |
+| 0035 | Android custom Vulkan driver support via libadrenotools. |
+| 0036 | Ordered ARM64 RAM lowering using acquire/release accesses, with conservative helper/MMIO/exception transitions and original guest TSO requirements. |
 
 The Vulkan renderer owns download buffers and completion, and the APU owns
 voice dispatch and DSP state. These paths cannot be changed safely from an
@@ -57,3 +64,19 @@ then uses three background threads and the owner. Zero or an empty property
 retains the configured background pool. This can be selected at startup, or changed
 live with profiling enabled. The repeated Sega GT comparison reduced wakeups
 but did not reproduce its first audio/cadence gain, so it remains opt-in.
+
+## Pandora correction validation
+
+[Production correction notes](../../docs/performance/pandora-production-correction.md)
+explain the exact fast-path domains, ownership handoffs, ARM64 ordering contract,
+controls and test coverage for 0032, 0033 and 0036. Changes to 0034 are outside this
+correction. The ordering control is latched once per process; force-stop and restart the app
+when comparing modes. The upstream helper ordering is retained in every mode.
+
+[Main-to-candidate attribution](../../docs/performance/pandora-main-attribution.md)
+records the controlled patch matrix, per-title marginal costs and diagnostic
+counters against exact current main behavior.
+
+[Exact DOUBLE53 optimization](../../docs/performance/pandora-double53-optimization.md)
+records the subsequent 0033 hot-path changes, differential validation and
+matched performance gains with corrected 0032 and 0036 held fixed.
