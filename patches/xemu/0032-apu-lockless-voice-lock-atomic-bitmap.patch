@@ -1,64 +1,770 @@
-From: BoxDroid <boxdroid@localhost>
-Subject: [PATCH] mcpx/apu: make voice_lock lockless with atomic bitmap operations
+From: BoxDroid downstream
+Subject: [PATCH] mcpx/apu: targeted exclusive voice ownership and batch admission
 
-Downstream status: not submitted upstream. The voice lock bitmap tracks
-which voices are being updated by the guest.
+diff --git a/hw/xbox/mcpx/apu/vp/voice-ownership.h b/hw/xbox/mcpx/apu/vp/voice-ownership.h
+new file mode 100644
+--- /dev/null
++++ b/hw/xbox/mcpx/apu/vp/voice-ownership.h
+@@ -0,0 +1,248 @@
++/* SPDX-License-Identifier: GPL-2.0-or-later */
++/* MCPX voice handoff. Caller supplies QemuMutex/Cond and qatomic primitives.
++ * A guest request excludes new admissions BEFORE waiting for old users.
++ * A batch is admitted all-or-none: never wait holding another voice.
++ * idle[v] is targeted; available has only the single APU dispatcher waiter.
++ */
++#ifndef MCPX_VOICE_OWNERSHIP_H
++#define MCPX_VOICE_OWNERSHIP_H
++#ifdef BOXDROID_XBOX_RUNTIME
++#include <android/log.h>
++#include <sys/system_properties.h>
++#endif
++
++typedef struct VoiceOwnership {
++    QemuMutex lock;
++    QemuCond available, idle[256], ordered[256];
++    uint16_t remaining[256], next[256];
++    uint64_t active[4];
++    uint64_t *guest;
++    bool cancelled, audit;
++    int64_t audit_report;
++    uint64_t control_generation;
++} VoiceOwnership;
++
++static inline void voice_owner_init(VoiceOwnership *o, uint64_t *guest)
++{
++    qemu_mutex_init(&o->lock);
++    qemu_cond_init(&o->available);
++    for (int v = 0; v < 256; v++) {
++        qemu_cond_init(&o->idle[v]);
++        qemu_cond_init(&o->ordered[v]);
++    }
++    memset(o->active, 0, sizeof(o->active));
++    memset(o->remaining, 0, sizeof(o->remaining));
++    o->guest = guest;
++    o->cancelled = false;
++    o->audit = false;
++    o->audit_report = 0;
++    o->control_generation = 0;
++#ifdef BOXDROID_XBOX_RUNTIME
++    char prop[PROP_VALUE_MAX] = { 0 };
++    __system_property_get("debug.boxdroid.voice_audit", prop);
++    o->audit = prop[0] == '1';
++#endif
++}
++
++/* Bounded diagnostics only. Normal production uses an untimed condition. */
++static inline void voice_owner_sleep(VoiceOwnership *o, QemuCond *cond,
++                                     const char *where, unsigned voice)
++{
++#ifdef BOXDROID_XBOX_RUNTIME
++    if (o->audit) {
++        if (qemu_cond_timedwait(cond, &o->lock, 1000)) return;
++        int64_t now = g_get_monotonic_time();
++        if (now - o->audit_report >= G_USEC_PER_SEC) {
++            o->audit_report = now;
++            __android_log_print(ANDROID_LOG_INFO, "BoxDroidVoice",
++                "VOICE_HANDOFF_WAIT where=%s voice=%u cancelled=%d active=%016llx:%016llx:%016llx:%016llx guest=%016llx:%016llx:%016llx:%016llx",
++                where, voice, o->cancelled,
++                (unsigned long long)o->active[0], (unsigned long long)o->active[1],
++                (unsigned long long)o->active[2], (unsigned long long)o->active[3],
++                (unsigned long long)qatomic_read(&o->guest[0]),
++                (unsigned long long)qatomic_read(&o->guest[1]),
++                (unsigned long long)qatomic_read(&o->guest[2]),
++                (unsigned long long)qatomic_read(&o->guest[3]));
++        }
++        return;
++    }
++#endif
++    qemu_cond_wait(cond, &o->lock);
++}
++
++static inline void voice_owner_guest(VoiceOwnership *o, unsigned v, bool lock)
++{
++    uint64_t bit = UINT64_C(1) << (v % 64);
++    assert(v < 256);
++    qemu_mutex_lock(&o->lock);
++    if (lock) {
++        qatomic_or(&o->guest[v / 64], bit);
++        while (o->active[v / 64] & bit) {
++            voice_owner_sleep(o, &o->idle[v], "guest", v);
++        }
++    } else {
++        /* UNLOCK is idempotent. If no guest lock was held, an existing
++         * worker reservation remains active until its normal release. */
++        qatomic_and(&o->guest[v / 64], ~bit);
++        o->control_generation++;
++        qemu_cond_signal(&o->available);
++    }
++    qemu_mutex_unlock(&o->lock);
++}
++
++/* Caller holds o->lock. */
++static inline bool voice_owner_admit(VoiceOwnership *o, const uint64_t mask[4])
++{
++    if (o->cancelled) {
++        return false;
++    }
++    for (int i = 0; i < 4; i++) {
++        if (mask[i] & (qatomic_read(&o->guest[i]) | o->active[i])) {
++            return false;
++        }
++    }
++    for (int i = 0; i < 4; i++) {
++        o->active[i] |= mask[i];
++    }
++    return true;
++}
++
++enum VoiceOwnerWait {
++    VOICE_OWNER_CANCELLED = -1, VOICE_OWNER_RETRY = 0,
++    VOICE_OWNER_ADMITTED = 1, VOICE_OWNER_WAIT = 2,
++};
++
++static inline uint64_t voice_owner_generation(VoiceOwnership *o)
++{
++    qemu_mutex_lock(&o->lock);
++    uint64_t generation = o->control_generation;
++    qemu_mutex_unlock(&o->lock);
++    return generation;
++}
++
++static inline void voice_owner_control_changed(VoiceOwnership *o)
++{
++    qemu_mutex_lock(&o->lock);
++    o->control_generation++;
++    qemu_cond_signal(&o->available);
++    qemu_mutex_unlock(&o->lock);
++}
++
++static inline enum VoiceOwnerWait voice_owner_poll(VoiceOwnership *o,
++        const uint64_t mask[4], bool watch_control, uint64_t generation)
++{
++    if (o->cancelled) return VOICE_OWNER_CANCELLED;
++    if (watch_control && generation != o->control_generation) return VOICE_OWNER_RETRY;
++    return voice_owner_admit(o, mask) ? VOICE_OWNER_ADMITTED : VOICE_OWNER_WAIT;
++}
++
++/* Entry/return with the APU frame mutex held. Never take it while holding
++ * ownership.lock. OFF and unlock wake admission to rebuild its live set;
++ * a stopped guest-owned voice must not prevent frontend/IRQ progression. */
++static inline enum VoiceOwnerWait voice_owner_wait_event(VoiceOwnership *o,
++        const uint64_t mask[4], QemuMutex *frame_lock,
++        bool watch_control, uint64_t generation)
++{
++    qemu_mutex_lock(&o->lock);
++    enum VoiceOwnerWait result = voice_owner_poll(o, mask, watch_control, generation);
++    if (result == VOICE_OWNER_WAIT) {
++        qemu_mutex_unlock(&o->lock);
++        qemu_mutex_unlock(frame_lock);
++        qemu_mutex_lock(&o->lock);
++        while ((result = voice_owner_poll(o, mask, watch_control, generation)) ==
++               VOICE_OWNER_WAIT) {
++            voice_owner_sleep(o, &o->available, "dispatcher", 256);
++        }
++        qemu_mutex_unlock(&o->lock);
++        qemu_mutex_lock(frame_lock);
++        return result;
++    }
++    qemu_mutex_unlock(&o->lock);
++    return result;
++}
++
++static inline bool voice_owner_wait(VoiceOwnership *o, const uint64_t mask[4],
++                                   QemuMutex *frame_lock)
++{
++    return voice_owner_wait_event(o, mask, frame_lock, false, 0) == VOICE_OWNER_ADMITTED;
++}
++
++/* Collection can see a restarted voice in more than one list. Keep its
++ * reservation until every occurrence completes, in guest collection order.
++ * This changes neither worker assignment nor multipass cohort grouping. */
++static inline void voice_owner_repeat(VoiceOwnership *o, unsigned v,
++                                      unsigned count)
++{
++    assert(v < 256 && count > 1 && count <= 256);
++    qemu_mutex_lock(&o->lock);
++    assert(o->active[v / 64] & (UINT64_C(1) << (v % 64)));
++    assert(!o->remaining[v]);
++    o->remaining[v] = count;
++    o->next[v] = 0;
++    qemu_mutex_unlock(&o->lock);
++}
++
++static inline void voice_owner_enter(VoiceOwnership *o, unsigned v,
++                                     unsigned ordinal)
++{
++    qemu_mutex_lock(&o->lock);
++    while (o->next[v] != ordinal) {
++        voice_owner_sleep(o, &o->ordered[v], "ordered-worker", v);
++    }
++    assert(o->remaining[v]);
++    assert(o->active[v / 64] & (UINT64_C(1) << (v % 64)));
++    qemu_mutex_unlock(&o->lock);
++}
++
++static inline bool voice_owner_complete_repeat(VoiceOwnership *o, unsigned v)
++{
++    qemu_mutex_lock(&o->lock);
++    assert(o->remaining[v]);
++    bool done = !--o->remaining[v];
++    o->next[v]++;
++    if (!done) {
++        /* Only workers waiting for this voice wake; ordinal predicates
++         * tolerate any wake order. No other voice worker is signalled. */
++        qemu_cond_broadcast(&o->ordered[v]);
++    }
++    qemu_mutex_unlock(&o->lock);
++    return done;
++}
++
++static inline void voice_owner_release(VoiceOwnership *o, unsigned v)
++{
++    uint64_t bit = UINT64_C(1) << (v % 64);
++    assert(v < 256);
++    qemu_mutex_lock(&o->lock);
++    assert(o->active[v / 64] & bit);
++    assert(!o->remaining[v]);
++    o->active[v / 64] &= ~bit;
++    if (qatomic_read(&o->guest[v / 64]) & bit) {
++        qemu_cond_signal(&o->idle[v]);
++    }
++    qemu_cond_signal(&o->available);
++    qemu_mutex_unlock(&o->lock);
++}
++
++static inline void voice_owner_cancel(VoiceOwnership *o, bool cancel)
++{
++    qemu_mutex_lock(&o->lock);
++    o->cancelled = cancel;
++    qemu_cond_signal(&o->available);
++    qemu_mutex_unlock(&o->lock);
++}
++
++static inline void voice_owner_destroy(VoiceOwnership *o)
++{
++    for (int i = 0; i < 4; i++) {
++        assert(!o->active[i]);
++    }
++    for (int v = 0; v < 256; v++) {
++        assert(!o->remaining[v]);
++        qemu_cond_destroy(&o->idle[v]);
++        qemu_cond_destroy(&o->ordered[v]);
++    }
++    qemu_cond_destroy(&o->available);
++    qemu_mutex_destroy(&o->lock);
++}
++#endif
+diff --git a/hw/xbox/mcpx/apu/vp/vp.h b/hw/xbox/mcpx/apu/vp/vp.h
+--- a/hw/xbox/mcpx/apu/vp/vp.h
++++ b/hw/xbox/mcpx/apu/vp/vp.h
+@@ -30,6 +30,7 @@
+ #include "hw/xbox/mcpx/apu/apu_regs.h"
+ #include "svf.h"
+ #include "hrtf.h"
++#include "voice-ownership.h"
 
-Previously, voice_lock acquired d->lock (coarse APU mutex) while holding
-the Big QEMU Lock (BQL) on the guest CPU thread. Because d->lock is held
-coarsely by the APU worker across voice worker scheduling and DSP
-processing, the guest CPU spent 400-500 ms/s blocked in voice_lock.
+ typedef struct MCPXAPUState MCPXAPUState;
 
-Operate on d->vp.voice_locked using atomic bitwise operations (qatomic_or
-and qatomic_and) and signal d->cond without holding d->lock, eliminating
-lock contention on the guest execution critical path.
+@@ -52,6 +53,8 @@
+ typedef struct VoiceWorkItem {
+     int voice;
+     int list;
++    unsigned ordinal;
++    bool repeated;
+ } VoiceWorkItem;
 
+ typedef struct VoiceWorker {
+@@ -93,6 +96,9 @@
+ typedef struct {
+     MemoryRegion mmio;
+     VoiceWorkDispatch voice_work_dispatch;
++    VoiceOwnership ownership;
++    QemuMutex list_lock;
++    bool voice_coarse;
+     MCPXAPUVoiceFilter filters[MCPX_HW_MAX_VOICES];
+
+     // FIXME: Where are these stored?
+diff --git a/hw/xbox/mcpx/apu/apu.c b/hw/xbox/mcpx/apu/apu.c
+--- a/hw/xbox/mcpx/apu/apu.c
++++ b/hw/xbox/mcpx/apu/apu.c
+@@ -335,16 +335,15 @@
+         if (xcntmode == NV_PAPU_SECTL_XCNTMODE_OFF ||
+             (fectl & NV_PAPU_FECTL_FEMETHMODE_TRAPPED) ||
+             (fectl & NV_PAPU_FECTL_FEMETHMODE_HALTED)) {
+-            d->set_irq = true;
+-        }
+-
+-        if (d->set_irq) {
++            qatomic_store_release(&d->set_irq, true);
++        }
++
++        if (qatomic_xchg(&d->set_irq, false)) {
+             qemu_mutex_unlock(&d->lock);
+             bql_lock();
+             update_irq(d);
+             bql_unlock();
+             qemu_mutex_lock(&d->lock);
+-            d->set_irq = false;
+         }
+
+         xcntmode = GET_MASK(qatomic_read(&d->regs[NV_PAPU_SECTL]),
+@@ -381,6 +380,7 @@
+ static void mcpx_apu_wait_for_idle(MCPXAPUState *d)
+ {
+     d->pause_requested = true;
++    voice_owner_cancel(&d->vp.ownership, true);
+     qemu_cond_signal(&d->cond);
+     while (!d->is_idle) {
+         qemu_cond_wait(&d->idle_cond, &d->lock);
+@@ -390,6 +390,7 @@
+ static void mcpx_apu_resume(MCPXAPUState *d)
+ {
+     d->pause_requested = false;
++    voice_owner_cancel(&d->vp.ownership, false);
+     qemu_cond_signal(&d->cond);
+ }
+
+@@ -402,7 +403,7 @@
+     // FIXME: Reset DSP state
+     dsp_invalidate_opcache(d->gp.dsp);
+     dsp_invalidate_opcache(d->ep.dsp);
+-    d->set_irq = false;
++    qatomic_set(&d->set_irq, false);
+ }
+
+ static void mcpx_apu_reset_hold(Object *obj, ResetType type)
+@@ -424,6 +425,12 @@
+ static void mcpx_apu_vm_state_change(void *opaque, bool running, RunState state)
+ {
+     MCPXAPUState *d = opaque;
++#ifdef BOXDROID_XBOX_RUNTIME
++    if (d->vp.ownership.audit) {
++        __android_log_print(ANDROID_LOG_INFO, "BoxDroidVoice",
++            "APU_VM_STATE running=%d state=%d", running, state);
++    }
++#endif
+
+     if (!running) {
+         bql_unlock();
+@@ -482,7 +489,7 @@
+
+     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
+
+-    d->set_irq = false;
++    qatomic_set(&d->set_irq, false);
+     d->exiting = false;
+     d->is_idle = false;
+     d->pause_requested = true;
 diff --git a/hw/xbox/mcpx/apu/vp/vp.c b/hw/xbox/mcpx/apu/vp/vp.c
-index a8d46e3f15..4bffd7d941 100644
 --- a/hw/xbox/mcpx/apu/vp/vp.c
 +++ b/hw/xbox/mcpx/apu/vp/vp.c
-@@ -140,36 +140,27 @@ static void voice_lock(MCPXAPUState *d, uint16_t v, bool lock)
+@@ -40,15 +40,16 @@
+
+     // FIXME: Check notify enable
+     // FIXME: Set NV1BA0_NOTIFICATION_STATUS_IN_PROGRESS when appropriate
+-    stb_phys(&address_space_memory, notify_offset, status);
+-
+     // FIXME: Refactor this out of here
+     // FIXME: Actually provied current envelope state
+     stb_phys(&address_space_memory, notify_offset - 1, 1);
++    /* Publish the record's final status only after its payload. */
++    smp_wmb();
++    stb_phys(&address_space_memory, notify_offset, status);
+
+     qatomic_or(&d->regs[NV_PAPU_ISTS],
+               NV_PAPU_ISTS_FEVINTSTS | NV_PAPU_ISTS_FENINTSTS);
+-    d->set_irq = true;
++    qatomic_store_release(&d->set_irq, true);
+ }
+
+ static void voice_reset_filters(MCPXAPUState *d, uint16_t v)
+@@ -129,53 +130,64 @@
+         notifier += d->vp.ssl[v].ssl_index;
+     }
+     set_notify_status(d, v, notifier, NV1BA0_NOTIFICATION_STATUS_DONE_SUCCESS);
++    voice_owner_control_changed(&d->vp.ownership);
+ }
+
+ #ifdef BOXDROID_RUNTIME
+ /* One APU per Xbox machine; process lifetime matches the embedded runtime. */
+ #include <android/log.h>
++#include <sys/system_properties.h>
++#ifdef BOXDROID_XBOX_RUNTIME
++extern bool boxdroid_performance_profile_active(void);
++#endif
+ uint32_t boxdroid_voice_lock_waiters;
+ #endif
+ static void voice_lock(MCPXAPUState *d, uint16_t v, bool lock)
  {
      assert(v < MCPX_HW_MAX_VOICES);
++#ifdef BOXDROID_XBOX_RUNTIME
++    bool profile = boxdroid_performance_profile_active();
++    int64_t begin = profile ? g_get_monotonic_time() : 0;
++#endif
++    /* Optional matched reference. Production does not take the frame lock. */
++    if (d->vp.voice_coarse) {
  #ifdef BOXDROID_RUNTIME
 -    int64_t timing_begin = g_get_monotonic_time();
 -    qatomic_inc(&boxdroid_voice_lock_waiters);
 -#endif
 -    qemu_mutex_lock(&d->lock);
--#ifdef BOXDROID_RUNTIME
++        qatomic_inc(&boxdroid_voice_lock_waiters);
++#endif
++        qemu_mutex_lock(&d->lock);
+ #ifdef BOXDROID_RUNTIME
 -    qatomic_dec(&boxdroid_voice_lock_waiters);
 -    static uint64_t calls, wait_us, maximum;
-+    static uint64_t calls;
-     static int64_t report;
-     int64_t now = g_get_monotonic_time();
-     if (!report) report = now;
+-    static int64_t report;
+-    int64_t now = g_get_monotonic_time();
+-    if (!report) report = now;
 -    uint64_t elapsed = now - timing_begin;
 -    ++calls; wait_us += elapsed; maximum = MAX(maximum, elapsed);
-+    ++calls;
-     if (now - report >= G_USEC_PER_SEC) {
-         __android_log_print(ANDROID_LOG_INFO, "BoxDroid",
+-    if (now - report >= G_USEC_PER_SEC) {
+-        __android_log_print(ANDROID_LOG_INFO, "BoxDroid",
 -            "APU_VOICE_WAIT interval_us=%lld calls=%llu wait_us=%llu maximum_us=%llu",
 -            (long long)(now-report), (unsigned long long)calls,
 -            (unsigned long long)wait_us, (unsigned long long)maximum);
 -        calls = wait_us = maximum = 0; report = now;
-+            "APU_VOICE_WAIT interval_us=%lld calls=%llu wait_us=0 maximum_us=0",
-+            (long long)(now-report), (unsigned long long)calls);
-+        calls = 0; report = now;
-     }
- #endif
- 
+-    }
+-#endif
+-
 -    uint64_t mask = 1LL << (v % 64);
-+    uint64_t mask = 1ULL << (v % 64);
-     if (lock) {
+-    if (lock) {
 -        d->vp.voice_locked[v / 64] |= mask;
-+        qatomic_or(&d->vp.voice_locked[v / 64], mask);
-     } else {
+-    } else {
 -        d->vp.voice_locked[v / 64] &= ~mask;
-+        qatomic_and(&d->vp.voice_locked[v / 64], ~mask);
-     }
- 
-     qemu_cond_signal(&d->cond);
+-    }
+-
+-    qemu_cond_signal(&d->cond);
 -    qemu_mutex_unlock(&d->lock);
- }
- 
+-}
++        qatomic_dec(&boxdroid_voice_lock_waiters);
++#endif
++    }
++    voice_owner_guest(&d->vp.ownership, v, lock);
++    if (d->vp.voice_coarse) {
++        qemu_cond_signal(&d->cond);
++        qemu_mutex_unlock(&d->lock);
++    }
++#ifdef BOXDROID_XBOX_RUNTIME
++    if (profile) {
++        static uint64_t calls, wait_us, maximum;
++        static int64_t report;
++        int64_t now = g_get_monotonic_time();
++        if (!report) report = now;
++        uint64_t elapsed = now - begin;
++        ++calls; wait_us += elapsed; maximum = MAX(maximum, elapsed);
++        if (now - report >= G_USEC_PER_SEC) {
++            __android_log_print(ANDROID_LOG_INFO, "BoxDroid",
++                "APU_VOICE_WAIT interval_us=%lld calls=%llu wait_us=%llu maximum_us=%llu",
++                (long long)(now-report), (unsigned long long)calls,
++                (unsigned long long)wait_us, (unsigned long long)maximum);
++            calls = wait_us = maximum = 0; report = now;
++        }
++    }
++#endif
++}
++
+
  static bool is_voice_locked(MCPXAPUState *d, uint16_t v)
+ {
+     assert(v < MCPX_HW_MAX_VOICES);
+-    uint64_t mask = 1LL << (v % 64);
++    uint64_t mask = UINT64_C(1) << (v % 64);
+     return (qatomic_read(&d->vp.voice_locked[v / 64]) & mask) != 0;
+ }
+
+@@ -214,6 +226,17 @@
+         }
+
+         list = GET_MASK(d->regs[NV_PAPU_FEAV], NV_PAPU_FEAV_LST);
++        unsigned int antecedent_voice =
++            GET_MASK(d->regs[NV_PAPU_FEAV], NV_PAPU_FEAV_VALUE);
++        bool unlock_antecedent = false;
++        if (list == NV1BA0_PIO_SET_ANTECEDENT_VOICE_LIST_INHERIT) {
++            assert(antecedent_voice < MCPX_HW_MAX_VOICES);
++            unlock_antecedent = !is_voice_locked(d, antecedent_voice);
++            if (unlock_antecedent) {
++                voice_lock(d, antecedent_voice, true);
++            }
++        }
++        qemu_mutex_lock(&d->vp.list_lock);
+         if (list != NV1BA0_PIO_SET_ANTECEDENT_VOICE_LIST_INHERIT) {
+             /* voice is added to the top of the selected list */
+             unsigned int top_reg = voice_list_regs[list - 1].top;
+@@ -222,8 +245,6 @@
+                            d->regs[top_reg]);
+             d->regs[top_reg] = selected_handle;
+         } else {
+-            unsigned int antecedent_voice =
+-                GET_MASK(d->regs[NV_PAPU_FEAV], NV_PAPU_FEAV_VALUE);
+             /* voice is added after the antecedent voice */
+             assert(antecedent_voice != 0xFFFF);
+
+@@ -290,6 +311,12 @@
+         voice_set_mask(d, selected_handle, NV_PAVS_VOICE_PAR_STATE,
+                        NV_PAVS_VOICE_PAR_STATE_ACTIVE_VOICE, 1);
+
++        qemu_mutex_unlock(&d->vp.list_lock);
++        voice_owner_control_changed(&d->vp.ownership);
++        if (unlock_antecedent) {
++            voice_lock(d, antecedent_voice, false);
++        }
++
+         if (!locked) {
+             voice_lock(d, selected_handle, false);
+         }
+@@ -588,7 +615,7 @@
+             d->regs[NV_PAPU_FECTL] &= ~NV_PAPU_FECTL_FETRAPREASON;
+             d->regs[NV_PAPU_FECTL] |= NV_PAPU_FECTL_FETRAPREASON_REQUESTED;
+             DPRINTF("idle voice %d\n", argument);
+-            d->set_irq = true;
++            qatomic_store_release(&d->set_irq, true);
+         } else {
+             assert(!"SE2FE_IDLE_VOICE called but NV_PAPU_FETFORCE1_SE2FE_IDLE_VOICE not enabled");
+         }
+@@ -597,6 +624,59 @@
+         DPRINTF("Unrecognized method: 0x%08x\n", method);
+         assert(!"Unrecognized VP method - could be unimplemented or invalid");
+         break;
++    }
++}
++
++static void fe_guest_method(MCPXAPUState *d, uint32_t method,
++                            uint32_t argument)
++{
++    int voice = -1;
++    switch (method) {
++    case NV1BA0_PIO_SET_VOICE_CFG_VBIN:
++    case NV1BA0_PIO_SET_VOICE_CFG_FMT:
++    case NV1BA0_PIO_SET_VOICE_CFG_ENV0:
++    case NV1BA0_PIO_SET_VOICE_CFG_ENVA:
++    case NV1BA0_PIO_SET_VOICE_CFG_ENV1:
++    case NV1BA0_PIO_SET_VOICE_CFG_ENVF:
++    case NV1BA0_PIO_SET_VOICE_CFG_MISC:
++    case NV1BA0_PIO_SET_VOICE_TAR_HRTF:
++    case NV1BA0_PIO_SET_VOICE_TAR_VOLA:
++    case NV1BA0_PIO_SET_VOICE_TAR_VOLB:
++    case NV1BA0_PIO_SET_VOICE_TAR_VOLC:
++    case NV1BA0_PIO_SET_VOICE_LFO_ENV:
++    case NV1BA0_PIO_SET_VOICE_TAR_FCA:
++    case NV1BA0_PIO_SET_VOICE_TAR_FCB:
++    case NV1BA0_PIO_SET_VOICE_TAR_PITCH:
++    case NV1BA0_PIO_SET_VOICE_CFG_BUF_BASE:
++    case NV1BA0_PIO_SET_VOICE_CFG_BUF_LBO:
++    case NV1BA0_PIO_SET_VOICE_BUF_CBO:
++    case NV1BA0_PIO_SET_VOICE_CFG_BUF_EBO:
++    case NV1BA0_PIO_SET_VOICE_SSL_A:
++    case NV1BA0_PIO_SET_VOICE_SSL_B:
++        voice = d->regs[NV_PAPU_FECV];
++        break;
++    case NV1BA0_PIO_VOICE_RELEASE:
++    case NV1BA0_PIO_VOICE_OFF:
++        voice = argument & NV1BA0_PIO_VOICE_OFF_HANDLE;
++        break;
++    case NV1BA0_PIO_VOICE_PAUSE:
++        voice = argument & NV1BA0_PIO_VOICE_PAUSE_HANDLE;
++        break;
++    default:
++        break;
++    }
++    bool temporary = voice >= 0 && !is_voice_locked(d, voice);
++    if (temporary) {
++        voice_lock(d, voice, true);
++    }
++    if (voice >= 0) qemu_mutex_lock(&d->vp.list_lock);
++    fe_method(d, method, argument);
++    if (method == NV1BA0_PIO_VOICE_PAUSE) {
++        voice_owner_control_changed(&d->vp.ownership);
++    }
++    if (voice >= 0) qemu_mutex_unlock(&d->vp.list_lock);
++    if (temporary) {
++        voice_lock(d, voice, false);
+     }
+ }
+
+@@ -670,7 +750,7 @@
+     case NV1BA0_PIO_SET_SUBMIX_HEADROOM ...
+          NV1BA0_PIO_SET_SUBMIX_HEADROOM+4*(NUM_MIXBINS-1):
+         /* TODO: these should instead be queueing up fe commands */
+-        fe_method(d, addr, val);
++        fe_guest_method(d, addr, val);
+         break;
+
+     case NV1BA0_PIO_GET_VOICE_POSITION:
+@@ -1332,6 +1412,10 @@
+                           VoiceWorker *worker, bool profile)
+ {
+     assert(v < MCPX_HW_MAX_VOICES);
++    if (!voice_get_mask(d, v, NV_PAVS_VOICE_PAR_STATE,
++                        NV_PAVS_VOICE_PAR_STATE_ACTIVE_VOICE)) {
++        return;
++    }
+     bool stereo = voice_get_mask(d, v, NV_PAVS_VOICE_CFG_FMT,
+                                  NV_PAVS_VOICE_CFG_FMT_STEREO);
+     unsigned int channels = stereo ? 2 : 1;
+@@ -1643,6 +1727,10 @@
+
+ #ifdef BOXDROID_XBOX_RUNTIME
+ #include <android/log.h>
++#include <sys/system_properties.h>
++#ifdef BOXDROID_XBOX_RUNTIME
++extern bool boxdroid_performance_profile_active(void);
++#endif
+ extern bool boxdroid_performance_profile_active(void);
+ extern int boxdroid_android_requested_voice_workers(void);
+ extern bool boxdroid_android_requested_apu_participation(void);
+@@ -1675,9 +1763,18 @@
+             memset(self->sample_buf, 0, sizeof(self->sample_buf));
+         }
+         for (int i = 0; i < self->queue_len; i++) {
++            if (self->queue[i].repeated) {
++                voice_owner_enter(&d->vp.ownership, self->queue[i].voice,
++                                  self->queue[i].ordinal);
++            }
+             voice_process(d, self->mixbins, self->sample_buf,
+                           self->queue[i].voice, self->queue[i].list,
+                           self, profile);
++            bool finished = !self->queue[i].repeated ||
++                voice_owner_complete_repeat(&d->vp.ownership, self->queue[i].voice);
++            if (finished && d->monitor.point != MCPX_APU_DEBUG_MON_VP) {
++                voice_owner_release(&d->vp.ownership, self->queue[i].voice);
++            }
+         }
+
+ #ifdef BOXDROID_XBOX_RUNTIME
+@@ -1825,19 +1922,6 @@
+     }
+ }
+
+-static bool any_queued_voice_locked(MCPXAPUState *d)
+-{
+-    VoiceWorkDispatch *vwd = &d->vp.voice_work_dispatch;
+-
+-    for (int i = 0; i < vwd->queue_len; i++) {
+-        if (is_voice_locked(d, vwd->queue[i].voice)) {
+-            return true;
+-        }
+-    }
+-
+-    return false;
+-}
+-
+ static void
+ voice_work_dispatch(MCPXAPUState *d,
+                     float mixbins[NUM_MIXBINS][NUM_SAMPLES_PER_FRAME])
+@@ -1846,17 +1930,43 @@
+
+     int64_t start_time = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
+
+-    while (true) {
+-        if (qatomic_read(&d->pause_requested)) {
++    VoiceWorkItem selected[MCPX_HW_MAX_VOICES];
++    unsigned selected_count = vwd->queue_len;
++    memcpy(selected, vwd->queue, selected_count * sizeof(selected[0]));
++    bool monitor = d->monitor.point == MCPX_APU_DEBUG_MON_VP;
++    for (;;) {
++        uint64_t generation = voice_owner_generation(&d->vp.ownership);
++        uint64_t claims[4] = { 0 };
++        uint16_t counts[MCPX_HW_MAX_VOICES] = { 0 };
++        vwd->queue_len = 0;
++        qemu_mutex_lock(&d->vp.list_lock);
++        for (unsigned i = 0; i < selected_count; i++) {
++            unsigned v = selected[i].voice;
++            uint32_t state = voice_get_mask(d, v, NV_PAVS_VOICE_PAR_STATE, UINT32_MAX);
++            if (!(state & NV_PAVS_VOICE_PAR_STATE_ACTIVE_VOICE)) continue;
++            selected[i].ordinal = counts[v]++;
++            vwd->queue[vwd->queue_len++] = selected[i];
++            claims[v / 64] |= UINT64_C(1) << (v % 64);
++        }
++        qemu_mutex_unlock(&d->vp.list_lock);
++        if (monitor && vwd->queue_len) {
++            memset(claims, 0xff, sizeof(claims));
++        }
++        enum VoiceOwnerWait admission = voice_owner_wait_event(
++            &d->vp.ownership, claims, &d->lock, true, generation);
++        if (admission == VOICE_OWNER_RETRY) continue;
++        if (admission == VOICE_OWNER_CANCELLED) {
+             vwd->queue_len = 0;
+             return;
+         }
+-
+-        if (!any_queued_voice_locked(d)) {
+-            break;
+-        }
+-
+-        qemu_cond_timedwait(&d->cond, &d->lock, 1);
++        for (int i = 0; i < vwd->queue_len; i++) {
++            unsigned v = vwd->queue[i].voice;
++            vwd->queue[i].repeated = counts[v] > 1;
++            if (counts[v] > 1 && !vwd->queue[i].ordinal) {
++                voice_owner_repeat(&d->vp.ownership, v, counts[v]);
++            }
++        }
++        break;
+     }
+
+     qemu_mutex_lock(&vwd->lock);
+@@ -1908,6 +2018,11 @@
+                 qemu_clock_get_us(QEMU_CLOCK_REALTIME) - dispatch_begin_us;
+         }
+ #endif
++        if (monitor) {
++            for (unsigned v = 0; v < MCPX_HW_MAX_VOICES; v++) {
++                voice_owner_release(&d->vp.ownership, v);
++            }
++        }
+         vwd->queue_len = 0;
+
+         // Add voice contributions
+@@ -2077,7 +2192,9 @@
+         current = voice_list_regs[list].current;
+         next = voice_list_regs[list].next;
+
++        qemu_mutex_lock(&d->vp.list_lock);
+         d->regs[current] = d->regs[top];
++        qemu_mutex_unlock(&d->vp.list_lock);
+         DPRINTF("list %d current voice %d\n", list, d->regs[current]);
+
+         for (int i = 0; d->regs[current] != 0xFFFF; i++) {
+@@ -2088,6 +2205,8 @@
+             }
+
+             uint16_t v = d->regs[current];
++            assert(v < MCPX_HW_MAX_VOICES);
++            qemu_mutex_lock(&d->vp.list_lock);
+             d->regs[next] = voice_get_mask(d, v, NV_PAVS_VOICE_TAR_PITCH_LINK,
+                                NV_PAVS_VOICE_TAR_PITCH_LINK_NEXT_VOICE_HANDLE);
+             if (!voice_get_mask(d, v, NV_PAVS_VOICE_PAR_STATE,
+@@ -2097,6 +2216,8 @@
+                 voice_work_enqueue(d, v, list);
+             }
+             d->regs[current] = d->regs[next];
++            qemu_mutex_unlock(&d->vp.list_lock);
++
+         }
+     }
+     voice_work_dispatch(d, mixbins);
+@@ -2119,12 +2240,22 @@
+
+ void mcpx_apu_vp_init(MCPXAPUState *d)
+ {
++    voice_owner_init(&d->vp.ownership, d->vp.voice_locked);
++    qemu_mutex_init(&d->vp.list_lock);
++    d->vp.voice_coarse = false;
++#ifdef BOXDROID_XBOX_RUNTIME
++    char prop[PROP_VALUE_MAX] = { 0 };
++    __system_property_get("debug.boxdroid.voice_coarse", prop);
++    d->vp.voice_coarse = prop[0] == '1';
++#endif
+     voice_work_init(d);
+ }
+
+ void mcpx_apu_vp_finalize(MCPXAPUState *d)
+ {
+     voice_work_finalize(d);
++    voice_owner_destroy(&d->vp.ownership);
++    qemu_mutex_destroy(&d->vp.list_lock);
+     for (int v = 0; v < ARRAY_SIZE(d->vp.filters); v++) {
+         if (d->vp.filters[v].resampler) {
+             src_delete(d->vp.filters[v].resampler);

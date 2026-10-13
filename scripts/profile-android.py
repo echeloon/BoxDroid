@@ -139,7 +139,7 @@ def summarize(samples, log, page_size=4096):
                         "scheduler_slices_per_second": (last[tid].get("slices", 0) - first[tid].get("slices", 0)) / duration,
                         "allowed": last[tid].get("allowed"),
                         "sampled_cpus": sorted({s["threads"][tid]["cpu"] for s in samples if tid in s["threads"]})})
-    perf, presentation, guest_frames, audio, queues, apu, voices = [], [], [], [], [], [], []
+    perf, presentation, guest_frames, audio, queues, apu, voices, voice_wait = [], [], [], [], [], [], [], []
     for line in log.splitlines():
         if " PERF mono_us=" in line:
             perf.append(metrics(line))
@@ -157,6 +157,8 @@ def summarize(samples, log, page_size=4096):
             audio.append(row)
         elif " APU_PROFILE elapsed_us=" in line:
             apu.append(metrics(line))
+        elif " APU_VOICE_WAIT interval_us=" in line:
+            voice_wait.append(metrics(line))
         elif " VOICE_PROFILE elapsed_us=" in line:
             voices.append(metrics(line))
     timing = {}
@@ -214,6 +216,16 @@ def summarize(samples, log, page_size=4096):
     voice_result["workers_seen"] = sorted({row["workers"] for row in voices})
     voice_result["background_workers_seen"] = sorted({row.get("background_workers", row["workers"]) for row in voices})
     voice_result["apu_participation_seen"] = sorted({row.get("apu_participates", 0) for row in voices})
+    voice_wait_elapsed = sum(row.get("interval_us", 0) for row in voice_wait)
+    voice_wait_result = {
+        "counter_window_seconds": voice_wait_elapsed / 1e6,
+        "calls": sum(row.get("calls", 0) for row in voice_wait),
+        "total_us": sum(row.get("wait_us", 0) for row in voice_wait),
+        "maximum_us": max((row.get("maximum_us", 0) for row in voice_wait), default=0),
+        "us_per_second": sum(row.get("wait_us", 0) for row in voice_wait) /
+                         voice_wait_elapsed * 1e6 if voice_wait_elapsed else None,
+        "scope": "guest-thread voice ownership calls, including unlock and internal handoffs",
+    }
     frequencies = {}
     for policy in samples[0]["frequencies"]:
         values = [sample["frequencies"][policy] for sample in samples if policy in sample["frequencies"]]
@@ -227,7 +239,7 @@ def summarize(samples, log, page_size=4096):
             "threads": sorted(threads, key=lambda row: -row["cpu_percent"]),
             "timing": timing, "perf_windows": len(perf), "presentation_queue": queues[-1] if queues else {},
             "presentation_queue_window": queue_window, "apu": apu_result, "voice_workers": voice_result,
-            "audio": audio_result, "cpu_frequencies": frequencies, "thermal_peak_raw": thermal,
+            "audio": audio_result, "guest_voice_ownership_wait": voice_wait_result, "cpu_frequencies": frequencies, "thermal_peak_raw": thermal,
             "battery_temperature_start_tenths_c": samples[0].get("battery_temperature_tenths_c"),
             "battery_temperature_end_tenths_c": samples[-1].get("battery_temperature_tenths_c"),
             "rss_start_bytes": samples[0]["resident_pages"] * page_size,
@@ -253,7 +265,7 @@ def main():
     pid = int(adb("shell", "pidof", args.process))
     page_size = int(adb("shell", "getconf", "PAGESIZE"))
     controls = {name: adb("shell", "getprop", "debug.boxdroid." + name)
-                for name in ("profile", "diagnostics", "async_present", "voice_workers", "voice_apu", "dsp_jit", "tcg_prime")}
+                for name in ("profile", "diagnostics", "async_present", "voice_workers", "voice_apu", "dsp_jit", "tcg_prime", "fast_fpu", "voice_coarse", "tcg_ordered", "voice_audit", "order_audit", "fpu_audit", "sample_pc")}
     metadata = {"pid": pid, "process": args.process, "note": args.note,
                 "page_size": page_size, "wall_start_epoch": time.time(), "controls": controls}
     apk = adb("shell", "pm", "path", "org.boxdroid").splitlines()[0].removeprefix("package:")

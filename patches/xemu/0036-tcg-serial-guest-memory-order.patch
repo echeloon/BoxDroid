@@ -1,48 +1,721 @@
-diff --git a/accel/tcg/backend-ldst.h b/accel/tcg/backend-ldst.h
-index 9c3a407a5a..a458dc3868 100644
---- a/accel/tcg/backend-ldst.h
-+++ b/accel/tcg/backend-ldst.h
-@@ -10,6 +10,7 @@
- #define ACCEL_TCG_BACKEND_LDST_H
- 
- #include "tcg-target-mo.h"
-+#include "exec/translation-block.h"
- 
- /**
-  * tcg_req_mo:
-@@ -33,7 +34,8 @@
-  */
- #define cpu_req_mo(cpu, type)     \
-     do {                          \
--        if (tcg_req_mo(cpu->cc->tcg_ops->guest_default_memory_order, type)) { \
-+        if (tcg_cflags_has(cpu, CF_PARALLEL) && \
-+            tcg_req_mo(cpu->cc->tcg_ops->guest_default_memory_order, type)) { \
-             smp_mb();             \
-         }                         \
-     } while (0)
+From: BoxDroid downstream
+Subject: [PATCH] tcg/aarch64: exact ordered scalar RAM lowering
+
+Use LDAPR (when supported), otherwise LDAR, and STLR for aligned scalar RAM.
+Unaligned RAM stays inline with ordinary accesses and exact barriers. Bridge ordinary reads at
+C execution entries. Unknown helpers, slow scalar loads, store-helper RAM
+reads and vector loads complete with an acquire barrier. All helpers retain cpu_req_mo();
+MMIO, faults, unaligned and 128-bit accesses retain conservative handling.
+Audited CPU-state-only x87 helpers preserve the acquire region.
+Never infer exclusive RAM ownership from !CF_PARALLEL.
+
+diff --git a/include/tcg/tcg.h b/include/tcg/tcg.h
+--- a/include/tcg/tcg.h
++++ b/include/tcg/tcg.h
+@@ -249,6 +249,11 @@
+ #define TCG_CALL_NO_SIDE_EFFECTS    0x0004
+ /* Helper is G_NORETURN.  */
+ #define TCG_CALL_NO_RETURN          0x0008
++/* Audited helper contract: no guest RAM or device memory accesses. */
++#define TCG_CALL_NO_GUEST_MEMORY     0x0010
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++unsigned boxdroid_tcg_memory_mode(void);
++#endif
+
+ /* convenience version of most used call flags */
+ #define TCG_CALL_NO_RWG         TCG_CALL_NO_READ_GLOBALS
+@@ -379,6 +384,8 @@
+     int nb_ops;
+     TCGType addr_type;            /* TCG_TYPE_I32 or TCG_TYPE_I64 */
+     TCGBar guest_mo;
++    bool boxdroid_ordered_stores, boxdroid_ordered_loads, boxdroid_rcpc;
++    bool boxdroid_acquire_reads, boxdroid_aligned_helpers, boxdroid_helper_prefix;
+
+     TCGRegSet reserved_regs;
+     intptr_t current_frame_offset;
 diff --git a/accel/tcg/translate-all.c b/accel/tcg/translate-all.c
 --- a/accel/tcg/translate-all.c
 +++ b/accel/tcg/translate-all.c
-@@ -340,7 +340,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
- 
+@@ -18,6 +18,21 @@
+  */
+
+ #include "qemu/osdep.h"
++
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++#include <sys/system_properties.h>
++unsigned boxdroid_tcg_memory_mode(void)
++{
++    static gsize state;
++    if (g_once_init_enter(&state)) {
++        char prop[PROP_VALUE_MAX] = { 0 };
++        unsigned mode = __system_property_get("debug.boxdroid.tcg_ordered", prop) <= 0 ?
++                        4 : prop[0] == '0' ? 0 : prop[0] == '1' ? 1 : prop[0] == '2' ? 2 : prop[0] == '3' ? 3 : 4;
++        g_once_init_leave(&state, mode + 1);
++    }
++    return state - 1;
++}
++#endif
+
+ #include "trace.h"
+ #include "disas/disas.h"
+@@ -43,6 +58,80 @@
+ #include <jitprofiling.h>
+ #endif
+
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++#include <android/log.h>
++bool boxdroid_order_audit_active;
++void boxdroid_order_audit(TranslationBlock *tb, bool executed)
++{
++    static bool checked, enabled, done, hot_mode, armed;
++    static unsigned polls;
++    static struct { uint64_t pc; unsigned hits; } pcs[128];
++    static uint64_t target;
++    if (!checked) {
++        char prop[PROP_VALUE_MAX] = { 0 };
++        __system_property_get("debug.boxdroid.order_audit", prop);
++        enabled = prop[0] == '1' || prop[0] == '2';
++        hot_mode = prop[0] == '2';
++        boxdroid_order_audit_active = hot_mode;
++        __system_property_get("debug.boxdroid.order_audit_pc", prop);
++        target = strtoull(prop, NULL, 0);
++        checked = true;
++    }
++    if (hot_mode) {
++        if (!executed) return;
++        if (!armed) {
++            if ((++polls & 255) == 0) {
++                char prop[PROP_VALUE_MAX] = { 0 };
++                __system_property_get("debug.boxdroid.order_audit_run", prop);
++                armed = prop[0] == '1';
++            }
++            if (!armed) return;
++        }
++    }
++    if (!enabled || done || (target ? tb->pc != target : tb->icount < 60)) {
++        return;
++    }
++    const uint32_t *words = (const uint32_t *)tb->tc.ptr;
++    unsigned count = tb->tc.size / 4, dmb = 0, release = 0, acquire = 0, rcpc = 0;
++    for (unsigned i = 0; i < count; i++) {
++        uint32_t word = __atomic_load_n(&words[i], __ATOMIC_RELAXED);
++        dmb += word == 0xd5033bbf || word == 0xd50339bf ||
++               word == 0xd5033abf;
++        release += (word & 0x3ffffc00) == 0x089ffc00;
++        acquire += (word & 0x3ffffc00) == 0x08dffc00;
++        rcpc += (word & 0x3ffffc00) == 0x38bfc000;
++    }
++    if (!target && dmb + release + acquire + rcpc < 24) {
++        return;
++    }
++    unsigned hits = 0;
++    if (hot_mode) {
++        for (unsigned i = 0; i < G_N_ELEMENTS(pcs); i++) {
++            if (!pcs[i].hits || pcs[i].pc == tb->pc) {
++                pcs[i].pc = tb->pc;
++                hits = ++pcs[i].hits;
++                break;
++            }
++        }
++        if (hits < 64) return;
++    }
++    done = true;
++    boxdroid_order_audit_active = false;
++    __android_log_print(ANDROID_LOG_INFO, "BoxDroidOrder",
++        "ORDER_TB pc=0x%llx insns=%u bytes=%zu dmb=%u stlr=%u ldar=%u ldapr=%u executions=%u",
++        (unsigned long long)tb->pc, tb->icount, tb->tc.size, dmb, release, acquire, rcpc, hits);
++    for (unsigned i = 0; i < MIN(count, 4096); i += 32) {
++        char line[512];
++        int used = snprintf(line, sizeof(line), "ORDER_WORDS %u", i);
++        for (unsigned j = i; j < MIN(MIN(count, 4096), i + 32); j++) {
++            used += snprintf(line + used, sizeof(line) - used, " %08x",
++                             __atomic_load_n(&words[j], __ATOMIC_RELAXED));
++        }
++        __android_log_print(ANDROID_LOG_INFO, "BoxDroidOrder", "%s", line);
++    }
++}
++#endif
++
+ TBContext tb_ctx;
+
+ /*
+@@ -341,6 +430,29 @@
      tcg_ctx->gen_tb = tb;
      tcg_ctx->addr_type = target_long_bits() == 32 ? TCG_TYPE_I32 : TCG_TYPE_I64;
--    tcg_ctx->guest_mo = cpu->cc->tcg_ops->guest_default_memory_order;
-+    tcg_ctx->guest_mo = (tb->cflags & CF_PARALLEL) ? cpu->cc->tcg_ops->guest_default_memory_order : 0;
- 
+     tcg_ctx->guest_mo = cpu->cc->tcg_ops->guest_default_memory_order;
++    tcg_ctx->boxdroid_ordered_stores = false;
++    tcg_ctx->boxdroid_ordered_loads = false;
++    tcg_ctx->boxdroid_acquire_reads = false;
++    tcg_ctx->boxdroid_rcpc = false;
++    tcg_ctx->boxdroid_aligned_helpers = false;
++    tcg_ctx->boxdroid_helper_prefix = false;
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__) && !defined(CONFIG_TCG_INTERPRETER)
++    tcg_ctx->boxdroid_helper_prefix =
++        tcg_ctx->guest_mo == (TCG_MO_ALL & ~TCG_MO_ST_LD);
++    tcg_ctx->boxdroid_ordered_stores =
++        !(s.cflags & CF_PARALLEL) &&
++        tcg_ctx->guest_mo == (TCG_MO_ALL & ~TCG_MO_ST_LD) &&
++        boxdroid_tcg_memory_mode();
++    tcg_ctx->boxdroid_acquire_reads =
++        tcg_ctx->guest_mo == (TCG_MO_ALL & ~TCG_MO_ST_LD) &&
++        boxdroid_tcg_memory_mode() >= 2;
++    tcg_ctx->boxdroid_ordered_loads = tcg_ctx->boxdroid_acquire_reads &&
++        !(s.cflags & CF_PARALLEL);
++    tcg_ctx->boxdroid_rcpc = tcg_ctx->boxdroid_ordered_loads &&
++        boxdroid_tcg_memory_mode() >= 3;
++    tcg_ctx->boxdroid_aligned_helpers = tcg_ctx->boxdroid_ordered_loads &&
++        boxdroid_tcg_memory_mode() == 4;
++#endif
+
   restart_translate:
      trace_translate_block(tb, s.pc, tb->tc.ptr);
+@@ -419,6 +531,9 @@
+         goto buffer_overflow;
+     }
+     tb->tc.size = gen_code_size;
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    boxdroid_order_audit(tb, false);
++#endif
+
+     /*
+      * For CF_PCREL, attribute all executions of the generated code
 diff --git a/tcg/tcg-op-ldst.c b/tcg/tcg-op-ldst.c
-index 7716c3ad7c..543e402ff8 100644
 --- a/tcg/tcg-op-ldst.c
 +++ b/tcg/tcg-op-ldst.c
-@@ -128,6 +128,9 @@ static void gen_st_i64(TCGv_i64 v, TCGTemp *addr, MemOpIdx oi)
- 
- static void tcg_gen_req_mo(TCGBar type)
- {
-+    if (!(tcg_ctx->gen_tb->cflags & CF_PARALLEL)) {
+@@ -126,8 +126,29 @@
+     }
+ }
+
+-static void tcg_gen_req_mo(TCGBar type)
+-{
++static void tcg_gen_req_mo(TCGBar type, MemOp memop)
++{
++    /* Only the AArch64 scalar store backend may replace this ordering with
++     * STLR/LDAR. Vector accesses and helper-side requirements remain upstream. */
++    if (tcg_ctx->boxdroid_helper_prefix && (memop & MO_SIZE) == MO_128 &&
++        type == (TCG_MO_ST_LD | TCG_MO_ST_ST)) {
++        /* A vector write needs Load->Store, even if an unrelated preceding
++         * load had no acquire. The pinned i128 request names Store->Load. */
++        type = TCG_MO_LD_ST | TCG_MO_ST_ST;
++    }
++    if (tcg_ctx->boxdroid_ordered_stores && (memop & MO_SIZE) <= MO_64 &&
++        type == (TCG_MO_LD_ST | TCG_MO_ST_ST)) {
 +        return;
++    }
++    if (tcg_ctx->boxdroid_ordered_loads &&
++        type == (TCG_MO_LD_LD | TCG_MO_ST_LD)) {
++        return;
++    }
++    if (tcg_ctx->boxdroid_ordered_loads &&
++        type == (TCG_MO_LD_ST | TCG_MO_ST_ST)) {
++        /* Prior reads acquire; ordinary vector stores need Store->Store. */
++        type = TCG_MO_ST_ST;
 +    }
      type &= tcg_ctx->guest_mo;
      type &= ~TCG_TARGET_DEFAULT_MO;
      if (type) {
+@@ -258,7 +279,7 @@
+     TCGv_i64 copy_addr;
+     TCGTemp *addr_new;
+
+-    tcg_gen_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
++    tcg_gen_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD, memop);
+     orig_memop = memop = tcg_canonicalize_memop(memop, 0, 0);
+     orig_oi = oi = make_memop_idx(memop, idx);
+
+@@ -309,7 +330,7 @@
+     MemOpIdx orig_oi, oi;
+     TCGTemp *addr_new;
+
+-    tcg_gen_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST);
++    tcg_gen_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST, memop);
+     memop = tcg_canonicalize_memop(memop, 0, 1);
+     orig_oi = oi = make_memop_idx(memop, idx);
+
+@@ -366,7 +387,7 @@
+         return;
+     }
+
+-    tcg_gen_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
++    tcg_gen_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD, memop);
+     orig_memop = memop = tcg_canonicalize_memop(memop, 1, 0);
+     orig_oi = oi = make_memop_idx(memop, idx);
+
+@@ -426,7 +447,7 @@
+         return;
+     }
+
+-    tcg_gen_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST);
++    tcg_gen_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST, memop);
+     memop = tcg_canonicalize_memop(memop, 1, 1);
+     orig_oi = oi = make_memop_idx(memop, idx);
+
+@@ -567,7 +588,7 @@
+     TCGTemp *addr_new;
+
+     check_max_alignment(memop_alignment_bits(memop));
+-    tcg_gen_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
++    tcg_gen_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD, memop);
+
+     /* In serial mode, reduce atomicity. */
+     if (!(tcg_ctx->gen_tb->cflags & CF_PARALLEL)) {
+@@ -680,7 +701,7 @@
+     TCGTemp *addr_new;
+
+     check_max_alignment(memop_alignment_bits(memop));
+-    tcg_gen_req_mo(TCG_MO_ST_LD | TCG_MO_ST_ST);
++    tcg_gen_req_mo(TCG_MO_ST_LD | TCG_MO_ST_ST, memop);
+
+     /* In serial mode, reduce atomicity. */
+     if (!(tcg_ctx->gen_tb->cflags & CF_PARALLEL)) {
+diff --git a/tcg/aarch64/tcg-target.c.inc b/tcg/aarch64/tcg-target.c.inc
+--- a/tcg/aarch64/tcg-target.c.inc
++++ b/tcg/aarch64/tcg-target.c.inc
+@@ -11,6 +11,7 @@
+  */
+
+ #include "qemu/bitops.h"
++static void tcg_out_mb(TCGContext *s, unsigned a0);
+
+ /* Used for function call generation. */
+ #define TCG_REG_CALL_STACK              TCG_REG_SP
+@@ -1404,7 +1405,15 @@
+ static void tcg_out_call(TCGContext *s, const tcg_insn_unit *target,
+                          const TCGHelperInfo *info)
+ {
++    if (s->boxdroid_helper_prefix && !(info->flags & TCG_CALL_NO_GUEST_MEMORY)) {
++        /* An unknown helper may publish through ordinary RAM/device stores.
++         * They must not pass an earlier release store. */
++        tcg_out_mb(s, TCG_MO_ALL);
++    }
+     tcg_out_call_int(s, target);
++    if (s->boxdroid_acquire_reads && !(info->flags & TCG_CALL_NO_GUEST_MEMORY)) {
++        tcg_out_mb(s, TCG_MO_LD_LD | TCG_MO_LD_ST);
++    }
+ }
+
+ static void tcg_out_br(TCGContext *s, TCGLabel *l)
+@@ -1614,6 +1623,11 @@
+     tcg_out_ld_helper_args(s, lb, &ldst_helper_param);
+     tcg_out_call_int(s, qemu_ld_helpers[opc & MO_SIZE]);
+     tcg_out_ld_helper_ret(s, lb, false, &ldst_helper_param);
++    if (s->boxdroid_acquire_reads && (opc & MO_SIZE) <= MO_64) {
++        /* The ordinary helper read must have acquire ordering on return,
++         * including a TLB miss, MMIO, watchpoint and unaligned access. */
++        tcg_out_mb(s, TCG_MO_LD_LD | TCG_MO_LD_ST);
++    }
+     tcg_out_goto(s, lb->raddr);
+     return true;
+ }
+@@ -1628,6 +1642,11 @@
+
+     tcg_out_st_helper_args(s, lb, &ldst_helper_param);
+     tcg_out_call_int(s, qemu_st_helpers[opc & MO_SIZE]);
++    if (s->boxdroid_acquire_reads) {
++        /* Store helpers can read RAM in a page walk or MMIO callback.
++         * Bridge those ordinary reads before returning to an acquire region. */
++        tcg_out_mb(s, TCG_MO_LD_LD | TCG_MO_LD_ST);
++    }
+     tcg_out_goto(s, lb->raddr);
+     return true;
+ }
+@@ -1655,6 +1674,11 @@
+                                    have_lse2 ? MO_ATOM_WITHIN16
+                                              : MO_ATOM_IFALIGN,
+                                    s_bits == MO_128);
++    /* Optional matched lowering: incorporate natural alignment in the
++     * existing TLB comparator; retain the original helper MemOp. */
++    if (s->boxdroid_aligned_helpers && s_bits <= MO_64) {
++        h->aa.align = MAX(h->aa.align, s_bits);
++    }
+     a_mask = (1 << h->aa.align) - 1;
+
+     if (tcg_use_softmmu) {
+@@ -1749,7 +1773,7 @@
+     return ldst;
+ }
+
+-static void tcg_out_qemu_ld_direct(TCGContext *s, MemOp memop, TCGType ext,
++static void tcg_out_qemu_ld_unordered(TCGContext *s, MemOp memop, TCGType ext,
+                                    TCGReg data_r, HostAddress h)
+ {
+     switch (memop & MO_SSIZE) {
+@@ -1781,7 +1805,69 @@
+     }
+ }
+
+-static void tcg_out_qemu_st_direct(TCGContext *s, MemOp memop,
++
++static void tcg_out_qemu_ld_direct(TCGContext *s, MemOp memop, TCGType ext,
++                                   TCGReg data_r, HostAddress h)
++{
++    if (s->boxdroid_ordered_loads) {
++        /* Every earlier guest read acquires, including helper/vector paths
++         * and the C execution entry. No per-TB barrier is needed. */
++        TCGReg base = h.base;
++        if (h.index != TCG_REG_XZR) {
++            base = TCG_REG_TMP2;
++            if (h.index_ext == TCG_TYPE_I32) {
++                tcg_out_insn(s, 3501, ADD, TCG_TYPE_I64, base,
++                             h.base, h.index, MO_32, 0);
++            } else {
++                tcg_out_insn(s, 3502, ADD, TCG_TYPE_I64, base,
++                             h.base, h.index);
++            }
++        }
++        tcg_insn_unit *unaligned = NULL;
++        if ((memop & MO_SIZE) != MO_8 && h.aa.align < (memop & MO_SIZE)) {
++            tcg_out_logicali(s, I3404_ANDSI, TCG_TYPE_I64, TCG_REG_XZR,
++                             base, (1U << (memop & MO_SIZE)) - 1);
++            unaligned = s->code_ptr;
++            tcg_out_insn(s, 3202, B_C, TCG_COND_NE, 0);
++        }
++        tcg_debug_assert(data_r != TCG_REG_XZR);
++        /* RCpc permits x86's Store->Load relaxation. Every guest store is
++         * release or preceded by a full barrier; ordinary helper/vector
++         * reads are bridged, so all three required TSO edges survive. */
++        uint32_t opcode = s->boxdroid_rcpc && (cpuinfo & CPUINFO_LRCPC) ?
++                          UINT32_C(0x38bfc000) : UINT32_C(0x08dffc00);
++        tcg_out32(s, opcode |
++                     ((memop & MO_SIZE) << 30) | (base << 5) | data_r);
++        if (memop & MO_SIGN) {
++            switch (memop & MO_SIZE) {
++            case MO_8: tcg_out_ext8s(s, ext, data_r, data_r); break;
++            case MO_16: tcg_out_ext16s(s, ext, data_r, data_r); break;
++            case MO_32:
++                if (ext == TCG_TYPE_I64) tcg_out_ext32s(s, data_r, data_r);
++                break;
++            default: break;
++            }
++        }
++        if (unaligned) {
++            tcg_insn_unit *skip = s->code_ptr;
++            tcg_out_insn(s, 3206, B, 0);
++            bool patched = reloc_pc19(unaligned, tcg_splitwx_to_rx(s->code_ptr));
++            tcg_debug_assert(patched);
++            tcg_out_qemu_ld_unordered(s, memop, ext, data_r, h);
++            /* Prior acquired reads (or the entry bridge) order this read;
++             * this post-barrier gives it acquire ordering before the join. */
++            tcg_out_mb(s, TCG_MO_LD_LD | TCG_MO_LD_ST);
++            patched = reloc_pc26(skip, tcg_splitwx_to_rx(s->code_ptr));
++            tcg_debug_assert(patched);
++        }
++        return;
++    }
++    tcg_out_qemu_ld_unordered(s, memop, ext, data_r, h);
++    if (s->boxdroid_acquire_reads) {
++        tcg_out_mb(s, TCG_MO_LD_LD | TCG_MO_LD_ST);
++    }
++}
++static void tcg_out_qemu_st_unordered(TCGContext *s, MemOp memop,
+                                    TCGReg data_r, HostAddress h)
+ {
+     switch (memop & MO_SIZE) {
+@@ -1802,6 +1888,49 @@
+     }
+ }
+
++
++static void tcg_out_qemu_st_direct(TCGContext *s, MemOp memop,
++                                   TCGReg data_r, HostAddress h)
++{
++    if (s->boxdroid_ordered_stores) {
++        TCGReg base = h.base;
++        if (h.index != TCG_REG_XZR) {
++            base = TCG_REG_TMP2;
++            if (h.index_ext == TCG_TYPE_I32) {
++                tcg_out_insn(s, 3501, ADD, TCG_TYPE_I64, base,
++                             h.base, h.index, MO_32, 0);
++            } else {
++                tcg_out_insn(s, 3502, ADD, TCG_TYPE_I64, base,
++                             h.base, h.index);
++            }
++        }
++        /* STLR{B,H,W,X}: release orders all prior loads and stores before
++         * this write. Helper/vector reads finish with acquire ordering; all
++         * helper-side upstream requirements remain intact. */
++        tcg_insn_unit *unaligned = NULL;
++        if ((memop & MO_SIZE) != MO_8 && h.aa.align < (memop & MO_SIZE)) {
++            tcg_out_logicali(s, I3404_ANDSI, TCG_TYPE_I64, TCG_REG_XZR,
++                             base, (1U << (memop & MO_SIZE)) - 1);
++            unaligned = s->code_ptr;
++            tcg_out_insn(s, 3202, B_C, TCG_COND_NE, 0);
++        }
++        tcg_out32(s, UINT32_C(0x089ffc00) |
++                     ((memop & MO_SIZE) << 30) | (base << 5) | data_r);
++        if (unaligned) {
++            tcg_insn_unit *skip = s->code_ptr;
++            tcg_out_insn(s, 3206, B, 0);
++            bool patched = reloc_pc19(unaligned, tcg_splitwx_to_rx(s->code_ptr));
++            tcg_debug_assert(patched);
++            tcg_out_mb(s, s->boxdroid_ordered_loads ? TCG_MO_ST_ST :
++                          TCG_MO_LD_ST | TCG_MO_ST_ST);
++            tcg_out_qemu_st_unordered(s, memop, data_r, h);
++            patched = reloc_pc26(skip, tcg_splitwx_to_rx(s->code_ptr));
++            tcg_debug_assert(patched);
++        }
++        return;
++    }
++    tcg_out_qemu_st_unordered(s, memop, data_r, h);
++}
+ static void tgen_qemu_ld(TCGContext *s, TCGType data_type, TCGReg data_reg,
+                          TCGReg addr_reg, MemOpIdx oi)
+ {
+@@ -1950,6 +2079,9 @@
+                           TCGReg datahi, TCGReg addr_reg, MemOpIdx oi)
+ {
+     tcg_out_qemu_ldst_i128(s, datalo, datahi, addr_reg, oi, true);
++    if (s->boxdroid_acquire_reads) {
++        tcg_out_mb(s, TCG_MO_LD_LD | TCG_MO_LD_ST);
++    }
+ }
+
+ static const TCGOutOpQemuLdSt2 outop_qemu_ld2 = {
+diff --git a/host/include/aarch64/host/cpuinfo.h b/host/include/aarch64/host/cpuinfo.h
+--- a/host/include/aarch64/host/cpuinfo.h
++++ b/host/include/aarch64/host/cpuinfo.h
+@@ -11,6 +11,7 @@
+ #define CPUINFO_LSE2            (1u << 2)
+ #define CPUINFO_AES             (1u << 3)
+ #define CPUINFO_PMULL           (1u << 4)
++#define CPUINFO_LRCPC           (1u << 6)
+ #define CPUINFO_BTI             (1u << 5)
+
+ /* Initialized with a constructor. */
+diff --git a/util/cpuinfo-aarch64.c b/util/cpuinfo-aarch64.c
+--- a/util/cpuinfo-aarch64.c
++++ b/util/cpuinfo-aarch64.c
+@@ -5,6 +5,10 @@
+
+ #include "qemu/osdep.h"
+ #include "host/cpuinfo.h"
++#ifdef __ANDROID__
++#include <sys/auxv.h>
++#include <asm/hwcap.h>
++#endif
+
+ #ifdef CONFIG_LINUX
+ # ifdef CONFIG_GETAUXVAL
+@@ -63,9 +67,17 @@
+     }
+
+     info = CPUINFO_ALWAYS;
++#ifdef __ANDROID__
++    /* Android is not CONFIG_LINUX in this build. Detect only RCpc here;
++     * leave every unrelated backend feature at its existing setting. */
++    info |= (qemu_getauxval(AT_HWCAP) & HWCAP_LRCPC ? CPUINFO_LRCPC : 0);
++#endif
+
+ #if defined(CONFIG_LINUX) || defined(CONFIG_ELF_AUX_INFO)
+     unsigned long hwcap = qemu_getauxval(AT_HWCAP);
++#ifdef HWCAP_LRCPC
++    info |= (hwcap & HWCAP_LRCPC ? CPUINFO_LRCPC : 0);
++#endif
+     info |= (hwcap & HWCAP_ATOMICS ? CPUINFO_LSE : 0);
+     info |= (hwcap & HWCAP_USCAT ? CPUINFO_LSE2 : 0);
+     info |= (hwcap & HWCAP_AES ? CPUINFO_AES : 0);
+diff --git a/accel/tcg/cpu-exec.c b/accel/tcg/cpu-exec.c
+--- a/accel/tcg/cpu-exec.c
++++ b/accel/tcg/cpu-exec.c
+@@ -403,6 +403,12 @@
+  * If found, return the code pointer.  If not found, return
+  * the tcg epilogue so that we return into cpu_tb_exec.
+  */
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++extern bool boxdroid_order_audit_active;
++unsigned boxdroid_tcg_memory_mode(void);
++void boxdroid_order_audit(TranslationBlock *tb, bool executed);
++#endif
++
+ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
+ {
+     CPUState *cpu = env_cpu(env);
+@@ -438,6 +444,12 @@
+
+ #ifdef BOXDROID_RUNTIME
+     boxdroid_lookup_pc(s.pc);
++#endif
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    if (unlikely(boxdroid_order_audit_active)) {
++        /* Current RCU-protected lookup result; retain no TB/code pointers. */
++        boxdroid_order_audit(tb, true);
++    }
+ #endif
+     return tb->tc.ptr;
+ }
+@@ -479,6 +491,13 @@
+     }
+
+     qemu_thread_jit_execute();
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    if (boxdroid_tcg_memory_mode() >= 2) {
++        /* Interrupt/exception/translation C paths may have read RAM. All
++         * chained TB reads acquire; bridge only the C->JIT transition. */
++        asm volatile("dmb ishld" : : : "memory");
++    }
++#endif
+     ret = tcg_qemu_tb_exec(cpu_env(cpu), tb_ptr);
+     cpu->neg.can_do_io = true;
+     qemu_plugin_disable_mem_helpers(cpu);
+diff --git a/target/i386/helper.h b/target/i386/helper.h
+--- a/target/i386/helper.h
++++ b/target/i386/helper.h
+@@ -103,68 +103,83 @@
+ /* x86 FPU */
+ #if defined(XBOX) && defined(__x86_64__)
+ #define HS_DEF_HELPER_1(name, ret, t1) \
+-	DEF_HELPER_1(name ## __soft, ret, t1) \
+-	DEF_HELPER_1(name ## __hard, ret, t1)
++    DEF_HELPER_1(name ## __soft, ret, t1) \
++    DEF_HELPER_1(name ## __hard, ret, t1)
+ #define HS_DEF_HELPER_2(name, ret, t1, t2) \
+-	DEF_HELPER_2(name ## __soft, ret, t1, t2) \
+-	DEF_HELPER_2(name ## __hard, ret, t1, t2)
++    DEF_HELPER_2(name ## __soft, ret, t1, t2) \
++    DEF_HELPER_2(name ## __hard, ret, t1, t2)
+ #define HS_DEF_HELPER_3(name, ret, t1, t2, t3) \
+-	DEF_HELPER_3(name ## __soft, ret, t1, t2, t3) \
+-	DEF_HELPER_3(name ## __hard, ret, t1, t2, t3)
++    DEF_HELPER_3(name ## __soft, ret, t1, t2, t3) \
++    DEF_HELPER_3(name ## __hard, ret, t1, t2, t3)
+ #else
+ #define HS_DEF_HELPER_1(name, ret, t1) \
+-	DEF_HELPER_1(name, ret, t1)
++    DEF_HELPER_1(name, ret, t1)
+ #define HS_DEF_HELPER_2(name, ret, t1, t2) \
+-	DEF_HELPER_2(name, ret, t1, t2)
++    DEF_HELPER_2(name, ret, t1, t2)
+ #define HS_DEF_HELPER_3(name, ret, t1, t2, t3) \
+-	DEF_HELPER_3(name, ret, t1, t2, t3)
+-#endif
+-
+-HS_DEF_HELPER_2(flds_FT0, void, env, i32)
+-HS_DEF_HELPER_2(fldl_FT0, void, env, i64)
+-HS_DEF_HELPER_2(fildl_FT0, void, env, s32)
+-HS_DEF_HELPER_2(flds_ST0, void, env, i32)
+-HS_DEF_HELPER_2(fldl_ST0, void, env, i64)
+-HS_DEF_HELPER_2(fildl_ST0, void, env, s32)
+-HS_DEF_HELPER_2(fildll_ST0, void, env, s64)
+-HS_DEF_HELPER_1(fsts_ST0, i32, env)
+-HS_DEF_HELPER_1(fstl_ST0, i64, env)
+-HS_DEF_HELPER_1(fist_ST0, s32, env)
+-HS_DEF_HELPER_1(fistl_ST0, s32, env)
+-HS_DEF_HELPER_1(fistll_ST0, s64, env)
+-HS_DEF_HELPER_1(fistt_ST0, s32, env)
+-HS_DEF_HELPER_1(fisttl_ST0, s32, env)
+-HS_DEF_HELPER_1(fisttll_ST0, s64, env)
++    DEF_HELPER_3(name, ret, t1, t2, t3)
++#endif
++
++/* These CPU-state-only helpers preserve a preceding RAM acquire. */
++#if defined(XBOX) && defined(__x86_64__)
++#define HS_DEF_RAMFREE_HELPER_1(name, ret, t1) \
++    DEF_HELPER_FLAGS_1(name ## __soft, TCG_CALL_NO_GUEST_MEMORY, ret, t1) \
++    DEF_HELPER_FLAGS_1(name ## __hard, TCG_CALL_NO_GUEST_MEMORY, ret, t1)
++#define HS_DEF_RAMFREE_HELPER_2(name, ret, t1, t2) \
++    DEF_HELPER_FLAGS_2(name ## __soft, TCG_CALL_NO_GUEST_MEMORY, ret, t1, t2) \
++    DEF_HELPER_FLAGS_2(name ## __hard, TCG_CALL_NO_GUEST_MEMORY, ret, t1, t2)
++#else
++#define HS_DEF_RAMFREE_HELPER_1(name, ret, t1) \
++    DEF_HELPER_FLAGS_1(name, TCG_CALL_NO_GUEST_MEMORY, ret, t1)
++#define HS_DEF_RAMFREE_HELPER_2(name, ret, t1, t2) \
++    DEF_HELPER_FLAGS_2(name, TCG_CALL_NO_GUEST_MEMORY, ret, t1, t2)
++#endif
++
++HS_DEF_RAMFREE_HELPER_2(flds_FT0, void, env, i32)
++HS_DEF_RAMFREE_HELPER_2(fldl_FT0, void, env, i64)
++HS_DEF_RAMFREE_HELPER_2(fildl_FT0, void, env, s32)
++HS_DEF_RAMFREE_HELPER_2(flds_ST0, void, env, i32)
++HS_DEF_RAMFREE_HELPER_2(fldl_ST0, void, env, i64)
++HS_DEF_RAMFREE_HELPER_2(fildl_ST0, void, env, s32)
++HS_DEF_RAMFREE_HELPER_2(fildll_ST0, void, env, s64)
++HS_DEF_RAMFREE_HELPER_1(fsts_ST0, i32, env)
++HS_DEF_RAMFREE_HELPER_1(fstl_ST0, i64, env)
++HS_DEF_RAMFREE_HELPER_1(fist_ST0, s32, env)
++HS_DEF_RAMFREE_HELPER_1(fistl_ST0, s32, env)
++HS_DEF_RAMFREE_HELPER_1(fistll_ST0, s64, env)
++HS_DEF_RAMFREE_HELPER_1(fistt_ST0, s32, env)
++HS_DEF_RAMFREE_HELPER_1(fisttl_ST0, s32, env)
++HS_DEF_RAMFREE_HELPER_1(fisttll_ST0, s64, env)
+ HS_DEF_HELPER_2(fldt_ST0, void, env, tl)
+ HS_DEF_HELPER_2(fstt_ST0, void, env, tl)
+-HS_DEF_HELPER_1(fpush, void, env)
+-HS_DEF_HELPER_1(fpop, void, env)
+-HS_DEF_HELPER_1(fdecstp, void, env)
+-HS_DEF_HELPER_1(fincstp, void, env)
+-HS_DEF_HELPER_2(ffree_STN, void, env, int)
+-HS_DEF_HELPER_1(fmov_ST0_FT0, void, env)
+-HS_DEF_HELPER_2(fmov_FT0_STN, void, env, int)
+-HS_DEF_HELPER_2(fmov_ST0_STN, void, env, int)
+-HS_DEF_HELPER_2(fmov_STN_ST0, void, env, int)
+-HS_DEF_HELPER_2(fxchg_ST0_STN, void, env, int)
+-HS_DEF_HELPER_1(fcom_ST0_FT0, void, env)
+-HS_DEF_HELPER_1(fucom_ST0_FT0, void, env)
+-HS_DEF_HELPER_1(fcomi_ST0_FT0, void, env)
+-HS_DEF_HELPER_1(fucomi_ST0_FT0, void, env)
+-HS_DEF_HELPER_1(fadd_ST0_FT0, void, env)
+-HS_DEF_HELPER_1(fmul_ST0_FT0, void, env)
+-HS_DEF_HELPER_1(fsub_ST0_FT0, void, env)
+-HS_DEF_HELPER_1(fsubr_ST0_FT0, void, env)
+-HS_DEF_HELPER_1(fdiv_ST0_FT0, void, env)
+-HS_DEF_HELPER_1(fdivr_ST0_FT0, void, env)
+-HS_DEF_HELPER_2(fadd_STN_ST0, void, env, int)
+-HS_DEF_HELPER_2(fmul_STN_ST0, void, env, int)
+-HS_DEF_HELPER_2(fsub_STN_ST0, void, env, int)
+-HS_DEF_HELPER_2(fsubr_STN_ST0, void, env, int)
+-HS_DEF_HELPER_2(fdiv_STN_ST0, void, env, int)
+-HS_DEF_HELPER_2(fdivr_STN_ST0, void, env, int)
+-HS_DEF_HELPER_1(fchs_ST0, void, env)
+-HS_DEF_HELPER_1(fabs_ST0, void, env)
++HS_DEF_RAMFREE_HELPER_1(fpush, void, env)
++HS_DEF_RAMFREE_HELPER_1(fpop, void, env)
++HS_DEF_RAMFREE_HELPER_1(fdecstp, void, env)
++HS_DEF_RAMFREE_HELPER_1(fincstp, void, env)
++HS_DEF_RAMFREE_HELPER_2(ffree_STN, void, env, int)
++HS_DEF_RAMFREE_HELPER_1(fmov_ST0_FT0, void, env)
++HS_DEF_RAMFREE_HELPER_2(fmov_FT0_STN, void, env, int)
++HS_DEF_RAMFREE_HELPER_2(fmov_ST0_STN, void, env, int)
++HS_DEF_RAMFREE_HELPER_2(fmov_STN_ST0, void, env, int)
++HS_DEF_RAMFREE_HELPER_2(fxchg_ST0_STN, void, env, int)
++HS_DEF_RAMFREE_HELPER_1(fcom_ST0_FT0, void, env)
++HS_DEF_RAMFREE_HELPER_1(fucom_ST0_FT0, void, env)
++HS_DEF_RAMFREE_HELPER_1(fcomi_ST0_FT0, void, env)
++HS_DEF_RAMFREE_HELPER_1(fucomi_ST0_FT0, void, env)
++HS_DEF_RAMFREE_HELPER_1(fadd_ST0_FT0, void, env)
++HS_DEF_RAMFREE_HELPER_1(fmul_ST0_FT0, void, env)
++HS_DEF_RAMFREE_HELPER_1(fsub_ST0_FT0, void, env)
++HS_DEF_RAMFREE_HELPER_1(fsubr_ST0_FT0, void, env)
++HS_DEF_RAMFREE_HELPER_1(fdiv_ST0_FT0, void, env)
++HS_DEF_RAMFREE_HELPER_1(fdivr_ST0_FT0, void, env)
++HS_DEF_RAMFREE_HELPER_2(fadd_STN_ST0, void, env, int)
++HS_DEF_RAMFREE_HELPER_2(fmul_STN_ST0, void, env, int)
++HS_DEF_RAMFREE_HELPER_2(fsub_STN_ST0, void, env, int)
++HS_DEF_RAMFREE_HELPER_2(fsubr_STN_ST0, void, env, int)
++HS_DEF_RAMFREE_HELPER_2(fdiv_STN_ST0, void, env, int)
++HS_DEF_RAMFREE_HELPER_2(fdivr_STN_ST0, void, env, int)
++HS_DEF_RAMFREE_HELPER_1(fchs_ST0, void, env)
++HS_DEF_RAMFREE_HELPER_1(fabs_ST0, void, env)
+ HS_DEF_HELPER_1(fxam_ST0, void, env)
+ HS_DEF_HELPER_1(fld1_ST0, void, env)
+ HS_DEF_HELPER_1(fldl2t_ST0, void, env)
+@@ -190,9 +205,9 @@
+ HS_DEF_HELPER_1(fprem1, void, env)
+ HS_DEF_HELPER_1(fprem, void, env)
+ HS_DEF_HELPER_1(fyl2xp1, void, env)
+-HS_DEF_HELPER_1(fsqrt, void, env)
++HS_DEF_RAMFREE_HELPER_1(fsqrt, void, env)
+ HS_DEF_HELPER_1(fsincos, void, env)
+-HS_DEF_HELPER_1(frndint, void, env)
++HS_DEF_RAMFREE_HELPER_1(frndint, void, env)
+ HS_DEF_HELPER_1(fscale, void, env)
+ HS_DEF_HELPER_1(fsin, void, env)
+ HS_DEF_HELPER_1(fcos, void, env)
+@@ -201,6 +216,8 @@
+ HS_DEF_HELPER_3(fsave, void, env, tl, int)
+ HS_DEF_HELPER_3(frstor, void, env, tl, int)
+
++#undef HS_DEF_RAMFREE_HELPER_1
++#undef HS_DEF_RAMFREE_HELPER_2
+ #undef HS_DEF_HELPER_1
+ #undef HS_DEF_HELPER_2
+ #undef HS_DEF_HELPER_3
