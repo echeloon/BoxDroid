@@ -1,0 +1,45 @@
+actual TCG MMX load/register/EMMS execution PASS
+actual jump cache collision/SMC/page/full invalidation PASS, secondary active=1
+actual indirect chained lookup: primary=271 secondary=15 fallbacks=0
+shared lookup generated entries=1, cflags=ff000000 PASS
+discarded duplicate TB: shared-code publication rollback PASS
+actual indirect full-state/flags/breakpoint/SMC/flush/CS/mode checks PASS
+virtual code aliases: CALL PC, direct chains, physical SMC/flush PASS
+after step eip=10003 fpstt=0 exception=-1 hflags=200000b0 cr0=1
+indirect-chain device-visible store ordering/interrupt resume: samples=839462 violations=0 interrupt=0 PASS
+visibility observer: samples=839462 violations=0 pass=0 result=65537
+visibility observer: samples=3976 violations=0 pass=1 result=65538
+indirect-chain device-visible store ordering/interrupt resume: samples=3976 violations=0 interrupt=1 PASS
+actual SSE pair reads: concurrent half atomicity/warm alignment PASS
+MMX full-state comparisons: 2048 PASS
+x87 stack/register full-state comparisons: 6144 PASS
+actual TCG arithmetic full-state differential: 147456 cases PASS
+actual FMUL bits/full-state/flags/aliases/refresh: 16384 cases, 0 fast hits PASS
+actual inline FP live GPR/flags/stack/RAM common+fallback: 256 blocks, 0 slow helper calls PASS
+forced live-I64 pressure, full64 common/fallback preservation: 0 slow helper calls PASS
+actual TCG mixed GPR/EFLAGS/x87 residency: 512 multi-instruction cases PASS
+actual TCG scalar RAM/flags differential: 512 blocks PASS
+REP result edi=46000 ecx=0 esp=4fffc eip=10016
+actual TCG REP STOSD loop-state regression PASS
+actual TCG REP MOVS/STOS/CMPS forward/backward differential: 108 cases PASS
+affine RAM reads, widths/page boundaries/full-state: 256 cases PASS, 0 selected blocks
+packed MULPS original scalar oracle, bits/status/aliases: 65536 cases PASS
+shared FMUL ABI X9-X15 full64, common and conservative paths PASS
+actual helper ABI X9-X15 full64 preservation, normal/special paths PASS
+actual x87 F32 operands original-helper oracle, TOP/status/rounding: 9216 cases PASS
+actual mixed GPR/F32 load/arithmetic/store blocks: 128 cases PASS, 0 selected spans
+actual TCG mixed SSE/scalar memory full-state differential: 128 cases PASS
+actual SHUFPS selectors/aliases/full-state: 16384 cases PASS
+actual SSE MOVUPS/MOVAPS bit-copy and alignment: 512 cases PASS
+actual guest SMC inside translated block PASS
+actual SSE 128-bit MMIO sequencing and destination commit PASS
+resized TLB: exception=-1 PC=10003 callbacks=1
+RAM read/MOVSD MMIO-to-RAM: freed/resized TLB descriptor reload PASS
+actual SSE cross-page #PF: precise PC, prior GPR commit, unchanged XMM PASS
+cached F32 reads then FLD/FSTP #PF: precise PC, committed TOP/tags, no premature pop PASS
+warm-cache cross-page #PF and required-alignment #GP PASS
+watch transition exception=10002 eip=1000d ebp=40020 hit=0xb400006f365b2490 expected=0xb400006f365b2490
+MMIO exit/resume: watchpoint installation and same-page remapping PASS
+direct-index RAM disabled/allocation fallback: old TLB path PASS
+actual explicit recovery uses fast=20505 cold=10319
+actual TCG MMX full-state differential: 2048 cases; SMC, #NM, MMIO visibility, precise #PF PASS

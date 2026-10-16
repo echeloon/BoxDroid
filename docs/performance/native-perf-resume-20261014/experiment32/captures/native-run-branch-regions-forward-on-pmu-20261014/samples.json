@@ -1,0 +1,3512 @@
+[
+  {
+    "uptime": 30801.03,
+    "threads": {
+      "24330": {
+        "name": "xdroid:emulator",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 955216768,
+        "wait_ns": 121813118,
+        "slices": 2086,
+        "allowed": "0-7"
+      },
+      "24336": {
+        "name": "Signal Catcher",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 211979,
+        "wait_ns": 175938,
+        "slices": 2,
+        "allowed": "0-7"
+      },
+      "24337": {
+        "name": "perfetto_hprof_",
+        "cpu": 0,
+        "state": "S",
+        "runtime_ns": 73750,
+        "wait_ns": 3519010,
+        "slices": 1,
+        "allowed": "0-7"
+      },
+      "24338": {
+        "name": "ADB-JDWP Connec",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 233490,
+        "wait_ns": 3383385,
+        "slices": 5,
+        "allowed": "0-7"
+      },
+      "24339": {
+        "name": "Jit thread pool",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 154282960,
+        "wait_ns": 59107505,
+        "slices": 459,
+        "allowed": "0-7"
+      },
+      "24340": {
+        "name": "HeapTaskDaemon",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 25191095,
+        "wait_ns": 12689529,
+        "slices": 49,
+        "allowed": "0-7"
+      },
+      "24341": {
+        "name": "ReferenceQueueD",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 12914635,
+        "wait_ns": 3280728,
+        "slices": 10,
+        "allowed": "0-7"
+      },
+      "24342": {
+        "name": "FinalizerDaemon",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 730625,
+        "wait_ns": 3475677,
+        "slices": 8,
+        "allowed": "0-7"
+      },
+      "24343": {
+        "name": "FinalizerWatchd",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 407812,
+        "wait_ns": 6462448,
+        "slices": 13,
+        "allowed": "0-7"
+      },
+      "24344": {
+        "name": "binder:24330_1",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 2271095,
+        "wait_ns": 1791926,
+        "slices": 7,
+        "allowed": "0-7"
+      },
+      "24345": {
+        "name": "binder:24330_2",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 333268931,
+        "wait_ns": 42145288,
+        "slices": 2959,
+        "allowed": "0-7"
+      },
+      "24347": {
+        "name": "binder:24330_3",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 209763943,
+        "wait_ns": 30363534,
+        "slices": 2403,
+        "allowed": "0-7"
+      },
+      "24348": {
+        "name": "Profile Saver",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 7146664,
+        "wait_ns": 5022551,
+        "slices": 36,
+        "allowed": "0-7"
+      },
+      "24351": {
+        "name": "RenderThread",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 405444908,
+        "wait_ns": 48402076,
+        "slices": 1229,
+        "allowed": "0-7"
+      },
+      "24353": {
+        "name": "xdroid:emulator",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 4599268,
+        "wait_ns": 128281,
+        "slices": 21,
+        "allowed": "0-7"
+      },
+      "24355": {
+        "name": "pool-3-thread-1",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 706492615,
+        "wait_ns": 50193962,
+        "slices": 536,
+        "allowed": "0-7"
+      },
+      "24357": {
+        "name": "hwuiTask0",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 217343,
+        "wait_ns": 3324376,
+        "slices": 5,
+        "allowed": "0-7"
+      },
+      "24358": {
+        "name": "hwuiTask1",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 258437,
+        "wait_ns": 27291,
+        "slices": 3,
+        "allowed": "0-7"
+      },
+      "24359": {
+        "name": "pool-2-thread-1",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 21859589,
+        "wait_ns": 24700727,
+        "slices": 85,
+        "allowed": "0-7"
+      },
+      "24360": {
+        "name": "binder:24330_4",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 691355,
+        "wait_ns": 3079323,
+        "slices": 11,
+        "allowed": "0-7"
+      },
+      "24363": {
+        "name": "InsetsAnimation",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 15174528,
+        "wait_ns": 30406043,
+        "slices": 76,
+        "allowed": "0-7"
+      },
+      "24364": {
+        "name": "boxdroid-wsi",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 15557524624,
+        "wait_ns": 497279360,
+        "slices": 18056,
+        "allowed": "0-7"
+      },
+      "24366": {
+        "name": "binder:24330_4",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 92927515,
+        "wait_ns": 112421983,
+        "slices": 6586,
+        "allowed": "0-7"
+      },
+      "24367": {
+        "name": "binder:24330_5",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 278989712,
+        "wait_ns": 26603808,
+        "slices": 2908,
+        "allowed": "0-7"
+      },
+      "24369": {
+        "name": "AudioTrack",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 1291980626,
+        "wait_ns": 37733685,
+        "slices": 55054,
+        "allowed": "0-7"
+      },
+      "24370": {
+        "name": "boxdroid-main",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 12113622946,
+        "wait_ns": 5836266395,
+        "slices": 455360,
+        "allowed": "0-7"
+      },
+      "24372": {
+        "name": "worker",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 284623408,
+        "wait_ns": 69515672,
+        "slices": 11325,
+        "allowed": "0-7"
+      },
+      "24373": {
+        "name": "ALL CPUs/TCG",
+        "cpu": 7,
+        "state": "R",
+        "runtime_ns": 200214537947,
+        "wait_ns": 877432092,
+        "slices": 417015,
+        "allowed": "0-7"
+      },
+      "24374": {
+        "name": "mcpx.voice0",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 9423612414,
+        "wait_ns": 9223824529,
+        "slices": 549413,
+        "allowed": "0-7"
+      },
+      "24375": {
+        "name": "mcpx.voice1",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 7906096213,
+        "wait_ns": 8786578594,
+        "slices": 531330,
+        "allowed": "0-7"
+      },
+      "24376": {
+        "name": "mcpx.voice2",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 6940574055,
+        "wait_ns": 8915434602,
+        "slices": 443944,
+        "allowed": "0-7"
+      },
+      "24377": {
+        "name": "mcpx.voice3",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 5589328780,
+        "wait_ns": 5132738809,
+        "slices": 283298,
+        "allowed": "0-7"
+      },
+      "24378": {
+        "name": "mcpx.apu_thread",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 92143968314,
+        "wait_ns": 3688840689,
+        "slices": 317372,
+        "allowed": "0-7"
+      },
+      "24379": {
+        "name": "nv2a.pfifo",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 35864853053,
+        "wait_ns": 2441402829,
+        "slices": 141756,
+        "allowed": "0-7"
+      }
+    },
+    "frequencies": {
+      "policy0": 1171200,
+      "policy4": 2419200,
+      "policy7": 2841600
+    },
+    "thermal": {
+      "cpu-0-0-usr": 61200,
+      "cpu-1-3-usr": 72100,
+      "cpu-1-4-usr": 65500,
+      "cpu-1-5-usr": 67800,
+      "cpu-1-6-usr": 69400,
+      "cpu-1-7-usr": 74400,
+      "gpuss-0-usr": 47700,
+      "cpu-0-1-usr": 58900,
+      "gpuss-1-usr": 51300,
+      "gpuss-max-step": 50900,
+      "cpu-0-0-step": 61200,
+      "cpu-0-2-usr": 57000,
+      "cpu-0-1-step": 58900,
+      "cpu-0-2-step": 56600,
+      "cpu-0-3-step": 59700,
+      "cpu-1-0-step": 67800,
+      "cpu-1-1-step": 66700,
+      "cpu-1-2-step": 68200,
+      "cpu-1-3-step": 75200,
+      "cpu-1-4-step": 69000,
+      "cpu-1-5-step": 66700,
+      "cpu-1-6-step": 71300,
+      "cpu-0-3-usr": 59700,
+      "cpu-1-7-step": 72900,
+      "cpuss-0-usr": 64700,
+      "cpuss-1-usr": 67400,
+      "cpu-1-0-usr": 67800,
+      "cpu-1-1-usr": 67800,
+      "gpu-skin-avg-step": 21600,
+      "cpu-1-2-usr": 69400
+    },
+    "resident_pages": 172967,
+    "battery_temperature_tenths_c": 302,
+    "gpu_frequency_hz": 587000000
+  },
+  {
+    "uptime": 30802.79,
+    "threads": {
+      "24330": {
+        "name": "xdroid:emulator",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 960710778,
+        "wait_ns": 122911034,
+        "slices": 2099,
+        "allowed": "0-7"
+      },
+      "24336": {
+        "name": "Signal Catcher",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 211979,
+        "wait_ns": 175938,
+        "slices": 2,
+        "allowed": "0-7"
+      },
+      "24337": {
+        "name": "perfetto_hprof_",
+        "cpu": 0,
+        "state": "S",
+        "runtime_ns": 73750,
+        "wait_ns": 3519010,
+        "slices": 1,
+        "allowed": "0-7"
+      },
+      "24338": {
+        "name": "ADB-JDWP Connec",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 233490,
+        "wait_ns": 3383385,
+        "slices": 5,
+        "allowed": "0-7"
+      },
+      "24339": {
+        "name": "Jit thread pool",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 154282960,
+        "wait_ns": 59107505,
+        "slices": 459,
+        "allowed": "0-7"
+      },
+      "24340": {
+        "name": "HeapTaskDaemon",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 25191095,
+        "wait_ns": 12689529,
+        "slices": 49,
+        "allowed": "0-7"
+      },
+      "24341": {
+        "name": "ReferenceQueueD",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 12914635,
+        "wait_ns": 3280728,
+        "slices": 10,
+        "allowed": "0-7"
+      },
+      "24342": {
+        "name": "FinalizerDaemon",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 730625,
+        "wait_ns": 3475677,
+        "slices": 8,
+        "allowed": "0-7"
+      },
+      "24343": {
+        "name": "FinalizerWatchd",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 407812,
+        "wait_ns": 6462448,
+        "slices": 13,
+        "allowed": "0-7"
+      },
+      "24344": {
+        "name": "binder:24330_1",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 2271095,
+        "wait_ns": 1791926,
+        "slices": 7,
+        "allowed": "0-7"
+      },
+      "24345": {
+        "name": "binder:24330_2",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 333268931,
+        "wait_ns": 42145288,
+        "slices": 2959,
+        "allowed": "0-7"
+      },
+      "24347": {
+        "name": "binder:24330_3",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 214168270,
+        "wait_ns": 30613220,
+        "slices": 2446,
+        "allowed": "0-7"
+      },
+      "24348": {
+        "name": "Profile Saver",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 7146664,
+        "wait_ns": 5022551,
+        "slices": 36,
+        "allowed": "0-7"
+      },
+      "24351": {
+        "name": "RenderThread",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 408972616,
+        "wait_ns": 48610357,
+        "slices": 1241,
+        "allowed": "0-7"
+      },
+      "24353": {
+        "name": "xdroid:emulator",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 4599268,
+        "wait_ns": 128281,
+        "slices": 21,
+        "allowed": "0-7"
+      },
+      "24355": {
+        "name": "pool-3-thread-1",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 712757305,
+        "wait_ns": 50193962,
+        "slices": 540,
+        "allowed": "0-7"
+      },
+      "24357": {
+        "name": "hwuiTask0",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 217343,
+        "wait_ns": 3324376,
+        "slices": 5,
+        "allowed": "0-7"
+      },
+      "24358": {
+        "name": "hwuiTask1",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 258437,
+        "wait_ns": 27291,
+        "slices": 3,
+        "allowed": "0-7"
+      },
+      "24359": {
+        "name": "pool-2-thread-1",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 21859589,
+        "wait_ns": 24700727,
+        "slices": 85,
+        "allowed": "0-7"
+      },
+      "24360": {
+        "name": "binder:24330_4",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 691355,
+        "wait_ns": 3079323,
+        "slices": 11,
+        "allowed": "0-7"
+      },
+      "24363": {
+        "name": "InsetsAnimation",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 15174528,
+        "wait_ns": 30406043,
+        "slices": 76,
+        "allowed": "0-7"
+      },
+      "24364": {
+        "name": "boxdroid-wsi",
+        "cpu": 5,
+        "state": "R",
+        "runtime_ns": 15663501078,
+        "wait_ns": 502407694,
+        "slices": 18172,
+        "allowed": "0-7"
+      },
+      "24366": {
+        "name": "binder:24330_4",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 93401472,
+        "wait_ns": 112899900,
+        "slices": 6628,
+        "allowed": "0-7"
+      },
+      "24367": {
+        "name": "binder:24330_5",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 278989712,
+        "wait_ns": 26603808,
+        "slices": 2908,
+        "allowed": "0-7"
+      },
+      "24369": {
+        "name": "AudioTrack",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 1304150252,
+        "wait_ns": 37899882,
+        "slices": 55511,
+        "allowed": "0-7"
+      },
+      "24370": {
+        "name": "boxdroid-main",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 12228172327,
+        "wait_ns": 5885228580,
+        "slices": 459382,
+        "allowed": "0-7"
+      },
+      "24372": {
+        "name": "worker",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 285157836,
+        "wait_ns": 69696558,
+        "slices": 11350,
+        "allowed": "0-7"
+      },
+      "24373": {
+        "name": "ALL CPUs/TCG",
+        "cpu": 7,
+        "state": "R",
+        "runtime_ns": 201862931717,
+        "wait_ns": 887254174,
+        "slices": 420199,
+        "allowed": "0-7"
+      },
+      "24374": {
+        "name": "mcpx.voice0",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 9513884491,
+        "wait_ns": 9325717389,
+        "slices": 554516,
+        "allowed": "0-7"
+      },
+      "24375": {
+        "name": "mcpx.voice1",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 7985072527,
+        "wait_ns": 8887989402,
+        "slices": 536216,
+        "allowed": "0-7"
+      },
+      "24376": {
+        "name": "mcpx.voice2",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 7008514413,
+        "wait_ns": 9034290775,
+        "slices": 447971,
+        "allowed": "0-7"
+      },
+      "24377": {
+        "name": "mcpx.voice3",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 5639930708,
+        "wait_ns": 5222549226,
+        "slices": 286057,
+        "allowed": "0-7"
+      },
+      "24378": {
+        "name": "mcpx.apu_thread",
+        "cpu": 5,
+        "state": "R",
+        "runtime_ns": 93075395113,
+        "wait_ns": 3778473760,
+        "slices": 320176,
+        "allowed": "0-7"
+      },
+      "24379": {
+        "name": "nv2a.pfifo",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 36242774316,
+        "wait_ns": 2478084372,
+        "slices": 143591,
+        "allowed": "0-7"
+      }
+    },
+    "frequencies": {
+      "policy0": 1171200,
+      "policy4": 2419200,
+      "policy7": 2841600
+    },
+    "thermal": {
+      "cpu-0-0-usr": 60500,
+      "cpu-1-3-usr": 75600,
+      "cpu-1-4-usr": 67800,
+      "cpu-1-5-usr": 70200,
+      "cpu-1-6-usr": 71700,
+      "cpu-1-7-usr": 74000,
+      "gpuss-0-usr": 47700,
+      "cpu-0-1-usr": 58100,
+      "gpuss-1-usr": 50900,
+      "gpuss-max-step": 50900,
+      "cpu-0-0-step": 60800,
+      "cpu-0-2-usr": 56200,
+      "cpu-0-1-step": 58100,
+      "cpu-0-2-step": 56200,
+      "cpu-0-3-step": 59300,
+      "cpu-1-0-step": 67400,
+      "cpu-1-1-step": 66700,
+      "cpu-1-2-step": 69400,
+      "cpu-1-3-step": 73300,
+      "cpu-1-4-step": 67400,
+      "cpu-1-5-step": 69000,
+      "cpu-1-6-step": 70500,
+      "cpu-0-3-usr": 59700,
+      "cpu-1-7-step": 72500,
+      "cpuss-0-usr": 64300,
+      "cpuss-1-usr": 67100,
+      "cpu-1-0-usr": 69400,
+      "cpu-1-1-usr": 65500,
+      "gpu-skin-avg-step": 21390,
+      "cpu-1-2-usr": 69400
+    },
+    "resident_pages": 172911,
+    "battery_temperature_tenths_c": 302,
+    "gpu_frequency_hz": 587000000
+  },
+  {
+    "uptime": 30804.5,
+    "threads": {
+      "24330": {
+        "name": "xdroid:emulator",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 967535673,
+        "wait_ns": 124190722,
+        "slices": 2115,
+        "allowed": "0-7"
+      },
+      "24336": {
+        "name": "Signal Catcher",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 211979,
+        "wait_ns": 175938,
+        "slices": 2,
+        "allowed": "0-7"
+      },
+      "24337": {
+        "name": "perfetto_hprof_",
+        "cpu": 0,
+        "state": "S",
+        "runtime_ns": 73750,
+        "wait_ns": 3519010,
+        "slices": 1,
+        "allowed": "0-7"
+      },
+      "24338": {
+        "name": "ADB-JDWP Connec",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 233490,
+        "wait_ns": 3383385,
+        "slices": 5,
+        "allowed": "0-7"
+      },
+      "24339": {
+        "name": "Jit thread pool",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 154909887,
+        "wait_ns": 60452870,
+        "slices": 462,
+        "allowed": "0-7"
+      },
+      "24340": {
+        "name": "HeapTaskDaemon",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 25191095,
+        "wait_ns": 12689529,
+        "slices": 49,
+        "allowed": "0-7"
+      },
+      "24341": {
+        "name": "ReferenceQueueD",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 12914635,
+        "wait_ns": 3280728,
+        "slices": 10,
+        "allowed": "0-7"
+      },
+      "24342": {
+        "name": "FinalizerDaemon",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 730625,
+        "wait_ns": 3475677,
+        "slices": 8,
+        "allowed": "0-7"
+      },
+      "24343": {
+        "name": "FinalizerWatchd",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 407812,
+        "wait_ns": 6462448,
+        "slices": 13,
+        "allowed": "0-7"
+      },
+      "24344": {
+        "name": "binder:24330_1",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 2271095,
+        "wait_ns": 1791926,
+        "slices": 7,
+        "allowed": "0-7"
+      },
+      "24345": {
+        "name": "binder:24330_2",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 333268931,
+        "wait_ns": 42145288,
+        "slices": 2959,
+        "allowed": "0-7"
+      },
+      "24347": {
+        "name": "binder:24330_3",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 218659156,
+        "wait_ns": 30672438,
+        "slices": 2490,
+        "allowed": "0-7"
+      },
+      "24348": {
+        "name": "Profile Saver",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 7146664,
+        "wait_ns": 5022551,
+        "slices": 36,
+        "allowed": "0-7"
+      },
+      "24351": {
+        "name": "RenderThread",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 411573970,
+        "wait_ns": 49301503,
+        "slices": 1253,
+        "allowed": "0-7"
+      },
+      "24353": {
+        "name": "xdroid:emulator",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 4599268,
+        "wait_ns": 128281,
+        "slices": 21,
+        "allowed": "0-7"
+      },
+      "24355": {
+        "name": "pool-3-thread-1",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 717074753,
+        "wait_ns": 50193962,
+        "slices": 543,
+        "allowed": "0-7"
+      },
+      "24357": {
+        "name": "hwuiTask0",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 217343,
+        "wait_ns": 3324376,
+        "slices": 5,
+        "allowed": "0-7"
+      },
+      "24358": {
+        "name": "hwuiTask1",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 258437,
+        "wait_ns": 27291,
+        "slices": 3,
+        "allowed": "0-7"
+      },
+      "24359": {
+        "name": "pool-2-thread-1",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 21859589,
+        "wait_ns": 24700727,
+        "slices": 85,
+        "allowed": "0-7"
+      },
+      "24360": {
+        "name": "binder:24330_4",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 691355,
+        "wait_ns": 3079323,
+        "slices": 11,
+        "allowed": "0-7"
+      },
+      "24363": {
+        "name": "InsetsAnimation",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 15174528,
+        "wait_ns": 30406043,
+        "slices": 76,
+        "allowed": "0-7"
+      },
+      "24364": {
+        "name": "boxdroid-wsi",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 15764763428,
+        "wait_ns": 509601703,
+        "slices": 18281,
+        "allowed": "0-7"
+      },
+      "24366": {
+        "name": "binder:24330_4",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 93871105,
+        "wait_ns": 113565943,
+        "slices": 6670,
+        "allowed": "0-7"
+      },
+      "24367": {
+        "name": "binder:24330_5",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 278989712,
+        "wait_ns": 26603808,
+        "slices": 2908,
+        "allowed": "0-7"
+      },
+      "24369": {
+        "name": "AudioTrack",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 1316382685,
+        "wait_ns": 38084782,
+        "slices": 55967,
+        "allowed": "0-7"
+      },
+      "24370": {
+        "name": "boxdroid-main",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 12342237385,
+        "wait_ns": 5953789479,
+        "slices": 463501,
+        "allowed": "0-7"
+      },
+      "24372": {
+        "name": "worker",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 285683774,
+        "wait_ns": 69910257,
+        "slices": 11376,
+        "allowed": "0-7"
+      },
+      "24373": {
+        "name": "ALL CPUs/TCG",
+        "cpu": 7,
+        "state": "R",
+        "runtime_ns": 203516023318,
+        "wait_ns": 900381455,
+        "slices": 423362,
+        "allowed": "0-7"
+      },
+      "24374": {
+        "name": "mcpx.voice0",
+        "cpu": 5,
+        "state": "R",
+        "runtime_ns": 9611453062,
+        "wait_ns": 9434919157,
+        "slices": 559653,
+        "allowed": "0-7"
+      },
+      "24375": {
+        "name": "mcpx.voice1",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 8069999998,
+        "wait_ns": 8998564652,
+        "slices": 541041,
+        "allowed": "0-7"
+      },
+      "24376": {
+        "name": "mcpx.voice2",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 7083972151,
+        "wait_ns": 9198504124,
+        "slices": 451928,
+        "allowed": "0-7"
+      },
+      "24377": {
+        "name": "mcpx.voice3",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 5703599529,
+        "wait_ns": 5299692102,
+        "slices": 288833,
+        "allowed": "0-7"
+      },
+      "24378": {
+        "name": "mcpx.apu_thread",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 94000096129,
+        "wait_ns": 3860098394,
+        "slices": 322951,
+        "allowed": "0-7"
+      },
+      "24379": {
+        "name": "nv2a.pfifo",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 36616308218,
+        "wait_ns": 2525482028,
+        "slices": 145303,
+        "allowed": "0-7"
+      }
+    },
+    "frequencies": {
+      "policy0": 1171200,
+      "policy4": 2419200,
+      "policy7": 2841600
+    },
+    "thermal": {
+      "cpu-0-0-usr": 61200,
+      "cpu-1-3-usr": 74400,
+      "cpu-1-4-usr": 70200,
+      "cpu-1-5-usr": 67100,
+      "cpu-1-6-usr": 67400,
+      "cpu-1-7-usr": 74400,
+      "gpuss-0-usr": 48000,
+      "cpu-0-1-usr": 58500,
+      "gpuss-1-usr": 50900,
+      "gpuss-max-step": 50900,
+      "cpu-0-0-step": 61200,
+      "cpu-0-2-usr": 56200,
+      "cpu-0-1-step": 58500,
+      "cpu-0-2-step": 56200,
+      "cpu-0-3-step": 59700,
+      "cpu-1-0-step": 70900,
+      "cpu-1-1-step": 70200,
+      "cpu-1-2-step": 68600,
+      "cpu-1-3-step": 69000,
+      "cpu-1-4-step": 68200,
+      "cpu-1-5-step": 69400,
+      "cpu-1-6-step": 67400,
+      "cpu-0-3-usr": 59700,
+      "cpu-1-7-step": 71700,
+      "cpuss-0-usr": 64000,
+      "cpuss-1-usr": 66300,
+      "cpu-1-0-usr": 67800,
+      "cpu-1-1-usr": 67100,
+      "gpu-skin-avg-step": 21600,
+      "cpu-1-2-usr": 68200
+    },
+    "resident_pages": 172952,
+    "battery_temperature_tenths_c": 302,
+    "gpu_frequency_hz": 587000000
+  },
+  {
+    "uptime": 30806.21,
+    "threads": {
+      "24330": {
+        "name": "xdroid:emulator",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 972850098,
+        "wait_ns": 125486504,
+        "slices": 2128,
+        "allowed": "0-7"
+      },
+      "24336": {
+        "name": "Signal Catcher",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 211979,
+        "wait_ns": 175938,
+        "slices": 2,
+        "allowed": "0-7"
+      },
+      "24337": {
+        "name": "perfetto_hprof_",
+        "cpu": 0,
+        "state": "S",
+        "runtime_ns": 73750,
+        "wait_ns": 3519010,
+        "slices": 1,
+        "allowed": "0-7"
+      },
+      "24338": {
+        "name": "ADB-JDWP Connec",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 233490,
+        "wait_ns": 3383385,
+        "slices": 5,
+        "allowed": "0-7"
+      },
+      "24339": {
+        "name": "Jit thread pool",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 155319471,
+        "wait_ns": 61734588,
+        "slices": 464,
+        "allowed": "0-7"
+      },
+      "24340": {
+        "name": "HeapTaskDaemon",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 25191095,
+        "wait_ns": 12689529,
+        "slices": 49,
+        "allowed": "0-7"
+      },
+      "24341": {
+        "name": "ReferenceQueueD",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 12914635,
+        "wait_ns": 3280728,
+        "slices": 10,
+        "allowed": "0-7"
+      },
+      "24342": {
+        "name": "FinalizerDaemon",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 730625,
+        "wait_ns": 3475677,
+        "slices": 8,
+        "allowed": "0-7"
+      },
+      "24343": {
+        "name": "FinalizerWatchd",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 407812,
+        "wait_ns": 6462448,
+        "slices": 13,
+        "allowed": "0-7"
+      },
+      "24344": {
+        "name": "binder:24330_1",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 2271095,
+        "wait_ns": 1791926,
+        "slices": 7,
+        "allowed": "0-7"
+      },
+      "24345": {
+        "name": "binder:24330_2",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 335862579,
+        "wait_ns": 42571119,
+        "slices": 2990,
+        "allowed": "0-7"
+      },
+      "24347": {
+        "name": "binder:24330_3",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 220275302,
+        "wait_ns": 33493272,
+        "slices": 2511,
+        "allowed": "0-7"
+      },
+      "24348": {
+        "name": "Profile Saver",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 7146664,
+        "wait_ns": 5022551,
+        "slices": 36,
+        "allowed": "0-7"
+      },
+      "24351": {
+        "name": "RenderThread",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 414498918,
+        "wait_ns": 49506450,
+        "slices": 1263,
+        "allowed": "0-7"
+      },
+      "24353": {
+        "name": "xdroid:emulator",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 4599268,
+        "wait_ns": 128281,
+        "slices": 21,
+        "allowed": "0-7"
+      },
+      "24355": {
+        "name": "pool-3-thread-1",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 721496315,
+        "wait_ns": 50252452,
+        "slices": 546,
+        "allowed": "0-7"
+      },
+      "24357": {
+        "name": "hwuiTask0",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 217343,
+        "wait_ns": 3324376,
+        "slices": 5,
+        "allowed": "0-7"
+      },
+      "24358": {
+        "name": "hwuiTask1",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 258437,
+        "wait_ns": 27291,
+        "slices": 3,
+        "allowed": "0-7"
+      },
+      "24359": {
+        "name": "pool-2-thread-1",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 21859589,
+        "wait_ns": 24700727,
+        "slices": 85,
+        "allowed": "0-7"
+      },
+      "24360": {
+        "name": "binder:24330_4",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 691355,
+        "wait_ns": 3079323,
+        "slices": 11,
+        "allowed": "0-7"
+      },
+      "24363": {
+        "name": "InsetsAnimation",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 15174528,
+        "wait_ns": 30406043,
+        "slices": 76,
+        "allowed": "0-7"
+      },
+      "24364": {
+        "name": "boxdroid-wsi",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 15865609199,
+        "wait_ns": 514509208,
+        "slices": 18405,
+        "allowed": "0-7"
+      },
+      "24366": {
+        "name": "binder:24330_4",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 94442876,
+        "wait_ns": 114792141,
+        "slices": 6710,
+        "allowed": "0-7"
+      },
+      "24367": {
+        "name": "binder:24330_5",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 278989712,
+        "wait_ns": 26603808,
+        "slices": 2908,
+        "allowed": "0-7"
+      },
+      "24369": {
+        "name": "AudioTrack",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 1328574253,
+        "wait_ns": 38221763,
+        "slices": 56418,
+        "allowed": "0-7"
+      },
+      "24370": {
+        "name": "boxdroid-main",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 12451937478,
+        "wait_ns": 6021475172,
+        "slices": 467476,
+        "allowed": "0-7"
+      },
+      "24372": {
+        "name": "worker",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 286253095,
+        "wait_ns": 70525414,
+        "slices": 11403,
+        "allowed": "0-7"
+      },
+      "24373": {
+        "name": "ALL CPUs/TCG",
+        "cpu": 7,
+        "state": "R",
+        "runtime_ns": 205141932145,
+        "wait_ns": 921192813,
+        "slices": 426433,
+        "allowed": "0-7"
+      },
+      "24374": {
+        "name": "mcpx.voice0",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 9707905958,
+        "wait_ns": 9556040502,
+        "slices": 564670,
+        "allowed": "0-7"
+      },
+      "24375": {
+        "name": "mcpx.voice1",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 8148165625,
+        "wait_ns": 9116203630,
+        "slices": 545763,
+        "allowed": "0-7"
+      },
+      "24376": {
+        "name": "mcpx.voice2",
+        "cpu": 4,
+        "state": "R",
+        "runtime_ns": 7157048728,
+        "wait_ns": 9312195270,
+        "slices": 455881,
+        "allowed": "0-7"
+      },
+      "24377": {
+        "name": "mcpx.voice3",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 5762068498,
+        "wait_ns": 5383117415,
+        "slices": 291501,
+        "allowed": "0-7"
+      },
+      "24378": {
+        "name": "mcpx.apu_thread",
+        "cpu": 4,
+        "state": "R",
+        "runtime_ns": 94908850155,
+        "wait_ns": 3953300262,
+        "slices": 325724,
+        "allowed": "0-7"
+      },
+      "24379": {
+        "name": "nv2a.pfifo",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 36985148901,
+        "wait_ns": 2570030776,
+        "slices": 147023,
+        "allowed": "0-7"
+      }
+    },
+    "frequencies": {
+      "policy0": 1171200,
+      "policy4": 2419200,
+      "policy7": 2841600
+    },
+    "thermal": {
+      "cpu-0-0-usr": 60800,
+      "cpu-1-3-usr": 73300,
+      "cpu-1-4-usr": 66700,
+      "cpu-1-5-usr": 69000,
+      "cpu-1-6-usr": 68600,
+      "cpu-1-7-usr": 71700,
+      "gpuss-0-usr": 48000,
+      "cpu-0-1-usr": 58500,
+      "gpuss-1-usr": 50900,
+      "gpuss-max-step": 50500,
+      "cpu-0-0-step": 61200,
+      "cpu-0-2-usr": 56200,
+      "cpu-0-1-step": 58500,
+      "cpu-0-2-step": 56600,
+      "cpu-0-3-step": 59300,
+      "cpu-1-0-step": 64300,
+      "cpu-1-1-step": 66700,
+      "cpu-1-2-step": 68200,
+      "cpu-1-3-step": 73300,
+      "cpu-1-4-step": 68200,
+      "cpu-1-5-step": 69000,
+      "cpu-1-6-step": 71300,
+      "cpu-0-3-usr": 59700,
+      "cpu-1-7-step": 73300,
+      "cpuss-0-usr": 64000,
+      "cpuss-1-usr": 66300,
+      "cpu-1-0-usr": 67800,
+      "cpu-1-1-usr": 69400,
+      "gpu-skin-avg-step": 21600,
+      "cpu-1-2-usr": 65100
+    },
+    "resident_pages": 172946,
+    "battery_temperature_tenths_c": 302,
+    "gpu_frequency_hz": 587000000
+  },
+  {
+    "uptime": 30807.92,
+    "threads": {
+      "24330": {
+        "name": "xdroid:emulator",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 977946555,
+        "wait_ns": 127378432,
+        "slices": 2138,
+        "allowed": "0-7"
+      },
+      "24336": {
+        "name": "Signal Catcher",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 211979,
+        "wait_ns": 175938,
+        "slices": 2,
+        "allowed": "0-7"
+      },
+      "24337": {
+        "name": "perfetto_hprof_",
+        "cpu": 0,
+        "state": "S",
+        "runtime_ns": 73750,
+        "wait_ns": 3519010,
+        "slices": 1,
+        "allowed": "0-7"
+      },
+      "24338": {
+        "name": "ADB-JDWP Connec",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 233490,
+        "wait_ns": 3383385,
+        "slices": 5,
+        "allowed": "0-7"
+      },
+      "24339": {
+        "name": "Jit thread pool",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 156859209,
+        "wait_ns": 62325369,
+        "slices": 470,
+        "allowed": "0-7"
+      },
+      "24340": {
+        "name": "HeapTaskDaemon",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 25191095,
+        "wait_ns": 12689529,
+        "slices": 49,
+        "allowed": "0-7"
+      },
+      "24341": {
+        "name": "ReferenceQueueD",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 12914635,
+        "wait_ns": 3280728,
+        "slices": 10,
+        "allowed": "0-7"
+      },
+      "24342": {
+        "name": "FinalizerDaemon",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 730625,
+        "wait_ns": 3475677,
+        "slices": 8,
+        "allowed": "0-7"
+      },
+      "24343": {
+        "name": "FinalizerWatchd",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 407812,
+        "wait_ns": 6462448,
+        "slices": 13,
+        "allowed": "0-7"
+      },
+      "24344": {
+        "name": "binder:24330_1",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 2271095,
+        "wait_ns": 1791926,
+        "slices": 7,
+        "allowed": "0-7"
+      },
+      "24345": {
+        "name": "binder:24330_2",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 335862579,
+        "wait_ns": 42571119,
+        "slices": 2990,
+        "allowed": "0-7"
+      },
+      "24347": {
+        "name": "binder:24330_3",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 225019934,
+        "wait_ns": 33717855,
+        "slices": 2558,
+        "allowed": "0-7"
+      },
+      "24348": {
+        "name": "Profile Saver",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 7146664,
+        "wait_ns": 5022551,
+        "slices": 36,
+        "allowed": "0-7"
+      },
+      "24351": {
+        "name": "RenderThread",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 417901420,
+        "wait_ns": 50160146,
+        "slices": 1278,
+        "allowed": "0-7"
+      },
+      "24353": {
+        "name": "xdroid:emulator",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 4599268,
+        "wait_ns": 128281,
+        "slices": 21,
+        "allowed": "0-7"
+      },
+      "24355": {
+        "name": "pool-3-thread-1",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 727542824,
+        "wait_ns": 50252452,
+        "slices": 550,
+        "allowed": "0-7"
+      },
+      "24357": {
+        "name": "hwuiTask0",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 217343,
+        "wait_ns": 3324376,
+        "slices": 5,
+        "allowed": "0-7"
+      },
+      "24358": {
+        "name": "hwuiTask1",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 258437,
+        "wait_ns": 27291,
+        "slices": 3,
+        "allowed": "0-7"
+      },
+      "24359": {
+        "name": "pool-2-thread-1",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 21859589,
+        "wait_ns": 24700727,
+        "slices": 85,
+        "allowed": "0-7"
+      },
+      "24360": {
+        "name": "binder:24330_4",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 691355,
+        "wait_ns": 3079323,
+        "slices": 11,
+        "allowed": "0-7"
+      },
+      "24363": {
+        "name": "InsetsAnimation",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 15174528,
+        "wait_ns": 30406043,
+        "slices": 76,
+        "allowed": "0-7"
+      },
+      "24364": {
+        "name": "boxdroid-wsi",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 15971859824,
+        "wait_ns": 519198271,
+        "slices": 18513,
+        "allowed": "0-7"
+      },
+      "24366": {
+        "name": "binder:24330_4",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 94958449,
+        "wait_ns": 115199433,
+        "slices": 6752,
+        "allowed": "0-7"
+      },
+      "24367": {
+        "name": "binder:24330_5",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 278989712,
+        "wait_ns": 26603808,
+        "slices": 2908,
+        "allowed": "0-7"
+      },
+      "24369": {
+        "name": "AudioTrack",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 1340633001,
+        "wait_ns": 38467495,
+        "slices": 56874,
+        "allowed": "0-7"
+      },
+      "24370": {
+        "name": "boxdroid-main",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 12564517161,
+        "wait_ns": 6077294180,
+        "slices": 471512,
+        "allowed": "0-7"
+      },
+      "24372": {
+        "name": "worker",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 286749758,
+        "wait_ns": 70636561,
+        "slices": 11427,
+        "allowed": "0-7"
+      },
+      "24373": {
+        "name": "ALL CPUs/TCG",
+        "cpu": 7,
+        "state": "R",
+        "runtime_ns": 206778147042,
+        "wait_ns": 933130309,
+        "slices": 429571,
+        "allowed": "0-7"
+      },
+      "24374": {
+        "name": "mcpx.voice0",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 9796013794,
+        "wait_ns": 9660681095,
+        "slices": 569650,
+        "allowed": "0-7"
+      },
+      "24375": {
+        "name": "mcpx.voice1",
+        "cpu": 7,
+        "state": "R",
+        "runtime_ns": 8224280069,
+        "wait_ns": 9241907207,
+        "slices": 550746,
+        "allowed": "0-7"
+      },
+      "24376": {
+        "name": "mcpx.voice2",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 7223010698,
+        "wait_ns": 9421940381,
+        "slices": 459880,
+        "allowed": "0-7"
+      },
+      "24377": {
+        "name": "mcpx.voice3",
+        "cpu": 4,
+        "state": "R",
+        "runtime_ns": 5813985921,
+        "wait_ns": 5465276148,
+        "slices": 294203,
+        "allowed": "0-7"
+      },
+      "24378": {
+        "name": "mcpx.apu_thread",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 95807180873,
+        "wait_ns": 4055424274,
+        "slices": 328469,
+        "allowed": "0-7"
+      },
+      "24379": {
+        "name": "nv2a.pfifo",
+        "cpu": 5,
+        "state": "R",
+        "runtime_ns": 37356282152,
+        "wait_ns": 2600910635,
+        "slices": 148809,
+        "allowed": "0-7"
+      }
+    },
+    "frequencies": {
+      "policy0": 1171200,
+      "policy4": 2419200,
+      "policy7": 2841600
+    },
+    "thermal": {
+      "cpu-0-0-usr": 61200,
+      "cpu-1-3-usr": 72100,
+      "cpu-1-4-usr": 67400,
+      "cpu-1-5-usr": 69000,
+      "cpu-1-6-usr": 66700,
+      "cpu-1-7-usr": 71300,
+      "gpuss-0-usr": 48000,
+      "cpu-0-1-usr": 58500,
+      "gpuss-1-usr": 50900,
+      "gpuss-max-step": 50900,
+      "cpu-0-0-step": 61600,
+      "cpu-0-2-usr": 56600,
+      "cpu-0-1-step": 58500,
+      "cpu-0-2-step": 56600,
+      "cpu-0-3-step": 59700,
+      "cpu-1-0-step": 69000,
+      "cpu-1-1-step": 69000,
+      "cpu-1-2-step": 65900,
+      "cpu-1-3-step": 73600,
+      "cpu-1-4-step": 68600,
+      "cpu-1-5-step": 70200,
+      "cpu-1-6-step": 69000,
+      "cpu-0-3-usr": 60100,
+      "cpu-1-7-step": 73300,
+      "cpuss-0-usr": 64300,
+      "cpuss-1-usr": 66300,
+      "cpu-1-0-usr": 69400,
+      "cpu-1-1-usr": 70900,
+      "gpu-skin-avg-step": 21600,
+      "cpu-1-2-usr": 71300
+    },
+    "resident_pages": 173004,
+    "battery_temperature_tenths_c": 302,
+    "gpu_frequency_hz": 587000000
+  },
+  {
+    "uptime": 30809.63,
+    "threads": {
+      "24330": {
+        "name": "xdroid:emulator",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 984799262,
+        "wait_ns": 128401089,
+        "slices": 2154,
+        "allowed": "0-7"
+      },
+      "24336": {
+        "name": "Signal Catcher",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 211979,
+        "wait_ns": 175938,
+        "slices": 2,
+        "allowed": "0-7"
+      },
+      "24337": {
+        "name": "perfetto_hprof_",
+        "cpu": 0,
+        "state": "S",
+        "runtime_ns": 73750,
+        "wait_ns": 3519010,
+        "slices": 1,
+        "allowed": "0-7"
+      },
+      "24338": {
+        "name": "ADB-JDWP Connec",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 233490,
+        "wait_ns": 3383385,
+        "slices": 5,
+        "allowed": "0-7"
+      },
+      "24339": {
+        "name": "Jit thread pool",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 157410511,
+        "wait_ns": 62371307,
+        "slices": 472,
+        "allowed": "0-7"
+      },
+      "24340": {
+        "name": "HeapTaskDaemon",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 25191095,
+        "wait_ns": 12689529,
+        "slices": 49,
+        "allowed": "0-7"
+      },
+      "24341": {
+        "name": "ReferenceQueueD",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 12914635,
+        "wait_ns": 3280728,
+        "slices": 10,
+        "allowed": "0-7"
+      },
+      "24342": {
+        "name": "FinalizerDaemon",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 730625,
+        "wait_ns": 3475677,
+        "slices": 8,
+        "allowed": "0-7"
+      },
+      "24343": {
+        "name": "FinalizerWatchd",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 407812,
+        "wait_ns": 6462448,
+        "slices": 13,
+        "allowed": "0-7"
+      },
+      "24344": {
+        "name": "binder:24330_1",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 2271095,
+        "wait_ns": 1791926,
+        "slices": 7,
+        "allowed": "0-7"
+      },
+      "24345": {
+        "name": "binder:24330_2",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 339062525,
+        "wait_ns": 43045651,
+        "slices": 3025,
+        "allowed": "0-7"
+      },
+      "24347": {
+        "name": "binder:24330_3",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 226066289,
+        "wait_ns": 33966398,
+        "slices": 2568,
+        "allowed": "0-7"
+      },
+      "24348": {
+        "name": "Profile Saver",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 7146664,
+        "wait_ns": 5022551,
+        "slices": 36,
+        "allowed": "0-7"
+      },
+      "24351": {
+        "name": "RenderThread",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 420451941,
+        "wait_ns": 50314000,
+        "slices": 1284,
+        "allowed": "0-7"
+      },
+      "24353": {
+        "name": "xdroid:emulator",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 4599268,
+        "wait_ns": 128281,
+        "slices": 21,
+        "allowed": "0-7"
+      },
+      "24355": {
+        "name": "pool-3-thread-1",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 732278811,
+        "wait_ns": 50256462,
+        "slices": 553,
+        "allowed": "0-7"
+      },
+      "24357": {
+        "name": "hwuiTask0",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 217343,
+        "wait_ns": 3324376,
+        "slices": 5,
+        "allowed": "0-7"
+      },
+      "24358": {
+        "name": "hwuiTask1",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 258437,
+        "wait_ns": 27291,
+        "slices": 3,
+        "allowed": "0-7"
+      },
+      "24359": {
+        "name": "pool-2-thread-1",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 21859589,
+        "wait_ns": 24700727,
+        "slices": 85,
+        "allowed": "0-7"
+      },
+      "24360": {
+        "name": "binder:24330_4",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 691355,
+        "wait_ns": 3079323,
+        "slices": 11,
+        "allowed": "0-7"
+      },
+      "24363": {
+        "name": "InsetsAnimation",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 15174528,
+        "wait_ns": 30406043,
+        "slices": 76,
+        "allowed": "0-7"
+      },
+      "24364": {
+        "name": "boxdroid-wsi",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 16075626756,
+        "wait_ns": 525821601,
+        "slices": 18620,
+        "allowed": "0-7"
+      },
+      "24366": {
+        "name": "binder:24330_4",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 95416939,
+        "wait_ns": 117079850,
+        "slices": 6792,
+        "allowed": "0-7"
+      },
+      "24367": {
+        "name": "binder:24330_5",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 278989712,
+        "wait_ns": 26603808,
+        "slices": 2908,
+        "allowed": "0-7"
+      },
+      "24369": {
+        "name": "AudioTrack",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 1352807799,
+        "wait_ns": 38646556,
+        "slices": 57325,
+        "allowed": "0-7"
+      },
+      "24370": {
+        "name": "boxdroid-main",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 12675681759,
+        "wait_ns": 6151301938,
+        "slices": 475463,
+        "allowed": "0-7"
+      },
+      "24372": {
+        "name": "worker",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 287202154,
+        "wait_ns": 70640571,
+        "slices": 11451,
+        "allowed": "0-7"
+      },
+      "24373": {
+        "name": "ALL CPUs/TCG",
+        "cpu": 6,
+        "state": "R",
+        "runtime_ns": 208396538251,
+        "wait_ns": 949938804,
+        "slices": 432658,
+        "allowed": "0-7"
+      },
+      "24374": {
+        "name": "mcpx.voice0",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 9896905748,
+        "wait_ns": 9783659182,
+        "slices": 574524,
+        "allowed": "0-7"
+      },
+      "24375": {
+        "name": "mcpx.voice1",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 8306103695,
+        "wait_ns": 9364447523,
+        "slices": 555387,
+        "allowed": "0-7"
+      },
+      "24376": {
+        "name": "mcpx.voice2",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 7296810550,
+        "wait_ns": 9557926939,
+        "slices": 463810,
+        "allowed": "0-7"
+      },
+      "24377": {
+        "name": "mcpx.voice3",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 5876578500,
+        "wait_ns": 5548280770,
+        "slices": 296792,
+        "allowed": "0-7"
+      },
+      "24378": {
+        "name": "mcpx.apu_thread",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 96695484732,
+        "wait_ns": 4154368708,
+        "slices": 331140,
+        "allowed": "0-7"
+      },
+      "24379": {
+        "name": "nv2a.pfifo",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 37721193341,
+        "wait_ns": 2654439224,
+        "slices": 150473,
+        "allowed": "0-7"
+      }
+    },
+    "frequencies": {
+      "policy0": 1171200,
+      "policy4": 2419200,
+      "policy7": 2841600
+    },
+    "thermal": {
+      "cpu-0-0-usr": 60800,
+      "cpu-1-3-usr": 72900,
+      "cpu-1-4-usr": 68600,
+      "cpu-1-5-usr": 67400,
+      "cpu-1-6-usr": 69000,
+      "cpu-1-7-usr": 72100,
+      "gpuss-0-usr": 48000,
+      "cpu-0-1-usr": 58100,
+      "gpuss-1-usr": 50500,
+      "gpuss-max-step": 51300,
+      "cpu-0-0-step": 61200,
+      "cpu-0-2-usr": 56600,
+      "cpu-0-1-step": 58900,
+      "cpu-0-2-step": 56200,
+      "cpu-0-3-step": 59300,
+      "cpu-1-0-step": 69400,
+      "cpu-1-1-step": 65100,
+      "cpu-1-2-step": 67400,
+      "cpu-1-3-step": 73300,
+      "cpu-1-4-step": 67800,
+      "cpu-1-5-step": 69000,
+      "cpu-1-6-step": 68200,
+      "cpu-0-3-usr": 59700,
+      "cpu-1-7-step": 72100,
+      "cpuss-0-usr": 64000,
+      "cpuss-1-usr": 67100,
+      "cpu-1-0-usr": 65900,
+      "cpu-1-1-usr": 68600,
+      "gpu-skin-avg-step": 21880,
+      "cpu-1-2-usr": 68600
+    },
+    "resident_pages": 177103,
+    "battery_temperature_tenths_c": 302,
+    "gpu_frequency_hz": 587000000
+  },
+  {
+    "uptime": 30811.33,
+    "threads": {
+      "24330": {
+        "name": "xdroid:emulator",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 990224263,
+        "wait_ns": 129304267,
+        "slices": 2165,
+        "allowed": "0-7"
+      },
+      "24336": {
+        "name": "Signal Catcher",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 211979,
+        "wait_ns": 175938,
+        "slices": 2,
+        "allowed": "0-7"
+      },
+      "24337": {
+        "name": "perfetto_hprof_",
+        "cpu": 0,
+        "state": "S",
+        "runtime_ns": 73750,
+        "wait_ns": 3519010,
+        "slices": 1,
+        "allowed": "0-7"
+      },
+      "24338": {
+        "name": "ADB-JDWP Connec",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 233490,
+        "wait_ns": 3383385,
+        "slices": 5,
+        "allowed": "0-7"
+      },
+      "24339": {
+        "name": "Jit thread pool",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 159107957,
+        "wait_ns": 62414171,
+        "slices": 477,
+        "allowed": "0-7"
+      },
+      "24340": {
+        "name": "HeapTaskDaemon",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 25191095,
+        "wait_ns": 12689529,
+        "slices": 49,
+        "allowed": "0-7"
+      },
+      "24341": {
+        "name": "ReferenceQueueD",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 12914635,
+        "wait_ns": 3280728,
+        "slices": 10,
+        "allowed": "0-7"
+      },
+      "24342": {
+        "name": "FinalizerDaemon",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 730625,
+        "wait_ns": 3475677,
+        "slices": 8,
+        "allowed": "0-7"
+      },
+      "24343": {
+        "name": "FinalizerWatchd",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 407812,
+        "wait_ns": 6462448,
+        "slices": 13,
+        "allowed": "0-7"
+      },
+      "24344": {
+        "name": "binder:24330_1",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 2271095,
+        "wait_ns": 1791926,
+        "slices": 7,
+        "allowed": "0-7"
+      },
+      "24345": {
+        "name": "binder:24330_2",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 343395497,
+        "wait_ns": 43265701,
+        "slices": 3070,
+        "allowed": "0-7"
+      },
+      "24347": {
+        "name": "binder:24330_3",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 226066289,
+        "wait_ns": 33966398,
+        "slices": 2568,
+        "allowed": "0-7"
+      },
+      "24348": {
+        "name": "Profile Saver",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 7146664,
+        "wait_ns": 5022551,
+        "slices": 36,
+        "allowed": "0-7"
+      },
+      "24351": {
+        "name": "RenderThread",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 424110849,
+        "wait_ns": 50755823,
+        "slices": 1295,
+        "allowed": "0-7"
+      },
+      "24353": {
+        "name": "xdroid:emulator",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 4599268,
+        "wait_ns": 128281,
+        "slices": 21,
+        "allowed": "0-7"
+      },
+      "24355": {
+        "name": "pool-3-thread-1",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 738722249,
+        "wait_ns": 50274639,
+        "slices": 557,
+        "allowed": "0-7"
+      },
+      "24357": {
+        "name": "hwuiTask0",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 217343,
+        "wait_ns": 3324376,
+        "slices": 5,
+        "allowed": "0-7"
+      },
+      "24358": {
+        "name": "hwuiTask1",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 258437,
+        "wait_ns": 27291,
+        "slices": 3,
+        "allowed": "0-7"
+      },
+      "24359": {
+        "name": "pool-2-thread-1",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 21859589,
+        "wait_ns": 24700727,
+        "slices": 85,
+        "allowed": "0-7"
+      },
+      "24360": {
+        "name": "binder:24330_4",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 691355,
+        "wait_ns": 3079323,
+        "slices": 11,
+        "allowed": "0-7"
+      },
+      "24363": {
+        "name": "InsetsAnimation",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 15174528,
+        "wait_ns": 30406043,
+        "slices": 76,
+        "allowed": "0-7"
+      },
+      "24364": {
+        "name": "boxdroid-wsi",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 16177925148,
+        "wait_ns": 529163943,
+        "slices": 18729,
+        "allowed": "0-7"
+      },
+      "24366": {
+        "name": "binder:24330_4",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 95989858,
+        "wait_ns": 117362609,
+        "slices": 6835,
+        "allowed": "0-7"
+      },
+      "24367": {
+        "name": "binder:24330_5",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 278989712,
+        "wait_ns": 26603808,
+        "slices": 2908,
+        "allowed": "0-7"
+      },
+      "24369": {
+        "name": "AudioTrack",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 1364835295,
+        "wait_ns": 38822076,
+        "slices": 57778,
+        "allowed": "0-7"
+      },
+      "24370": {
+        "name": "boxdroid-main",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 12787698373,
+        "wait_ns": 6228237996,
+        "slices": 479495,
+        "allowed": "0-7"
+      },
+      "24372": {
+        "name": "worker",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 287764606,
+        "wait_ns": 70908121,
+        "slices": 11476,
+        "allowed": "0-7"
+      },
+      "24373": {
+        "name": "ALL CPUs/TCG",
+        "cpu": 7,
+        "state": "R",
+        "runtime_ns": 210037164592,
+        "wait_ns": 963901767,
+        "slices": 435791,
+        "allowed": "0-7"
+      },
+      "24374": {
+        "name": "mcpx.voice0",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 9987465028,
+        "wait_ns": 9878284629,
+        "slices": 579467,
+        "allowed": "0-7"
+      },
+      "24375": {
+        "name": "mcpx.voice1",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 8380875543,
+        "wait_ns": 9494629653,
+        "slices": 560177,
+        "allowed": "0-7"
+      },
+      "24376": {
+        "name": "mcpx.voice2",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 7365360204,
+        "wait_ns": 9687593564,
+        "slices": 467701,
+        "allowed": "0-7"
+      },
+      "24377": {
+        "name": "mcpx.voice3",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 5929717818,
+        "wait_ns": 5639319479,
+        "slices": 299444,
+        "allowed": "0-7"
+      },
+      "24378": {
+        "name": "mcpx.apu_thread",
+        "cpu": 6,
+        "state": "R",
+        "runtime_ns": 97595995075,
+        "wait_ns": 4238498801,
+        "slices": 333858,
+        "allowed": "0-7"
+      },
+      "24379": {
+        "name": "nv2a.pfifo",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 38097703520,
+        "wait_ns": 2687319591,
+        "slices": 152220,
+        "allowed": "0-7"
+      }
+    },
+    "frequencies": {
+      "policy0": 1171200,
+      "policy4": 2419200,
+      "policy7": 2841600
+    },
+    "thermal": {
+      "cpu-0-0-usr": 61600,
+      "cpu-1-3-usr": 74000,
+      "cpu-1-4-usr": 66300,
+      "cpu-1-5-usr": 67400,
+      "cpu-1-6-usr": 69400,
+      "cpu-1-7-usr": 72900,
+      "gpuss-0-usr": 48000,
+      "cpu-0-1-usr": 58500,
+      "gpuss-1-usr": 51300,
+      "gpuss-max-step": 50900,
+      "cpu-0-0-step": 61200,
+      "cpu-0-2-usr": 57000,
+      "cpu-0-1-step": 58900,
+      "cpu-0-2-step": 56600,
+      "cpu-0-3-step": 59700,
+      "cpu-1-0-step": 68200,
+      "cpu-1-1-step": 69000,
+      "cpu-1-2-step": 67100,
+      "cpu-1-3-step": 73300,
+      "cpu-1-4-step": 69800,
+      "cpu-1-5-step": 69400,
+      "cpu-1-6-step": 69000,
+      "cpu-0-3-usr": 59700,
+      "cpu-1-7-step": 72900,
+      "cpuss-0-usr": 64300,
+      "cpuss-1-usr": 67100,
+      "cpu-1-0-usr": 70200,
+      "cpu-1-1-usr": 69400,
+      "gpu-skin-avg-step": 21880,
+      "cpu-1-2-usr": 69400
+    },
+    "resident_pages": 177045,
+    "battery_temperature_tenths_c": 302,
+    "gpu_frequency_hz": 587000000
+  },
+  {
+    "uptime": 30813.04,
+    "threads": {
+      "24330": {
+        "name": "xdroid:emulator",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 997016244,
+        "wait_ns": 129931036,
+        "slices": 2186,
+        "allowed": "0-7"
+      },
+      "24336": {
+        "name": "Signal Catcher",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 211979,
+        "wait_ns": 175938,
+        "slices": 2,
+        "allowed": "0-7"
+      },
+      "24337": {
+        "name": "perfetto_hprof_",
+        "cpu": 0,
+        "state": "S",
+        "runtime_ns": 73750,
+        "wait_ns": 3519010,
+        "slices": 1,
+        "allowed": "0-7"
+      },
+      "24338": {
+        "name": "ADB-JDWP Connec",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 233490,
+        "wait_ns": 3383385,
+        "slices": 5,
+        "allowed": "0-7"
+      },
+      "24339": {
+        "name": "Jit thread pool",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 162384156,
+        "wait_ns": 63907140,
+        "slices": 507,
+        "allowed": "0-7"
+      },
+      "24340": {
+        "name": "HeapTaskDaemon",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 25191095,
+        "wait_ns": 12689529,
+        "slices": 49,
+        "allowed": "0-7"
+      },
+      "24341": {
+        "name": "ReferenceQueueD",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 12914635,
+        "wait_ns": 3280728,
+        "slices": 10,
+        "allowed": "0-7"
+      },
+      "24342": {
+        "name": "FinalizerDaemon",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 730625,
+        "wait_ns": 3475677,
+        "slices": 8,
+        "allowed": "0-7"
+      },
+      "24343": {
+        "name": "FinalizerWatchd",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 407812,
+        "wait_ns": 6462448,
+        "slices": 13,
+        "allowed": "0-7"
+      },
+      "24344": {
+        "name": "binder:24330_1",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 2271095,
+        "wait_ns": 1791926,
+        "slices": 7,
+        "allowed": "0-7"
+      },
+      "24345": {
+        "name": "binder:24330_2",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 347120760,
+        "wait_ns": 43749658,
+        "slices": 3110,
+        "allowed": "0-7"
+      },
+      "24347": {
+        "name": "binder:24330_3",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 226815767,
+        "wait_ns": 34067023,
+        "slices": 2575,
+        "allowed": "0-7"
+      },
+      "24348": {
+        "name": "Profile Saver",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 7146664,
+        "wait_ns": 5022551,
+        "slices": 36,
+        "allowed": "0-7"
+      },
+      "24351": {
+        "name": "RenderThread",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 426920537,
+        "wait_ns": 50969677,
+        "slices": 1303,
+        "allowed": "0-7"
+      },
+      "24353": {
+        "name": "xdroid:emulator",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 4599268,
+        "wait_ns": 128281,
+        "slices": 21,
+        "allowed": "0-7"
+      },
+      "24355": {
+        "name": "pool-3-thread-1",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 743435009,
+        "wait_ns": 50274639,
+        "slices": 560,
+        "allowed": "0-7"
+      },
+      "24357": {
+        "name": "hwuiTask0",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 217343,
+        "wait_ns": 3324376,
+        "slices": 5,
+        "allowed": "0-7"
+      },
+      "24358": {
+        "name": "hwuiTask1",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 258437,
+        "wait_ns": 27291,
+        "slices": 3,
+        "allowed": "0-7"
+      },
+      "24359": {
+        "name": "pool-2-thread-1",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 21859589,
+        "wait_ns": 24700727,
+        "slices": 85,
+        "allowed": "0-7"
+      },
+      "24360": {
+        "name": "binder:24330_4",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 691355,
+        "wait_ns": 3079323,
+        "slices": 11,
+        "allowed": "0-7"
+      },
+      "24363": {
+        "name": "InsetsAnimation",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 15174528,
+        "wait_ns": 30406043,
+        "slices": 76,
+        "allowed": "0-7"
+      },
+      "24364": {
+        "name": "boxdroid-wsi",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 16280820301,
+        "wait_ns": 534413212,
+        "slices": 18848,
+        "allowed": "0-7"
+      },
+      "24366": {
+        "name": "binder:24330_4",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 96545329,
+        "wait_ns": 117750836,
+        "slices": 6875,
+        "allowed": "0-7"
+      },
+      "24367": {
+        "name": "binder:24330_5",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 278989712,
+        "wait_ns": 26603808,
+        "slices": 2908,
+        "allowed": "0-7"
+      },
+      "24369": {
+        "name": "AudioTrack",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 1377001844,
+        "wait_ns": 38948743,
+        "slices": 58232,
+        "allowed": "0-7"
+      },
+      "24370": {
+        "name": "boxdroid-main",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 12899826427,
+        "wait_ns": 6297056415,
+        "slices": 483619,
+        "allowed": "0-7"
+      },
+      "24372": {
+        "name": "worker",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 288422468,
+        "wait_ns": 71089893,
+        "slices": 11505,
+        "allowed": "0-7"
+      },
+      "24373": {
+        "name": "ALL CPUs/TCG",
+        "cpu": 4,
+        "state": "R",
+        "runtime_ns": 211680657664,
+        "wait_ns": 977385104,
+        "slices": 438833,
+        "allowed": "0-7"
+      },
+      "24374": {
+        "name": "mcpx.voice0",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 10079263266,
+        "wait_ns": 9989361995,
+        "slices": 584346,
+        "allowed": "0-7"
+      },
+      "24375": {
+        "name": "mcpx.voice1",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 8460276693,
+        "wait_ns": 9623478001,
+        "slices": 564891,
+        "allowed": "0-7"
+      },
+      "24376": {
+        "name": "mcpx.voice2",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 7435204876,
+        "wait_ns": 9821456277,
+        "slices": 471630,
+        "allowed": "0-7"
+      },
+      "24377": {
+        "name": "mcpx.voice3",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 5987340263,
+        "wait_ns": 5727918057,
+        "slices": 302129,
+        "allowed": "0-7"
+      },
+      "24378": {
+        "name": "mcpx.apu_thread",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 98500215227,
+        "wait_ns": 4327840729,
+        "slices": 336625,
+        "allowed": "0-7"
+      },
+      "24379": {
+        "name": "nv2a.pfifo",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 38470100441,
+        "wait_ns": 2722052451,
+        "slices": 153918,
+        "allowed": "0-7"
+      }
+    },
+    "frequencies": {
+      "policy0": 1171200,
+      "policy4": 2419200,
+      "policy7": 2841600
+    },
+    "thermal": {
+      "cpu-0-0-usr": 61200,
+      "cpu-1-3-usr": 74400,
+      "cpu-1-4-usr": 69800,
+      "cpu-1-5-usr": 69000,
+      "cpu-1-6-usr": 69000,
+      "cpu-1-7-usr": 71300,
+      "gpuss-0-usr": 48400,
+      "cpu-0-1-usr": 58500,
+      "gpuss-1-usr": 50900,
+      "gpuss-max-step": 51300,
+      "cpu-0-0-step": 61200,
+      "cpu-0-2-usr": 56600,
+      "cpu-0-1-step": 58500,
+      "cpu-0-2-step": 56600,
+      "cpu-0-3-step": 60100,
+      "cpu-1-0-step": 65500,
+      "cpu-1-1-step": 69800,
+      "cpu-1-2-step": 67800,
+      "cpu-1-3-step": 74400,
+      "cpu-1-4-step": 69400,
+      "cpu-1-5-step": 68600,
+      "cpu-1-6-step": 69800,
+      "cpu-0-3-usr": 59700,
+      "cpu-1-7-step": 72500,
+      "cpuss-0-usr": 65100,
+      "cpuss-1-usr": 67400,
+      "cpu-1-0-usr": 70900,
+      "cpu-1-1-usr": 68200,
+      "gpu-skin-avg-step": 21600,
+      "cpu-1-2-usr": 70200
+    },
+    "resident_pages": 177078,
+    "battery_temperature_tenths_c": 302,
+    "gpu_frequency_hz": 587000000
+  },
+  {
+    "uptime": 30814.76,
+    "threads": {
+      "24330": {
+        "name": "xdroid:emulator",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 1001990098,
+        "wait_ns": 130939004,
+        "slices": 2200,
+        "allowed": "0-7"
+      },
+      "24336": {
+        "name": "Signal Catcher",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 211979,
+        "wait_ns": 175938,
+        "slices": 2,
+        "allowed": "0-7"
+      },
+      "24337": {
+        "name": "perfetto_hprof_",
+        "cpu": 0,
+        "state": "S",
+        "runtime_ns": 73750,
+        "wait_ns": 3519010,
+        "slices": 1,
+        "allowed": "0-7"
+      },
+      "24338": {
+        "name": "ADB-JDWP Connec",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 233490,
+        "wait_ns": 3383385,
+        "slices": 5,
+        "allowed": "0-7"
+      },
+      "24339": {
+        "name": "Jit thread pool",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 162674104,
+        "wait_ns": 63909640,
+        "slices": 508,
+        "allowed": "0-7"
+      },
+      "24340": {
+        "name": "HeapTaskDaemon",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 25191095,
+        "wait_ns": 12689529,
+        "slices": 49,
+        "allowed": "0-7"
+      },
+      "24341": {
+        "name": "ReferenceQueueD",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 12914635,
+        "wait_ns": 3280728,
+        "slices": 10,
+        "allowed": "0-7"
+      },
+      "24342": {
+        "name": "FinalizerDaemon",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 730625,
+        "wait_ns": 3475677,
+        "slices": 8,
+        "allowed": "0-7"
+      },
+      "24343": {
+        "name": "FinalizerWatchd",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 407812,
+        "wait_ns": 6462448,
+        "slices": 13,
+        "allowed": "0-7"
+      },
+      "24344": {
+        "name": "binder:24330_1",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 2271095,
+        "wait_ns": 1791926,
+        "slices": 7,
+        "allowed": "0-7"
+      },
+      "24345": {
+        "name": "binder:24330_2",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 347120760,
+        "wait_ns": 43749658,
+        "slices": 3110,
+        "allowed": "0-7"
+      },
+      "24347": {
+        "name": "binder:24330_3",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 231344405,
+        "wait_ns": 34790200,
+        "slices": 2623,
+        "allowed": "0-7"
+      },
+      "24348": {
+        "name": "Profile Saver",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 7146664,
+        "wait_ns": 5022551,
+        "slices": 36,
+        "allowed": "0-7"
+      },
+      "24351": {
+        "name": "RenderThread",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 429478193,
+        "wait_ns": 51195875,
+        "slices": 1314,
+        "allowed": "0-7"
+      },
+      "24353": {
+        "name": "xdroid:emulator",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 4599268,
+        "wait_ns": 128281,
+        "slices": 21,
+        "allowed": "0-7"
+      },
+      "24355": {
+        "name": "pool-3-thread-1",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 749203552,
+        "wait_ns": 50274639,
+        "slices": 564,
+        "allowed": "0-7"
+      },
+      "24357": {
+        "name": "hwuiTask0",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 217343,
+        "wait_ns": 3324376,
+        "slices": 5,
+        "allowed": "0-7"
+      },
+      "24358": {
+        "name": "hwuiTask1",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 258437,
+        "wait_ns": 27291,
+        "slices": 3,
+        "allowed": "0-7"
+      },
+      "24359": {
+        "name": "pool-2-thread-1",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 21859589,
+        "wait_ns": 24700727,
+        "slices": 85,
+        "allowed": "0-7"
+      },
+      "24360": {
+        "name": "binder:24330_4",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 691355,
+        "wait_ns": 3079323,
+        "slices": 11,
+        "allowed": "0-7"
+      },
+      "24363": {
+        "name": "InsetsAnimation",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 15174528,
+        "wait_ns": 30406043,
+        "slices": 76,
+        "allowed": "0-7"
+      },
+      "24364": {
+        "name": "boxdroid-wsi",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 16383480195,
+        "wait_ns": 538015036,
+        "slices": 18950,
+        "allowed": "0-7"
+      },
+      "24366": {
+        "name": "binder:24330_4",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 96993707,
+        "wait_ns": 121408442,
+        "slices": 6916,
+        "allowed": "0-7"
+      },
+      "24367": {
+        "name": "binder:24330_5",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 278989712,
+        "wait_ns": 26603808,
+        "slices": 2908,
+        "allowed": "0-7"
+      },
+      "24369": {
+        "name": "AudioTrack",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 1389470799,
+        "wait_ns": 39278169,
+        "slices": 58691,
+        "allowed": "0-7"
+      },
+      "24370": {
+        "name": "boxdroid-main",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 13013656320,
+        "wait_ns": 6355440274,
+        "slices": 487732,
+        "allowed": "0-7"
+      },
+      "24372": {
+        "name": "worker",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 289051269,
+        "wait_ns": 71183177,
+        "slices": 11532,
+        "allowed": "0-7"
+      },
+      "24373": {
+        "name": "ALL CPUs/TCG",
+        "cpu": 7,
+        "state": "R",
+        "runtime_ns": 213339150497,
+        "wait_ns": 992155990,
+        "slices": 441999,
+        "allowed": "0-7"
+      },
+      "24374": {
+        "name": "mcpx.voice0",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 10181288181,
+        "wait_ns": 10094738227,
+        "slices": 589440,
+        "allowed": "0-7"
+      },
+      "24375": {
+        "name": "mcpx.voice1",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 8544478522,
+        "wait_ns": 9728669441,
+        "slices": 569649,
+        "allowed": "0-7"
+      },
+      "24376": {
+        "name": "mcpx.voice2",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 7511867254,
+        "wait_ns": 9956356792,
+        "slices": 475680,
+        "allowed": "0-7"
+      },
+      "24377": {
+        "name": "mcpx.voice3",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 6051324891,
+        "wait_ns": 5789947537,
+        "slices": 304866,
+        "allowed": "0-7"
+      },
+      "24378": {
+        "name": "mcpx.apu_thread",
+        "cpu": 5,
+        "state": "R",
+        "runtime_ns": 99430122578,
+        "wait_ns": 4415640517,
+        "slices": 339434,
+        "allowed": "0-7"
+      },
+      "24379": {
+        "name": "nv2a.pfifo",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 38840498088,
+        "wait_ns": 2768329014,
+        "slices": 155684,
+        "allowed": "0-7"
+      }
+    },
+    "frequencies": {
+      "policy0": 1171200,
+      "policy4": 2419200,
+      "policy7": 2841600
+    },
+    "thermal": {
+      "cpu-0-0-usr": 60800,
+      "cpu-1-3-usr": 72900,
+      "cpu-1-4-usr": 67100,
+      "cpu-1-5-usr": 69400,
+      "cpu-1-6-usr": 70900,
+      "cpu-1-7-usr": 73600,
+      "gpuss-0-usr": 48400,
+      "cpu-0-1-usr": 58900,
+      "gpuss-1-usr": 51300,
+      "gpuss-max-step": 50900,
+      "cpu-0-0-step": 60800,
+      "cpu-0-2-usr": 56600,
+      "cpu-0-1-step": 58500,
+      "cpu-0-2-step": 56600,
+      "cpu-0-3-step": 59700,
+      "cpu-1-0-step": 68600,
+      "cpu-1-1-step": 68200,
+      "cpu-1-2-step": 69000,
+      "cpu-1-3-step": 72900,
+      "cpu-1-4-step": 67800,
+      "cpu-1-5-step": 67100,
+      "cpu-1-6-step": 69800,
+      "cpu-0-3-usr": 60100,
+      "cpu-1-7-step": 73600,
+      "cpuss-0-usr": 64700,
+      "cpuss-1-usr": 66700,
+      "cpu-1-0-usr": 69000,
+      "cpu-1-1-usr": 70500,
+      "gpu-skin-avg-step": 22160,
+      "cpu-1-2-usr": 69000
+    },
+    "resident_pages": 177101,
+    "battery_temperature_tenths_c": 302,
+    "gpu_frequency_hz": 587000000
+  },
+  {
+    "uptime": 30816.04,
+    "threads": {
+      "24330": {
+        "name": "xdroid:emulator",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 1007330826,
+        "wait_ns": 131801766,
+        "slices": 2211,
+        "allowed": "0-7"
+      },
+      "24336": {
+        "name": "Signal Catcher",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 211979,
+        "wait_ns": 175938,
+        "slices": 2,
+        "allowed": "0-7"
+      },
+      "24337": {
+        "name": "perfetto_hprof_",
+        "cpu": 0,
+        "state": "S",
+        "runtime_ns": 73750,
+        "wait_ns": 3519010,
+        "slices": 1,
+        "allowed": "0-7"
+      },
+      "24338": {
+        "name": "ADB-JDWP Connec",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 233490,
+        "wait_ns": 3383385,
+        "slices": 5,
+        "allowed": "0-7"
+      },
+      "24339": {
+        "name": "Jit thread pool",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 163011343,
+        "wait_ns": 63930630,
+        "slices": 509,
+        "allowed": "0-7"
+      },
+      "24340": {
+        "name": "HeapTaskDaemon",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 25191095,
+        "wait_ns": 12689529,
+        "slices": 49,
+        "allowed": "0-7"
+      },
+      "24341": {
+        "name": "ReferenceQueueD",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 12914635,
+        "wait_ns": 3280728,
+        "slices": 10,
+        "allowed": "0-7"
+      },
+      "24342": {
+        "name": "FinalizerDaemon",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 730625,
+        "wait_ns": 3475677,
+        "slices": 8,
+        "allowed": "0-7"
+      },
+      "24343": {
+        "name": "FinalizerWatchd",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 407812,
+        "wait_ns": 6462448,
+        "slices": 13,
+        "allowed": "0-7"
+      },
+      "24344": {
+        "name": "binder:24330_1",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 2271095,
+        "wait_ns": 1791926,
+        "slices": 7,
+        "allowed": "0-7"
+      },
+      "24345": {
+        "name": "binder:24330_2",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 347120760,
+        "wait_ns": 43749658,
+        "slices": 3110,
+        "allowed": "0-7"
+      },
+      "24347": {
+        "name": "binder:24330_3",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 234618889,
+        "wait_ns": 34867907,
+        "slices": 2656,
+        "allowed": "0-7"
+      },
+      "24348": {
+        "name": "Profile Saver",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 7146664,
+        "wait_ns": 5022551,
+        "slices": 36,
+        "allowed": "0-7"
+      },
+      "24351": {
+        "name": "RenderThread",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 432059182,
+        "wait_ns": 51369105,
+        "slices": 1321,
+        "allowed": "0-7"
+      },
+      "24353": {
+        "name": "xdroid:emulator",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 4599268,
+        "wait_ns": 128281,
+        "slices": 21,
+        "allowed": "0-7"
+      },
+      "24355": {
+        "name": "pool-3-thread-1",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 751970531,
+        "wait_ns": 50274639,
+        "slices": 566,
+        "allowed": "0-7"
+      },
+      "24357": {
+        "name": "hwuiTask0",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 217343,
+        "wait_ns": 3324376,
+        "slices": 5,
+        "allowed": "0-7"
+      },
+      "24358": {
+        "name": "hwuiTask1",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 258437,
+        "wait_ns": 27291,
+        "slices": 3,
+        "allowed": "0-7"
+      },
+      "24359": {
+        "name": "pool-2-thread-1",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 21859589,
+        "wait_ns": 24700727,
+        "slices": 85,
+        "allowed": "0-7"
+      },
+      "24360": {
+        "name": "binder:24330_4",
+        "cpu": 7,
+        "state": "S",
+        "runtime_ns": 691355,
+        "wait_ns": 3079323,
+        "slices": 11,
+        "allowed": "0-7"
+      },
+      "24363": {
+        "name": "InsetsAnimation",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 15174528,
+        "wait_ns": 30406043,
+        "slices": 76,
+        "allowed": "0-7"
+      },
+      "24364": {
+        "name": "boxdroid-wsi",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 16462123061,
+        "wait_ns": 542584884,
+        "slices": 19037,
+        "allowed": "0-7"
+      },
+      "24366": {
+        "name": "binder:24330_4",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 97352824,
+        "wait_ns": 124586933,
+        "slices": 6949,
+        "allowed": "0-7"
+      },
+      "24367": {
+        "name": "binder:24330_5",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 278989712,
+        "wait_ns": 26603808,
+        "slices": 2908,
+        "allowed": "0-7"
+      },
+      "24369": {
+        "name": "AudioTrack",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 1398687990,
+        "wait_ns": 39462703,
+        "slices": 59028,
+        "allowed": "0-7"
+      },
+      "24370": {
+        "name": "boxdroid-main",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 13097854823,
+        "wait_ns": 6415061977,
+        "slices": 490774,
+        "allowed": "0-7"
+      },
+      "24372": {
+        "name": "worker",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 289271581,
+        "wait_ns": 71191302,
+        "slices": 11542,
+        "allowed": "0-7"
+      },
+      "24373": {
+        "name": "ALL CPUs/TCG",
+        "cpu": 5,
+        "state": "R",
+        "runtime_ns": 214556863570,
+        "wait_ns": 1003102657,
+        "slices": 444312,
+        "allowed": "0-7"
+      },
+      "24374": {
+        "name": "mcpx.voice0",
+        "cpu": 4,
+        "state": "R",
+        "runtime_ns": 10246646361,
+        "wait_ns": 10175697364,
+        "slices": 593029,
+        "allowed": "0-7"
+      },
+      "24375": {
+        "name": "mcpx.voice1",
+        "cpu": 6,
+        "state": "S",
+        "runtime_ns": 8600393158,
+        "wait_ns": 9812229552,
+        "slices": 573216,
+        "allowed": "0-7"
+      },
+      "24376": {
+        "name": "mcpx.voice2",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 7560172801,
+        "wait_ns": 10065172175,
+        "slices": 478554,
+        "allowed": "0-7"
+      },
+      "24377": {
+        "name": "mcpx.voice3",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 6087738469,
+        "wait_ns": 5852201592,
+        "slices": 306836,
+        "allowed": "0-7"
+      },
+      "24378": {
+        "name": "mcpx.apu_thread",
+        "cpu": 4,
+        "state": "S",
+        "runtime_ns": 100089334470,
+        "wait_ns": 4512531309,
+        "slices": 341406,
+        "allowed": "0-7"
+      },
+      "24379": {
+        "name": "nv2a.pfifo",
+        "cpu": 5,
+        "state": "S",
+        "runtime_ns": 39120222168,
+        "wait_ns": 2803914163,
+        "slices": 157039,
+        "allowed": "0-7"
+      }
+    },
+    "frequencies": {
+      "policy0": 1171200,
+      "policy4": 2419200,
+      "policy7": 2841600
+    },
+    "thermal": {
+      "cpu-0-0-usr": 61200,
+      "cpu-1-3-usr": 73600,
+      "cpu-1-4-usr": 69800,
+      "cpu-1-5-usr": 69400,
+      "cpu-1-6-usr": 69800,
+      "cpu-1-7-usr": 72900,
+      "gpuss-0-usr": 48400,
+      "cpu-0-1-usr": 58900,
+      "gpuss-1-usr": 51700,
+      "gpuss-max-step": 51300,
+      "cpu-0-0-step": 61600,
+      "cpu-0-2-usr": 56600,
+      "cpu-0-1-step": 58900,
+      "cpu-0-2-step": 57000,
+      "cpu-0-3-step": 60100,
+      "cpu-1-0-step": 68600,
+      "cpu-1-1-step": 69000,
+      "cpu-1-2-step": 66300,
+      "cpu-1-3-step": 72900,
+      "cpu-1-4-step": 70200,
+      "cpu-1-5-step": 68200,
+      "cpu-1-6-step": 70900,
+      "cpu-0-3-usr": 60100,
+      "cpu-1-7-step": 73600,
+      "cpuss-0-usr": 65100,
+      "cpuss-1-usr": 67800,
+      "cpu-1-0-usr": 71700,
+      "cpu-1-1-usr": 69400,
+      "gpu-skin-avg-step": 21600,
+      "cpu-1-2-usr": 65900
+    },
+    "resident_pages": 177102,
+    "battery_temperature_tenths_c": 302,
+    "gpu_frequency_hz": 587000000
+  }
+]

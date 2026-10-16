@@ -1,0 +1,38 @@
+{
+  "id": 48,
+  "status": "retained_provisional",
+  "purpose": "Coherent group removing pure diagnostic GPU probes/hashes and scalarMMIO/BQL/PGRAPH timestamp preparation when diagnostics0. Required GPU uploads/downloads/coherence/dirty state, lock ordering, guest clocks and frame timestamp instrumentation preserved.",
+  "controls": "diag_producers1/diag_timings1 reproducelegacydebugwork with loggingstilloff;0optimized; detailed_diagnostics1 enablesboth. Latchedbeforeqemu_init. vram_watch independentlycontrolled47.",
+  "validation": "144 actual policy checks PASS. Both focused device test suites PASS (diagnostic-work-gates-20261016-tests-off.log with timings=0/watch=0/producers=0 and diagnostic-work-gates-20261016-tests-on.log with timings=1/watch=1/producers=1; 144/144 policy checks + MMIO/BQL/SMC/watchpoint/FPU recovery suites PASS).",
+  "build": {
+    "libboxdroid.so": "dd353866032a43bee35d09920453fe60b42f00fa62683ed320852c71dd749c1a",
+    "apk-lib.so": "dd353866032a43bee35d09920453fe60b42f00fa62683ed320852c71dd749c1a",
+    ".rodata": "c60a3fd503d39056fdd1cef31227c5bc041a0075cd8ce6d1420ad322fb09e15e",
+    ".data.rel.ro": "c0f24a095c5c1bbab8c6f19c91fdfc6a1427cef93a6dc88da3dc43813a989324",
+    ".data": "170818d9d5e8b4d434268001ad4898e9b745dffaa08d1404d983926f4a0aa918",
+    "apk": "f51077443fbdcfd42bed4b1d3a405afef79d56e7125c1890651d53fdb057b99a",
+    "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+    "runtime_source": "49b4925e9e8924b97fe4f30cfe1d3299a401aff78ba7c34c4a685e7d6a8f672b",
+    "source_diff": "bdde90b6af79ffd5264425a84089574cc86920fb6227d50a2af02dc526626ef3"
+  },
+  "performance": {
+    "on_run1_flips_per_s": 12.41307504008408,
+    "on_run1_p50_us": 79213,
+    "on_run1_p95_us": 93810,
+    "on_run1_battery_tenths_c": 305,
+    "on_run1_audio_underrun_fraction": 0.05570319874429224,
+    "legacy_off_flips_per_s": 11.33137771000283,
+    "legacy_off_p50_us": 87553,
+    "legacy_off_p95_us": 103879,
+    "legacy_off_battery_tenths_c": 307,
+    "legacy_off_audio_underrun_fraction": 0.05042771497968098,
+    "on_repeat_flips_per_s": 12.529794254442505,
+    "on_repeat_p50_us": 77792,
+    "on_repeat_p95_us": 92865,
+    "on_repeat_battery_tenths_c": 312,
+    "on_repeat_audio_underrun_fraction": 0.053726925305582924,
+    "same_apk_gain_percent_run1": 9.54603551880222,
+    "same_apk_gain_percent_repeat": 10.576088255733322
+  },
+  "retained_gain": "+9.55% to +10.58% same-APK ON/OFF/ON bracket (12.4131 / 11.3314 / 12.5298 guest flips/s); +5.76% vs prior retained 11.8477; +33.95% vs 9.3540 baseline"
+}

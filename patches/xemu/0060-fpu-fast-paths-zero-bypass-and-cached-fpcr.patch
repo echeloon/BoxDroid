@@ -1,0 +1,334 @@
+# Experiment 50: FPU fast paths, zero-operand bypass, cached FPCR status, and exception overhead elimination
+
+diff --git a/fpu/boxdroid-floatx80.h b/fpu/boxdroid-floatx80.h
+index 5990714bd3..b4ce2fd0d1 100644
+--- a/fpu/boxdroid-floatx80.h
++++ b/fpu/boxdroid-floatx80.h
+@@ -24,17 +24,24 @@ static __attribute__((noinline)) void boxdroid_refresh_fast_fpu(float_status *s)
+ {
+     char prop[PROP_VALUE_MAX] = { 0 };
+ #ifdef __aarch64__
++    uint64_t host_control;
++    asm volatile("mrs %0, fpcr" : "=r"(host_control));
+     if (!s->boxdroid_fast_fpu_state &&
+         __system_property_get("debug.boxdroid.fpu_audit", prop) > 0 && prop[0] == '1') {
+-        uint64_t host_control;
+-        asm volatile("mrs %0, fpcr" : "=r"(host_control));
+         __android_log_print(ANDROID_LOG_INFO, "BoxDroidFpu",
+                             "X87_HOST_FPCR value=0x%llx", (unsigned long long)host_control);
+     }
++    bool nearest = (host_control & ~(UINT64_C(3) << 24)) == 0;
++    bool estimate = (host_control & ~((UINT64_C(3) << 22) | (UINT64_C(3) << 24))) == 0;
++#else
++    bool nearest = false;
++    bool estimate = false;
+ #endif
+     s->boxdroid_fast_fpu_state =
+         (__system_property_get("debug.boxdroid.fast_fpu", prop) <= 0 ||
+          prop[0] != '0') ? 1 : 2;
++    s->boxdroid_fast_fpu_ready = (s->boxdroid_fast_fpu_state == 1 && nearest);
++    s->boxdroid_fp_estimate_ready = (s->boxdroid_fast_fpu_state == 1 && estimate);
+ }
+ 
+ static inline bool boxdroid_use_fast_fpu(float_status *s)
+@@ -203,6 +210,20 @@ static inline bool boxdroid_fp_estimate(void)
+     return (fpcr & ~((UINT64_C(3) << 22) | (UINT64_C(3) << 24))) == 0;
+ }
+ 
++static inline bool boxdroid_fp_estimate_check(float_status *s)
++{
++#if defined(__aarch64__)
++    if (likely(s->boxdroid_fp_estimate_ready)) {
++        return true;
++    }
++    if (boxdroid_use_fast_fpu(s) && boxdroid_fp_estimate()) {
++        s->boxdroid_fp_estimate_ready = 1;
++        return true;
++    }
++#endif
++    return false;
++}
++
+ /* One asm region prevents compiler motion across FPSR clear/read/restore.
+  * Preserve the caller's host flags; never substitute them for guest flags. */
+ #define BOXDROID_HOST_OP(insn) \
+@@ -331,13 +352,127 @@ boxdroid_f80_double53(floatx80 a, floatx80 b, float_status *s,
+                      enum BoxDroidFPOp op, floatx80 *out)
+ {
+ #if defined(__aarch64__)
+-    unsigned ea = a.high & 0x7fff, eb = b.high & 0x7fff;
+     if (s->floatx80_rounding_precision != floatx80_precision_d ||
+-        s->float_rounding_mode != float_round_nearest_even ||
+-        ea - (16383 - 450) > 900 || eb - (16383 - 450) > 900 ||
++        s->float_rounding_mode != float_round_nearest_even) {
++        return false;
++    }
++    if (unlikely(!s->boxdroid_fast_fpu_ready)) {
++        if (!boxdroid_use_fast_fpu(s) || !boxdroid_fp_nearest()) {
++            return false;
++        }
++        s->boxdroid_fast_fpu_ready = 1;
++    }
++
++    bool az = !a.low && !(a.high & 0x7fff);
++    bool bz = !b.low && !(b.high & 0x7fff);
++    if (unlikely(az || bz)) {
++        switch (op) {
++        case BOXDROID_FP_ADD:
++            if (bz) {
++                if (az) {
++                    *out = (floatx80){ .high = (a.high & b.high & 0x8000), .low = 0 };
++                    BOXDROID_FP_HIT();
++                    return true;
++                }
++                if (boxdroid_f80_regular(a) && !(a.low & 0x7ff)) {
++                    unsigned ea = a.high & 0x7fff;
++                    if (ea - 15933 <= 900) {
++                        *out = a;
++                        BOXDROID_FP_HIT();
++                        return true;
++                    }
++                }
++            } else if (az) {
++                if (boxdroid_f80_regular(b) && !(b.low & 0x7ff)) {
++                    unsigned eb = b.high & 0x7fff;
++                    if (eb - 15933 <= 900) {
++                        *out = b;
++                        BOXDROID_FP_HIT();
++                        return true;
++                    }
++                }
++            }
++            return false;
++        case BOXDROID_FP_SUB:
++            if (bz) {
++                if (az) {
++                    *out = (floatx80){ .high = ((a.high & 0x8000) && !(b.high & 0x8000)) ? 0x8000 : 0, .low = 0 };
++                    BOXDROID_FP_HIT();
++                    return true;
++                }
++                if (boxdroid_f80_regular(a) && !(a.low & 0x7ff)) {
++                    unsigned ea = a.high & 0x7fff;
++                    if (ea - 15933 <= 900) {
++                        *out = a;
++                        BOXDROID_FP_HIT();
++                        return true;
++                    }
++                }
++            } else if (az) {
++                if (boxdroid_f80_regular(b) && !(b.low & 0x7ff)) {
++                    unsigned eb = b.high & 0x7fff;
++                    if (eb - 15933 <= 900) {
++                        *out = (floatx80){ .high = b.high ^ 0x8000, .low = b.low };
++                        BOXDROID_FP_HIT();
++                        return true;
++                    }
++                }
++            }
++            return false;
++        case BOXDROID_FP_MUL:
++            if (az && bz) {
++                *out = (floatx80){ .high = (a.high ^ b.high) & 0x8000, .low = 0 };
++                BOXDROID_FP_HIT();
++                return true;
++            }
++            if (az) {
++                if (boxdroid_f80_regular(b) && !(b.low & 0x7ff)) {
++                    unsigned eb = b.high & 0x7fff;
++                    if (eb - 15933 <= 900) {
++                        *out = (floatx80){ .high = (a.high ^ b.high) & 0x8000, .low = 0 };
++                        BOXDROID_FP_HIT();
++                        return true;
++                    }
++                }
++            } else if (bz) {
++                if (boxdroid_f80_regular(a) && !(a.low & 0x7ff)) {
++                    unsigned ea = a.high & 0x7fff;
++                    if (ea - 15933 <= 900) {
++                        *out = (floatx80){ .high = (a.high ^ b.high) & 0x8000, .low = 0 };
++                        BOXDROID_FP_HIT();
++                        return true;
++                    }
++                }
++            }
++            return false;
++        case BOXDROID_FP_DIV:
++            if (az && !bz) {
++                if (boxdroid_f80_regular(b) && !(b.low & 0x7ff)) {
++                    unsigned eb = b.high & 0x7fff;
++                    if (eb - 15933 <= 900) {
++                        *out = (floatx80){ .high = (a.high ^ b.high) & 0x8000, .low = 0 };
++                        BOXDROID_FP_HIT();
++                        return true;
++                    }
++                }
++            }
++            return false;
++        case BOXDROID_FP_SQRT:
++            if (az) {
++                *out = a;
++                BOXDROID_FP_HIT();
++                return true;
++            }
++            return false;
++        default:
++            return false;
++        }
++    }
++
++    unsigned ea = a.high & 0x7fff, eb = b.high & 0x7fff;
++    if (ea - (16383 - 450) > 900 || eb - (16383 - 450) > 900 ||
+         !((a.low & b.low) >> 63) || ((a.low | b.low) & 0x7ff) ||
+-        (op == BOXDROID_FP_SQRT && (a.high & 0x8000)) ||
+-        !boxdroid_use_fast_fpu(s) || !boxdroid_fp_nearest()) {
++        (op == BOXDROID_FP_SQRT && (a.high & 0x8000))) {
+         return false;
+     }
+     union { uint64_t u; double d; } da, db, r;
+@@ -418,7 +553,16 @@ static inline bool boxdroid_f80_identity(floatx80 a, floatx80 b,
+     switch (op) {
+     case BOXDROID_FP_ADD:
+     case BOXDROID_FP_SUB:
+-        if (!a.low && !b.low) return false; /* zero/cancellation sign rules */
++        if (!a.low && !b.low) {
++            bool sa = a.high >> 15, sb = (b.high >> 15) ^ (op == BOXDROID_FP_SUB);
++            r = (floatx80) {
++                .high = (sa == sb ? sa : (s->float_rounding_mode == float_round_down)) << 15,
++                .low = 0
++            };
++            *out = r;
++            BOXDROID_FP_HIT();
++            return true;
++        }
+         if (!b.low) r = a;
+         else if (!a.low) {
+             r = b;
+@@ -583,7 +727,7 @@ static inline bool boxdroid_f80_wide_integer(floatx80 a, floatx80 b,
+ static inline bool boxdroid_f80_refined(floatx80 a, floatx80 b, float_status *s,
+                                       enum BoxDroidFPOp op, floatx80 *out)
+ {
+-    if (!a.low || !b.low || !boxdroid_fp_estimate()) return false;
++    if (!a.low || !b.low || !boxdroid_fp_estimate_check(s)) return false;
+     union { double d; uint64_t u; } da, db, estimate;
+     da.u = UINT64_C(0x3ff0000000000000) | ((a.low >> 11) & UINT64_C(0xfffffffffffff));
+     db.u = UINT64_C(0x3ff0000000000000) | ((b.low >> 11) & UINT64_C(0xfffffffffffff));
+@@ -701,7 +845,7 @@ static inline bool boxdroid_f80_exact_binary64(floatx80 a, floatx80 b,
+         bool same_sign = (a.high >> 15) == ((b.high >> 15) ^ (op == BOXDROID_FP_SUB));
+         if (width + same_sign > 53) return false;
+     }
+-    if (!boxdroid_fp_estimate()) return false;
++    if (!boxdroid_fp_estimate_check(s)) return false;
+     double da, db;
+     if (!boxdroid_f80_scaled(a, sa, &da) || !boxdroid_f80_scaled(b, sb, &db)) return false;
+     uint64_t unused;
+diff --git a/include/fpu/softfloat-types.h b/include/fpu/softfloat-types.h
+index ca5dc85d80..e16d324c65 100644
+--- a/include/fpu/softfloat-types.h
++++ b/include/fpu/softfloat-types.h
+@@ -432,6 +432,8 @@ typedef struct float_status {
+      * Zero initializes an unknown cache; no dynamic TLS or global writer. */
+     uint32_t boxdroid_fast_fpu_checks;
+     uint8_t boxdroid_fast_fpu_state;
++    uint8_t boxdroid_fast_fpu_ready;
++    uint8_t boxdroid_fp_estimate_ready;
+ #endif
+ } float_status;
+ 
+diff --git a/target/i386/tcg/fpu_helper.c b/target/i386/tcg/fpu_helper.c
+index 0274370bbf..4476ad1500 100644
+--- a/target/i386/tcg/fpu_helper.c
++++ b/target/i386/tcg/fpu_helper.c
+@@ -425,10 +425,10 @@ static inline floatx80 double_to_floatx80(CPUX86State *env, double a)
+ }
+ 
+ #ifndef USE_HARD_FPU
+-static void fpu_set_exception(CPUX86State *env, int mask)
++static inline void fpu_set_exception(CPUX86State *env, int mask)
+ {
+     env->fpus |= mask;
+-    if (env->fpus & (~env->fpuc & FPUC_EM)) {
++    if (unlikely(env->fpus & (~env->fpuc & FPUC_EM))) {
+         env->fpus |= FPUS_SE | FPUS_B;
+     }
+ }
+@@ -537,13 +537,18 @@ static void merge_exception_flags(CPUX86State *env, int old_flags)
+ #ifndef USE_HARD_FPU
+     int new_flags = get_float_exception_flags(&env->fp_status);
+     float_raise(old_flags, &env->fp_status);
+-    fpu_set_exception(env,
+-                      ((new_flags & float_flag_invalid ? FPUS_IE : 0) |
+-                       (new_flags & float_flag_divbyzero ? FPUS_ZE : 0) |
+-                       (new_flags & float_flag_overflow ? FPUS_OE : 0) |
+-                       (new_flags & float_flag_underflow ? FPUS_UE : 0) |
+-                       (new_flags & float_flag_inexact ? FPUS_PE : 0) |
+-                       (new_flags & float_flag_input_denormal_used ? FPUS_DE : 0)));
++    int mask = 0;
++    if (new_flags & float_flag_inexact) {
++        mask |= FPUS_PE;
++    }
++    if (unlikely(new_flags & ~float_flag_inexact)) {
++        if (new_flags & float_flag_invalid) mask |= FPUS_IE;
++        if (new_flags & float_flag_divbyzero) mask |= FPUS_ZE;
++        if (new_flags & float_flag_overflow) mask |= FPUS_OE;
++        if (new_flags & float_flag_underflow) mask |= FPUS_UE;
++        if (new_flags & float_flag_input_denormal_used) mask |= FPUS_DE;
++    }
++    fpu_set_exception(env, mask);
+ #endif
+ }
+ 
+@@ -664,7 +669,7 @@ void helper_boxdroid_f32_load(CPUX86State *env, void *dest_ptr, uint32_t val)
+ {
+     unsigned exponent = (val >> 23) & 0xff;
+     if ((exponent && exponent != 0xff) || !(val & 0x7fffffff)) {
+-        /* Binary32 has at most24 significand bits, so widening is exact for
++        /* Binary32 has at most 24 significand bits, so widening is exact for
+          * every supported x87 precision and rounding mode. Neither operand
+          * nor result can be denormal/overflow here. Preserve pending status.
+          */
+@@ -1135,11 +1140,15 @@ void helper_boxdroid_fmul53(CPUX86State *env, void *destination, void *source)
+         (s->float_exception_flags & float_flag_inexact) &&
+         ea - 15933 <= 900 && eb - 15933 <= 900 &&
+         ((a.low & b.low) >> 63) && !((a.low | b.low) & 0x7ff) &&
+-        s->boxdroid_fast_fpu_state == 1 &&
+-        (s->boxdroid_fast_fpu_checks & 0xffff)) {
+-        uint64_t control;
+-        asm volatile("mrs %0, fpcr" : "=r"(control));
+-        if (!(control & ~(UINT64_C(3) << 24))) {
++        (s->boxdroid_fast_fpu_ready ||
++         (s->boxdroid_fast_fpu_state == 1 && (s->boxdroid_fast_fpu_checks & 0xffff)))) {
++        bool nearest = s->boxdroid_fast_fpu_ready;
++        if (!nearest) {
++            uint64_t control;
++            asm volatile("mrs %0, fpcr" : "=r"(control));
++            nearest = !(control & ~(UINT64_C(3) << 24));
++        }
++        if (nearest) {
+             union { uint64_t bits; double value; } x, y, product;
+             x.bits = ((uint64_t)(a.high & 0x8000) << 48) |
+                      ((uint64_t)(ea - 15360) << 52) |
+@@ -4040,7 +4049,7 @@ static bool boxdroid_sse_native_enabled(void)
+ static bool boxdroid_sse_mulps(CPUX86State *env, ZMMReg *d,
+                               const ZMMReg *v, const ZMMReg *s)
+ {
+-    uint64_t fpcr, fpsr;
++    uint64_t fpsr;
+     uint32x4_t a, b, r, aa, ab, ea, eb, valid, ar, zero_input;
+ 
+     /* No new guest exception flags can be hidden behind the native operation. */
+@@ -4051,8 +4060,13 @@ static bool boxdroid_sse_mulps(CPUX86State *env, ZMMReg *d,
+         (((uintptr_t)d | (uintptr_t)v | (uintptr_t)s) & 15)) {
+         return false;
+     }
+-    asm volatile("mrs %0, fpcr" : "=r"(fpcr));
+-    if (fpcr != 0) {
++    static int8_t sse_host_fpcr_zero = -1;
++    if (unlikely(sse_host_fpcr_zero < 0)) {
++        uint64_t host_fpcr;
++        asm volatile("mrs %0, fpcr" : "=r"(host_fpcr));
++        sse_host_fpcr_zero = (host_fpcr == 0) ? 1 : 0;
++    }
++    if (unlikely(!sse_host_fpcr_zero)) {
+         return false;
+     }
+     /* Aligned operands are identical or disjoint; load both before committing. */

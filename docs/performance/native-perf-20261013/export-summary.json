@@ -1,0 +1,6 @@
+{
+  "original_patch_count": 36,
+  "cpu_delta_stat": " accel/tcg/cpu-exec.c                 |  64 +++++++++-\n accel/tcg/cputlb.c                   |  16 ++-\n accel/tcg/tb-jmp-cache.h             |   6 +\n accel/tcg/tb-maint.c                 |   5 +\n accel/tcg/translate-all.c            |  96 ++++++++++++++\n include/exec/tlb-common.h            |  18 +++\n include/tcg/tcg.h                    |  16 +++\n target/i386/cpu.c                    |  15 ++-\n target/i386/helper.h                 |  36 +++++-\n target/i386/ops_sse.h                |  20 +++\n target/i386/tcg/emit.c.inc           |  25 ++++\n target/i386/tcg/fpu_helper.c         | 239 +++++++++++++++++++++++++++++++++++\n target/i386/tcg/ops_sse_header.h.inc |  48 ++++---\n target/i386/tcg/translate.c          | 122 ++++++++++++++++++\n tcg/aarch64/tcg-target.c.inc         | 225 ++++++++++++++++++++++++++++++++-\n tcg/region.c                         |   6 +\n tcg/tcg.c                            |  29 ++++-\n 17 files changed, 953 insertions(+), 33 deletions(-)\n",
+  "guest_flip_delta_stat": " hw/xbox/nv2a/pgraph/pgraph.c | 7 +++++++\n 1 file changed, 7 insertions(+)\n",
+  "full_delta_sha256": "69ce81499274ad913168a5a533a37c17c8d3fdc8141811f1d65d663f49bcd735"
+}

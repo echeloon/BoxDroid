@@ -1,0 +1,101 @@
+# Experiment42 isolated: opt-in acquire sequence load for TCG QHT lookups; original writer and final retry barriers remain. Default qht_acquire0, validation pending.
+
+diff --git a/accel/tcg/tb-maint.c b/accel/tcg/tb-maint.c
+index bc36221537..110785ed12 100644
+--- a/accel/tcg/tb-maint.c
++++ b/accel/tcg/tb-maint.c
+@@ -31,6 +31,9 @@
+ #include "tb-jmp-cache.h"
+ #include "system/tcg.h"
+ #include "tcg/tcg.h"
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++#include <sys/system_properties.h>
++#endif
+ #include "tb-hash.h"
+ #include "tb-context.h"
+ #include "tb-internal.h"
+@@ -75,6 +78,14 @@ void tb_htable_init(void)
+ {
+     unsigned int mode = QHT_MODE_AUTO_RESIZE;
+ 
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    char prop[PROP_VALUE_MAX] = { 0 };
++    if (__system_property_get("debug.boxdroid.qht_acquire", prop) &&
++        !strcmp(prop, "1")) {
++        mode |= QHT_MODE_LOAD_ACQUIRE;
++    }
++#endif
++
+     qht_init(&tb_ctx.htable, tb_cmp, CODE_GEN_HTABLE_SIZE, mode);
+     qht_init(&tb_ctx.inv_htable, inv_tb_cmp, CODE_GEN_HTABLE_SIZE, mode);
+ }
+diff --git a/include/qemu/qht.h b/include/qemu/qht.h
+index 758c7ac6c8..0e73639fcd 100644
+--- a/include/qemu/qht.h
++++ b/include/qemu/qht.h
+@@ -48,6 +48,7 @@ typedef bool (*qht_iter_bool_func_t)(void *p, uint32_t h, void *up);
+ 
+ #define QHT_MODE_AUTO_RESIZE 0x1 /* auto-resize when heavily loaded */
+ #define QHT_MODE_RAW_MUTEXES 0x2 /* bypass the profiler (QSP) */
++#define QHT_MODE_LOAD_ACQUIRE 0x4 /* acquire sequence load on lookup entry */
+ 
+ /**
+  * qht_init - Initialize a QHT
+diff --git a/util/qht.c b/util/qht.c
+index 208c2f4b32..f33c4c4b1d 100644
+--- a/util/qht.c
++++ b/util/qht.c
+@@ -578,15 +578,28 @@ void *qht_do_lookup(const struct qht_bucket *head, qht_lookup_func_t func,
+     return NULL;
+ }
+ 
++static inline unsigned qht_read_begin(const QemuSeqLock *sequence, bool acquire)
++{
++    if (acquire) {
++        /* Lookup's map/bucket address already depends on its RCU load.
++         * Acquire orders the sequence read before all protected reads;
++         * retain the existing read barrier before the final sequence check.
++         * As in seqlock_read_begin, an odd writer sequence always retries.
++         */
++        return qatomic_load_acquire(&sequence->sequence) & ~1;
++    }
++    return seqlock_read_begin(sequence);
++}
++
+ static __attribute__((noinline))
+ void *qht_lookup__slowpath(const struct qht_bucket *b, qht_lookup_func_t func,
+-                           const void *userp, uint32_t hash)
++                           const void *userp, uint32_t hash, bool acquire)
+ {
+     unsigned int version;
+     void *ret;
+ 
+     do {
+-        version = seqlock_read_begin(&b->sequence);
++        version = qht_read_begin(&b->sequence, acquire);
+         ret = qht_do_lookup(b, func, userp, hash);
+     } while (seqlock_read_retry(&b->sequence, version));
+     return ret;
+@@ -599,11 +612,12 @@ void *qht_lookup_custom(const struct qht *ht, const void *userp, uint32_t hash,
+     const struct qht_map *map;
+     unsigned int version;
+     void *ret;
++    bool acquire = ht->mode & QHT_MODE_LOAD_ACQUIRE;
+ 
+     map = qatomic_rcu_read(&ht->map);
+     b = qht_map_to_bucket(map, hash);
+ 
+-    version = seqlock_read_begin(&b->sequence);
++    version = qht_read_begin(&b->sequence, acquire);
+     ret = qht_do_lookup(b, func, userp, hash);
+     if (likely(!seqlock_read_retry(&b->sequence, version))) {
+         return ret;
+@@ -612,7 +626,7 @@ void *qht_lookup_custom(const struct qht *ht, const void *userp, uint32_t hash,
+      * Removing the do/while from the fastpath gives a 4% perf. increase when
+      * running a 100%-lookup microbenchmark.
+      */
+-    return qht_lookup__slowpath(b, func, userp, hash);
++    return qht_lookup__slowpath(b, func, userp, hash, acquire);
+ }
+ 
+ void *qht_lookup(const struct qht *ht, const void *userp, uint32_t hash)

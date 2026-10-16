@@ -1,0 +1,18 @@
+# Experiment47: install diagnostic VRAM CPU watch only for detailed diagnostics or forced legacy comparison. Functional NV2A callbacks and dirty tracking unchanged.
+
+diff --git a/hw/xbox/nv2a/nv2a.c b/hw/xbox/nv2a/nv2a.c
+index 9e45d9dc83..10f3a79e57 100644
+--- a/hw/xbox/nv2a/nv2a.c
++++ b/hw/xbox/nv2a/nv2a.c
+@@ -294,7 +294,10 @@ static void nv2a_init_memory(NV2AState *d, MemoryRegion *ram)
+     d->ramin_ptr = memory_region_get_ram_ptr(&d->ramin);
+ 
+ #ifdef BOXDROID_XBOX_RUNTIME
+-    if (qemu_get_cpu(0) && memory_region_size(d->vram) > UINT64_C(0x3e00000)) {
++    /* This watch samples diagnostic bytes; it is not a renderer access hook.
++     * Installing it marks the entire range for slow-path CPU accesses. */
++    if (boxdroid_diag_vram_watch_enabled() && qemu_get_cpu(0) &&
++        memory_region_size(d->vram) > UINT64_C(0x3e00000)) {
+         hwaddr ram_base = memory_region_get_ram_addr(d->vram);
+         boxdroid_vram_access = mem_access_callback_insert(
+             qemu_get_cpu(0), d->vram, UINT64_C(0x3c00000),

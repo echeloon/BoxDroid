@@ -1,0 +1,336 @@
+{
+  "scope": "Preservation of existing experiments 1-26 only. No experiment 27, new optimization, build, test, profiling or benchmark.",
+  "entries": [
+    {
+      "number": 1,
+      "mechanism": "Inline exact MMX entry",
+      "checkpoint_state": "present",
+      "candidate_history": "build/native-perf-run/mmx-inline",
+      "captures": [
+        "build/production-correction/captures/native-run-mmx-inline-cadence",
+        "build/production-correction/captures/native-run-mmx-clean-repeat"
+      ],
+      "recorded_outcome": "9.7274 first; 9.7549 clean repeat. Modest gain vs baseline anchors; group retention provisional.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 2,
+      "mechanism": "CPU-local x87 stack/register operations",
+      "checkpoint_state": "present",
+      "candidate_history": "build/native-perf-run/cpu-local",
+      "captures": [
+        "build/production-correction/captures/native-run-cpu-local-cadence"
+      ],
+      "recorded_outcome": "9.7222; no isolated gain established. Kept as part of the CPU-local FP group.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 3,
+      "mechanism": "Paired TLB comparator/addend loads",
+      "checkpoint_state": "present",
+      "candidate_history": "build/native-perf-run/paired-tlb",
+      "captures": [
+        "build/production-correction/captures/native-run-paired-tlb-cadence"
+      ],
+      "recorded_outcome": "9.8655; small difference, requires final group validation.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 4,
+      "mechanism": "Private FP operand-pointer helper ABI",
+      "checkpoint_state": "present",
+      "candidate_history": "build/native-perf-run/fp-pointer",
+      "captures": [
+        "build/production-correction/captures/native-run-fp-pointer-cadence"
+      ],
+      "recorded_outcome": "9.6656; enables CPU-local helpers and later ABI changes. Full-state focused comparisons archived.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 5,
+      "mechanism": "Deferred global canonical stores at scalar memory operations",
+      "checkpoint_state": "rejected and removed",
+      "candidate_history": "build/native-perf-run/defer-fixed",
+      "captures": [
+        "build/production-correction/captures/native-run-defer-off-cadence",
+        "build/production-correction/captures/native-run-defer-fixed-cadence"
+      ],
+      "recorded_outcome": "Fixed on/off 9.7787/9.6447; insufficient standalone/group benefit. Initial REP/boot mismatch corrected before rejection; history preserved.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 6,
+      "mechanism": "Preserve live caller registers only in memory cold paths",
+      "checkpoint_state": "rejected and removed",
+      "candidate_history": "build/native-perf-run/mem-preserve",
+      "captures": [
+        "build/production-correction/captures/native-run-mem-preserve-cadence",
+        "build/production-correction/captures/native-run-mem-off-bracket-cadence"
+      ],
+      "recorded_outcome": "On/off 9.5900/9.7553; instruction reduction negligible, no net gain. Experiments 5/6 removed together.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 7,
+      "mechanism": "Pure condition-code helper memory contracts",
+      "checkpoint_state": "present",
+      "candidate_history": "build/native-perf-run/flags-ramfree",
+      "captures": [
+        "build/production-correction/captures/native-run-flags-ramfree-cadence"
+      ],
+      "recorded_outcome": "9.89265; focused differential state evidence archived.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 8,
+      "mechanism": "Direct SSE memory-to-XMM lowering",
+      "checkpoint_state": "present",
+      "candidate_history": "build/native-perf-run/sse-direct",
+      "captures": [
+        "build/production-correction/captures/native-run-sse-direct-cadence"
+      ],
+      "recorded_outcome": "9.89307; alignment and precise-fault guards retained.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 9,
+      "mechanism": "Private read-TLB cache",
+      "checkpoint_state": "rejected and removed",
+      "candidate_history": "build/native-perf-run/read-tlb-cache",
+      "captures": [
+        "build/production-correction/captures/native-run-read-tlb-cadence",
+        "build/production-correction/captures/native-run-sse-local-off-cadence",
+        "build/production-correction/captures/native-run-sse-local-on-cadence"
+      ],
+      "recorded_outcome": "9.69388 initial; cache off/on 9.92063/9.92088. No established gain; invalidate/transition test evidence retained.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 10,
+      "mechanism": "CPU-local SSE helper contracts",
+      "checkpoint_state": "present",
+      "candidate_history": "build/native-perf-run/sse-local-helper",
+      "captures": [
+        "build/production-correction/captures/native-run-sse-local-off-cadence",
+        "build/production-correction/captures/native-run-sse-local-on-fresh-cadence"
+      ],
+      "recorded_outcome": "Remains after experiment 9 removal; isolated contribution unresolved. Gather/mask paths retain generic contracts.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 11,
+      "mechanism": "Guarded exact-domain packed MULPS native path",
+      "checkpoint_state": "present, controlled by sse_native=1",
+      "candidate_history": "build/native-perf-run/sse-native-no-cache",
+      "captures": [
+        "build/production-correction/captures/native-run-sse-native-on-cadence",
+        "build/production-correction/captures/native-run-sse-native-off-cadence"
+      ],
+      "recorded_outcome": "On/off 9.97933/9.64535. Scalar exact fallback retained; 65,536 focused oracle comparisons archived.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 12,
+      "mechanism": "Same-register SHUFPS broadcast lowering",
+      "checkpoint_state": "present",
+      "candidate_history": "build/native-perf-run/sse-broadcast",
+      "captures": [
+        "build/production-correction/captures/native-run-sse-broadcast-cadence"
+      ],
+      "recorded_outcome": "10.00351; all selectors/aliases focused comparisons archived.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 13,
+      "mechanism": "Affine normal-RAM access span grouping",
+      "checkpoint_state": "rejected and removed",
+      "candidate_history": "build/native-perf-run/ram-span-fixed",
+      "captures": [
+        "build/production-correction/captures/native-run-ram-span-on-cadence",
+        "build/production-correction/captures/native-run-ram-span-off-cadence"
+      ],
+      "recorded_outcome": "On/off 9.92062/10.09070. Later comparison with FP group also did not justify retention.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 14,
+      "mechanism": "CPU-local F32 operand-pointer helpers",
+      "checkpoint_state": "present, controlled by fp_local=1",
+      "candidate_history": "build/native-perf-run/fp-local-fixed",
+      "captures": [
+        "build/production-correction/captures/native-run-fp-local-on-cadence"
+      ],
+      "recorded_outcome": "9.68935 with then-current span group; enables experiments 15/16. Exact old helpers remain.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 15,
+      "mechanism": "Exact integer normal/zero F32 widening and representable F80 narrowing",
+      "checkpoint_state": "present",
+      "candidate_history": "build/native-perf-run/fp-exact",
+      "captures": [
+        "build/production-correction/captures/native-run-fp-exact-no-span-cadence"
+      ],
+      "recorded_outcome": "10.43085 span off. All difficult encodings/rounding/status cases retain conservative paths.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 16,
+      "mechanism": "preserve_most F32 helper ABI and TCG caller-clobber contracts",
+      "checkpoint_state": "present, controlled by fp_preserve=1",
+      "candidate_history": "build/native-perf-run/fp-preserve-split",
+      "captures": [
+        "build/production-correction/captures/native-run-fp-preserve-no-span-cadence",
+        "build/production-correction/captures/native-run-fp-preserve-span-cadence"
+      ],
+      "recorded_outcome": "Span off/on 10.65798/10.58259; rejected spans removed. Common/fallback full64 register ABI checks archived.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 17,
+      "mechanism": "Secondary two-slot TB jump cache",
+      "checkpoint_state": "present, provisional, jmp_cache2=1",
+      "candidate_history": "build/native-perf-run/jmp-cache2-clean",
+      "captures": [
+        "build/production-correction/captures/native-run-jmp-cache2-on-cadence",
+        "build/production-correction/captures/native-run-jmp-cache2-off-cadence"
+      ],
+      "recorded_outcome": "On/off 10.34674/10.17577; stronger final attribution remains pending. Invalidation covers both caches.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 18,
+      "mechanism": "Generated inline indirect TB-cache lookup",
+      "checkpoint_state": "present, controlled by inline_lookup=1",
+      "candidate_history": "build/native-perf-run/inline-lookup",
+      "captures": [
+        "build/production-correction/captures/native-run-inline-lookup-cadence",
+        "build/production-correction/captures/native-run-inline-lookup-off-cadence"
+      ],
+      "recorded_outcome": "On/off 10.444213/10.175897. Debug/architecture eligibility guards and original state/call-clobber contracts retained.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 19,
+      "mechanism": "Move dispatcher-transition barriers to cache-miss path",
+      "checkpoint_state": "present, controlled by lookup_no_bridges=1",
+      "candidate_history": "build/native-perf-run/lookup-bridges",
+      "captures": [
+        "build/production-correction/captures/native-run-lookup-bridges-cadence"
+      ],
+      "recorded_outcome": "10.713931 first, temperatures differ. Guest memory ordering not removed; concurrent visibility checks archived.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 20,
+      "mechanism": "Vector acquire-pair cache loads",
+      "checkpoint_state": "rejected and removed",
+      "candidate_history": "build/native-perf-run/vector-acquire",
+      "captures": [
+        "build/production-correction/captures/native-run-vector-acquire-cadence",
+        "build/production-correction/captures/native-run-vector-acquire-off-cadence"
+      ],
+      "recorded_outcome": "On/off 10.372390/10.684379; slower.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 21,
+      "mechanism": "Copied inline FMUL exact fast path",
+      "checkpoint_state": "rejected and removed",
+      "candidate_history": "build/native-perf-run/inline-fmul",
+      "captures": [
+        "build/production-correction/captures/native-run-inline-fmul-cadence"
+      ],
+      "recorded_outcome": "10.389087 first; experiment 21/22 group did not improve cadence.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 22,
+      "mechanism": "Conditional live caller-register cold-save ABI for experiment 21",
+      "checkpoint_state": "rejected and removed",
+      "candidate_history": "build/native-perf-run/inline-fp-preserve",
+      "captures": [
+        "build/production-correction/captures/native-run-inline-fp-preserve-cadence",
+        "build/production-correction/captures/native-run-inline-fp-off-cadence"
+      ],
+      "recorded_outcome": "Group on/off 10.443052/10.572924; no workload cold-save coverage. Forced-pressure correctness harness remains useful.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 23,
+      "mechanism": "Shared preserve_most exact FMUL leaf helper",
+      "checkpoint_state": "present, disabled, provisional: fmul_shared=0",
+      "candidate_history": "build/native-perf-run/shared-fmul",
+      "captures": [
+        "build/production-correction/captures/native-run-shared-fmul-cadence",
+        "build/production-correction/captures/native-run-shared-fmul-off-cadence"
+      ],
+      "recorded_outcome": "On/off 10.402199/10.334001 with matching battery temperature; gain unestablished. Preserved faithfully without promotion to accepted optimization.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 24,
+      "mechanism": "Existing absolute-PC TCG translation mode",
+      "checkpoint_state": "present, provisional: tcg_absolute_pc=1",
+      "candidate_history": "build/native-perf-run/absolute-pc",
+      "captures": [
+        "build/production-correction/captures/native-run-absolute-pc-on-cadence",
+        "build/production-correction/captures/native-run-absolute-pc-off-cadence"
+      ],
+      "recorded_outcome": "On/off 10.802272/10.637121 (~1.55%); confirmation pending. Alias/exception/SMC/interrupt-focused checks archived.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 25,
+      "mechanism": "Shared generated indirect lookup routines",
+      "checkpoint_state": "present, provisional: lookup_shared=1; publication fix included",
+      "candidate_history": "build/native-perf-run/shared-lookup-fixed",
+      "captures": [
+        "build/production-correction/captures/native-run-shared-lookup-on-cadence",
+        "build/production-correction/captures/native-run-shared-lookup-off-cadence",
+        "build/production-correction/captures/native-run-shared-lookup-repeat-on-cadence"
+      ],
+      "recorded_outcome": "On/off 11.167992/10.459151; repeat on 11.376308. Corrected early publication on duplicate-TB rollback; fixed focused suite archived. Final matched comparison/broad validation unfinished.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    },
+    {
+      "number": 26,
+      "mechanism": "Two pinned host registers for TLB descriptor residency",
+      "checkpoint_state": "rejected and removed",
+      "candidate_history": "build/native-perf-run/tlb-resident-lifetime",
+      "captures": [
+        "build/production-correction/captures/native-run-tlb-resident-on-cadence",
+        "build/production-correction/captures/native-run-tlb-resident-off-cadence"
+      ],
+      "recorded_outcome": "On/off 11.077427/11.394535; slower. Forced-resize MOVSD and duplicate-publication regression tests preserved after runtime rollback.",
+      "metric": "NV097 guest flip submissions per wall-clock second; not calibrated simulation speed",
+      "evidence": "evidence.tar.gz and capture/package/validation records; chronological detail in ../native-perf-progress.md"
+    }
+  ],
+  "retention_warning": "Present means reproduced in the working candidate, not final acceptance under the original success/correctness contract. Group attribution, broad validation and native certification remain unfinished."
+}

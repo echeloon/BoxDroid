@@ -1,0 +1,33 @@
+{
+  "id": 41,
+  "status": "rejected_runtime_removed",
+  "purpose": "Hide dependent primary-TB metadata load latency behind unchanged generated-lookup eligibility checks",
+  "patch": "../../../patches/xemu/0051-tb-lookup-pipeline-experiment.patch",
+  "control": "lookup_pipeline1 candidate;0 default/original scheduling, process-latched",
+  "build": "tb-lookup-pipeline-20261015",
+  "apk": "9e88ae7585b4c966e02b4480c85f6eb1c9df7e4e5a805f9630bcd57d1872e575",
+  "source_diff": "5c7ad9d6f0adaf52a43a2079ba365f25ad3cb5ac263661d74a6657aa5d136790",
+  "correctness": "Early primary probe checks full32-bitPC+generation key before any TB dereference, nulls nonmatching pointer. Only immutable cs_base fetched early under cpu_exec RCU. All debugger/mode/logging/audit/flag/cflags tests retained, mutable cflags/INVALID checked in original late position; secondary path and C fallback unchanged. Exclusive code-cache lifetime, page/SMC invalidation and interrupts unchanged. X9 is already caller-clobbered by ordinary lookup helper ABI; no private-F32 preserve_most change.",
+  "validation": "Full focused ON/OFF suites PASS: active pipeline1/0, primary271/secondary15 hits, stale-PC/generation rejection before dereference, wrapclear, CR3 reload/remap, code-page faults, page/SMC/global invalidation, precise state and IRQ/MMIO/ordering tests.",
+  "performance": {
+    "on": 11.766946449012513,
+    "on_audio_missing": 0.05046666666666667,
+    "on_battery_tenths_c": 332,
+    "off": 11.989520988591844,
+    "off_audio_missing": 0.05164227642276423,
+    "off_battery_tenths_c": 335,
+    "pmu_per_timestamp_flip": {
+      "on": {
+        "cpu-cycles:u": 221367039.7895739,
+        "instructions:u": 439666358.0237234,
+        "branch-misses:u": 1061112.8880987023
+      },
+      "off": {
+        "cpu-cycles:u": 216358782.6790671,
+        "instructions:u": 437115380.37381303,
+        "branch-misses:u": 1010092.7174102886
+      }
+    }
+  },
+  "acceptance": "ON11.766946 versus sameAPK OFF11.989521, ON cooler33.2C versus33.5C OFF. No real-progress benefit. Focused ON/OFF suites PASS. Rejected and fully reversed, exact patch archived. Paired PMU complete; no useful gain."
+}

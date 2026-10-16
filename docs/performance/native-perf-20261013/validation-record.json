@@ -1,0 +1,1233 @@
+[
+  {
+    "directory": "build/native-perf-run/absolute-pc-alias-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "99e311d89a056f0049043a6f86af4c905faa8ff3d9e55ffc226cc3ab09a2c5d7",
+      "test_source_sha256": "bd1e4d5c75f02ccbed9960f6ec2e5266a496cdb22ab64b19157fbc74d329871e",
+      "executable_sha256": "bbf5544f7c3d4a9920bfe306805b648796851263acace44357e84e34881cfec4",
+      "core_sha256": "6a5af2bbc07dbbc48a92c0149b2538827d400a197916b88158c719130cdd778b",
+      "runtime_source_sha256": "9d9807a220e4fd44b7b4690cabb209a50e7f9fb286a3bcadde7859b05c4d72f8",
+      "mode": "0",
+      "device_controls": {
+        "tcg_absolute_pc": "1",
+        "fmul_shared": "0",
+        "fp_local": "1",
+        "fp_preserve": "1",
+        "sse_native": "1",
+        "jmp_cache2": "1",
+        "inline_lookup": "1",
+        "lookup_no_bridges": "1",
+        "inline_lookup_count": "1"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/absolute-pc-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "99e311d89a056f0049043a6f86af4c905faa8ff3d9e55ffc226cc3ab09a2c5d7",
+      "test_source_sha256": "b1e5b3edeab19c353f825dc064c06786cf182a9f78493254bf3794a644c1dcb9",
+      "executable_sha256": "5c3b382dbd59140e83a3ee9ddae760ccba62e0b81fb3f3dbf6ed573cf131fad7",
+      "core_sha256": "6a5af2bbc07dbbc48a92c0149b2538827d400a197916b88158c719130cdd778b",
+      "runtime_source_sha256": "9d9807a220e4fd44b7b4690cabb209a50e7f9fb286a3bcadde7859b05c4d72f8",
+      "mode": "0",
+      "device_controls": {
+        "tcg_absolute_pc": "1",
+        "fmul_shared": "0",
+        "fp_local": "1",
+        "fp_preserve": "1",
+        "sse_native": "1",
+        "jmp_cache2": "1",
+        "inline_lookup": "1",
+        "lookup_no_bridges": "1",
+        "inline_lookup_count": "1"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/durable-harness-mode2-fixed",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "28902981e7e03255d46d52ce7a7126ff8eda1b32231de1f6526f59a467dc51de",
+      "test_source_sha256": "7da4236fe450ef99cf9c37ca7d6d4cc2283fb73954dca7814adc4591cf1c6b3b",
+      "executable_sha256": "80822470d730e55c24af3af308482fffd6482bf041e7e0e9a4562c825dafc99b",
+      "core_sha256": "1528549ee55690a3de570c4f95b1e68d691b23ccbac917d76fade7da4f4780e2",
+      "runtime_source_sha256": "922b333a4ab30a97b8d2f2137dd3ee652373f338a813095b3b4b6635db88f8f8",
+      "mode": "2"
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/flags-ramfree-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "e01d7b7288f15859e26cdd61bb3190dd86fcf257abf7d87e9d6c4a82110587c3",
+      "test_source_sha256": "7da4236fe450ef99cf9c37ca7d6d4cc2283fb73954dca7814adc4591cf1c6b3b",
+      "executable_sha256": "745f84999ba9a7bb9a01b8b6deabdfdb3048fc6cd1ff4b9ecf2c08bb41c8d70d",
+      "core_sha256": "795bc8e28dbede503e2296f3357698eb4ac094997aceba406f1123320d2152b8",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0"
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/fp-exact-boundary-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "5985150f82ce941c87564d3be4718a47e5ef05a8a4c143aa7368cb22b6279253",
+      "test_source_sha256": "a4c1eeecffafa59c270c8ae621b145052abd04e449a4b1fdc0fb0ba9a48f3ea9",
+      "executable_sha256": "0e3ebe294ebde5f6c7f525bbdf6eada37e0a6a524ceee2ee1ec65605dfac4a10",
+      "core_sha256": "db7d454cde2dbf8be0f7553455660d1de75998feb3a5ea6cfccf03662cce641d",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0",
+      "device_controls": {
+        "defer_globals": "0",
+        "read_tlb_cache": "0",
+        "sse_native": "1",
+        "ram_span": "1",
+        "fp_local": "1",
+        "tcg_ordered": "4",
+        "fast_fpu": "1",
+        "tcg_dump": "0",
+        "diagnostics": "0",
+        "fpu_audit": "0",
+        "order_audit": "0"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/fp-exact-fault-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "5985150f82ce941c87564d3be4718a47e5ef05a8a4c143aa7368cb22b6279253",
+      "test_source_sha256": "61821c4b2e0ed942833f81c67dd2701d6cf19e1c991d5c31a0dd982420081060",
+      "executable_sha256": "a9be9aa7d8e7e29db5143262fb69274e6c57455f0aa0b192a0fe4a9d77c92135",
+      "core_sha256": "db7d454cde2dbf8be0f7553455660d1de75998feb3a5ea6cfccf03662cce641d",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0",
+      "device_controls": {
+        "defer_globals": "0",
+        "read_tlb_cache": "0",
+        "sse_native": "1",
+        "ram_span": "1",
+        "fp_local": "1",
+        "tcg_ordered": "4",
+        "fast_fpu": "1",
+        "tcg_dump": "0",
+        "diagnostics": "0",
+        "fpu_audit": "0",
+        "order_audit": "0"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/fp-exact-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "5985150f82ce941c87564d3be4718a47e5ef05a8a4c143aa7368cb22b6279253",
+      "test_source_sha256": "5ce42fca74e94e37b9f18c7783a89c141823b549cb8429639f0a1aae5c3c5e8e",
+      "executable_sha256": "8d3c3470bfa0b66e6fcfc3c29e3820e528bcd0d072111946b673e85a4864c90d",
+      "core_sha256": "db7d454cde2dbf8be0f7553455660d1de75998feb3a5ea6cfccf03662cce641d",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0",
+      "device_controls": {
+        "defer_globals": "0",
+        "read_tlb_cache": "0",
+        "sse_native": "1",
+        "ram_span": "1",
+        "fp_local": "1",
+        "tcg_ordered": "4",
+        "fast_fpu": "1",
+        "tcg_dump": "0",
+        "diagnostics": "0",
+        "fpu_audit": "0",
+        "order_audit": "0"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/fp-local-fixed-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "33eed43ff587ff58fa928a6a6b2cb1d391284c269da5db71d33e539fe23a0a76",
+      "test_source_sha256": "c47b28a93b64dc7b4751016b73cdd27344a7e86b8c0b0be43ad471f901d0465f",
+      "executable_sha256": "e549af5f63e49e66473f1feb88bb3c0a9c69431063f24808ae36074d283d5e5c",
+      "core_sha256": "258fb28fb5b9c0ebae012fbbdb34ddac6c72440c4f815bf9e2f328208ec3e0d1",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0",
+      "device_controls": {
+        "defer_globals": "0",
+        "read_tlb_cache": "0",
+        "sse_native": "1",
+        "ram_span": "1",
+        "fp_local": "1",
+        "tcg_ordered": "4",
+        "fast_fpu": "1",
+        "tcg_dump": "0",
+        "diagnostics": "0",
+        "fpu_audit": "0",
+        "order_audit": "0"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/fp-local-off-oracle-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "33eed43ff587ff58fa928a6a6b2cb1d391284c269da5db71d33e539fe23a0a76",
+      "test_source_sha256": "26441eb574de568765d89c58487a3e488957aa8d60da6a60bcab9711f9b11dfa",
+      "executable_sha256": "75fefefa4eb96fadb9b1cbcaf1e1be17a6a08971ce2b6bc7ca1a9b9a951b9047",
+      "core_sha256": "258fb28fb5b9c0ebae012fbbdb34ddac6c72440c4f815bf9e2f328208ec3e0d1",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0",
+      "device_controls": {
+        "defer_globals": "0",
+        "read_tlb_cache": "0",
+        "sse_native": "0",
+        "ram_span": "0",
+        "fp_local": "0",
+        "tcg_ordered": "4",
+        "fast_fpu": "1",
+        "tcg_dump": "0",
+        "diagnostics": "0",
+        "fpu_audit": "0",
+        "order_audit": "0"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/fp-local-oracle-debug-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "33eed43ff587ff58fa928a6a6b2cb1d391284c269da5db71d33e539fe23a0a76",
+      "test_source_sha256": "3525f0c6b2d1b08d7e5d195ac1f6ce313f565806d50939202b0a3b1de33577b4",
+      "executable_sha256": "65218afbb79a0257a56315cf027127d6b2d6331b1324063c8da05d09846efdb8",
+      "core_sha256": "258fb28fb5b9c0ebae012fbbdb34ddac6c72440c4f815bf9e2f328208ec3e0d1",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0",
+      "device_controls": {
+        "defer_globals": "0",
+        "read_tlb_cache": "0",
+        "sse_native": "1",
+        "ram_span": "1",
+        "fp_local": "1",
+        "tcg_ordered": "4",
+        "fast_fpu": "1",
+        "tcg_dump": "0",
+        "diagnostics": "0",
+        "fpu_audit": "0",
+        "order_audit": "0"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/fp-local-oracle-fixed-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "33eed43ff587ff58fa928a6a6b2cb1d391284c269da5db71d33e539fe23a0a76",
+      "test_source_sha256": "26441eb574de568765d89c58487a3e488957aa8d60da6a60bcab9711f9b11dfa",
+      "executable_sha256": "e68d064ec58d20357c4ff57f12b9fa7cb6043072f393a7bbe9db6f49fc27f191",
+      "core_sha256": "258fb28fb5b9c0ebae012fbbdb34ddac6c72440c4f815bf9e2f328208ec3e0d1",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0",
+      "device_controls": {
+        "defer_globals": "0",
+        "read_tlb_cache": "0",
+        "sse_native": "1",
+        "ram_span": "1",
+        "fp_local": "1",
+        "tcg_ordered": "4",
+        "fast_fpu": "1",
+        "tcg_dump": "0",
+        "diagnostics": "0",
+        "fpu_audit": "0",
+        "order_audit": "0"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/fp-local-tag-host-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "6c07211d60aeab8a826a9c812d2e257b6ecb07dd0145e1ff350c99ba1085daf0",
+      "test_source_sha256": "07fc5b312a53b6520e9ae53c1af4f814af2c37f2cb1074ba3fdf5716f78a1c1e",
+      "executable_sha256": "2ebafdb1d0742d1d8c5216432ed3d590eb71e807ca4f6675cd07e97a9bda8507",
+      "core_sha256": "b0344654c8851212eff4cf96a2c50d1c00da6b2f9eb355662ff61e41d14ac5ca",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0"
+    },
+    "result_log_archived": false
+  },
+  {
+    "directory": "build/native-perf-run/fp-preserve-off-host-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "f04ee3cd5277a6764a2ab92ef08cd437c9db3898e2b55d4768454d6cae6cc189",
+      "test_source_sha256": "389480abd47be9870f3f02db57f7c081660c224c849e054bddaa39fe89cffae9",
+      "executable_sha256": "a52396716300331014dacb959a825746f11fcd87d9146bded057d7b35edb093a",
+      "core_sha256": "9e4b746653dd27247d4b38f36e2168f377641ee306f041b32c73656f5672ed5f",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0"
+    },
+    "result_log_archived": false
+  },
+  {
+    "directory": "build/native-perf-run/fp-preserve-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "f04ee3cd5277a6764a2ab92ef08cd437c9db3898e2b55d4768454d6cae6cc189",
+      "test_source_sha256": "389480abd47be9870f3f02db57f7c081660c224c849e054bddaa39fe89cffae9",
+      "executable_sha256": "12b95a0852b56de42cabae8c4117d45dd065619b50bcfba656da71312f144113",
+      "core_sha256": "9e4b746653dd27247d4b38f36e2168f377641ee306f041b32c73656f5672ed5f",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0",
+      "device_controls": {
+        "defer_globals": "0",
+        "read_tlb_cache": "0",
+        "sse_native": "1",
+        "ram_span": "1",
+        "fp_local": "1",
+        "fp_preserve": "1",
+        "tcg_ordered": "4",
+        "fast_fpu": "1",
+        "tcg_dump": "0",
+        "diagnostics": "0",
+        "fpu_audit": "0",
+        "order_audit": "0"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/inline-fmul-clean-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "bf2c1681e086f1b37de8372efe353a6af034df5176cf9f72afd46c55e9b0c7fa",
+      "test_source_sha256": "74c3f28e4ccc6f35c490af125432330e6de8e307dd968329a6acf94199747f41",
+      "executable_sha256": "5203d08e24ed996f60a9fce8cfb89125c12142dff9dafcc3becbded9dd66ed1e",
+      "core_sha256": "a641a67a85d16407182a379bc236f511919ad7ea6256a651f3891e59af3aebe8",
+      "runtime_source_sha256": "76cd0b7c417920534b580d5da910e012d271c7e5d4823a79375f3a13c43bcf71",
+      "mode": "0",
+      "device_controls": {
+        "inline_lookup": "1",
+        "inline_lookup_count": "1",
+        "lookup_no_bridges": "1",
+        "inline_fmul": "1",
+        "jmp_cache2": "1",
+        "fp_local": "1",
+        "fp_preserve": "1",
+        "sse_native": "1"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/inline-fp-preserve-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "dfa0f42c9a3f7a42a65139cc543c2a66caec120d8cfc4246bed2a105d37aff55",
+      "test_source_sha256": "e616bc87c0b5c9916aabd87e070ddd0610bde38e75364cbc8596fc461bed3be6",
+      "executable_sha256": "e1c0320cc1c6f215c34296903057079f7f23f8e52f2c22493523f3fc58afbf24",
+      "core_sha256": "59b7486862ba45ef4ecacce23c95ae36d0e9a348d034a29da0f3d857296cb5b4",
+      "runtime_source_sha256": "76cd0b7c417920534b580d5da910e012d271c7e5d4823a79375f3a13c43bcf71",
+      "mode": "0",
+      "device_controls": {
+        "inline_lookup": "1",
+        "inline_lookup_count": "1",
+        "lookup_no_bridges": "1",
+        "inline_fmul": "1",
+        "inline_fp_preserve": "1",
+        "jmp_cache2": "1",
+        "fp_local": "1",
+        "fp_preserve": "1",
+        "sse_native": "1"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/inline-fp-pressure-tests-fixed",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "dfa0f42c9a3f7a42a65139cc543c2a66caec120d8cfc4246bed2a105d37aff55",
+      "test_source_sha256": "eda390b67be38f52f6a0894147e2899d394ffacebf3b1e99d4c6060ac367aed7",
+      "executable_sha256": "615d70f2daf81d9f9338854b2ac61b27f13af9d068f7f70a6c79a02be246275b",
+      "core_sha256": "59b7486862ba45ef4ecacce23c95ae36d0e9a348d034a29da0f3d857296cb5b4",
+      "runtime_source_sha256": "76cd0b7c417920534b580d5da910e012d271c7e5d4823a79375f3a13c43bcf71",
+      "mode": "0",
+      "device_controls": {
+        "inline_lookup": "1",
+        "inline_lookup_count": "1",
+        "lookup_no_bridges": "1",
+        "inline_fmul": "1",
+        "inline_fp_preserve": "1",
+        "jmp_cache2": "1",
+        "fp_local": "1",
+        "fp_preserve": "1",
+        "sse_native": "1"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/inline-fp-pressure-tests-wrapped",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "dfa0f42c9a3f7a42a65139cc543c2a66caec120d8cfc4246bed2a105d37aff55",
+      "test_source_sha256": "93d87b791c50e7201ed3f3671cba61b27a71750f9763c06deb3b585052a605bc",
+      "executable_sha256": "893fa29ce634dc28a0c70df7fd7dddebc8a9af3486ee7ed1ca2d8204eb5cc042",
+      "core_sha256": "59b7486862ba45ef4ecacce23c95ae36d0e9a348d034a29da0f3d857296cb5b4",
+      "runtime_source_sha256": "76cd0b7c417920534b580d5da910e012d271c7e5d4823a79375f3a13c43bcf71",
+      "mode": "0",
+      "device_controls": {
+        "inline_lookup": "1",
+        "inline_lookup_count": "1",
+        "lookup_no_bridges": "1",
+        "inline_fmul": "1",
+        "inline_fp_preserve": "1",
+        "jmp_cache2": "1",
+        "fp_local": "1",
+        "fp_preserve": "1",
+        "sse_native": "1"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/inline-lookup-secondary-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "824dd3f6c4d142dd7ccfa0d05f33f29f89d50268bb1a1fd22babc2f64cc087ee",
+      "test_source_sha256": "90d6a3c40d3ff116cfe966b3c7077d4b21de0491d47020d4d8009c662d431617",
+      "executable_sha256": "9c29737ba433b53c3082e78ef6b05f5d0539c51c3ce5967bd8ad4d23b213fa0b",
+      "core_sha256": "8a005e7b6de819bfab9aa4d9b37ef09592df61530b8edcf07d8ac3e9538b7a5d",
+      "runtime_source_sha256": "76cd0b7c417920534b580d5da910e012d271c7e5d4823a79375f3a13c43bcf71",
+      "mode": "0",
+      "device_controls": {
+        "inline_lookup": "1",
+        "inline_lookup_count": "1",
+        "jmp_cache2": "1",
+        "fp_local": "1",
+        "fp_preserve": "1",
+        "sse_native": "1"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/inline-lookup-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "e8da991d6784975c4d28c053e2c43a39ad2a82c5d51dfc4e83e843acc4e54b0b",
+      "test_source_sha256": "bc941c6826926d02aff3cfb47c04efd938ee6e9950843708f366f8ad0fa51a0d",
+      "executable_sha256": "8f84818a6729b6f67e33ee07c5d605a313e7db6f497bf66e35cde2a6b831c432",
+      "core_sha256": "f98d72cd5889bb150c93d725a2922dcc2b4cb75040ec30d228eea303dcd9fbdf",
+      "runtime_source_sha256": "76cd0b7c417920534b580d5da910e012d271c7e5d4823a79375f3a13c43bcf71",
+      "mode": "0",
+      "device_controls": {
+        "defer_globals": "0",
+        "read_tlb_cache": "0",
+        "sse_native": "1",
+        "ram_span": "0",
+        "fp_local": "1",
+        "fp_preserve": "1",
+        "jmp_cache2": "1",
+        "tcg_ordered": "4",
+        "fast_fpu": "1",
+        "tcg_dump": "0",
+        "diagnostics": "0",
+        "fpu_audit": "0",
+        "order_audit": "0",
+        "inline_lookup": "1",
+        "inline_lookup_count": "1"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/inline-lookup-tests-fixed",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "993ce29670d553d88a0393523fc2dfd7042ec629597eaf4f30d12aae4363e429",
+      "test_source_sha256": "bc941c6826926d02aff3cfb47c04efd938ee6e9950843708f366f8ad0fa51a0d",
+      "executable_sha256": "75e8a928b0329f34b9f94f36978270859264542369ebe855c0a3ad254926248f",
+      "core_sha256": "768b53bcf4e28907c4fe774e4eec932f9a48e11375dd4bed1806f974e635f49d",
+      "runtime_source_sha256": "76cd0b7c417920534b580d5da910e012d271c7e5d4823a79375f3a13c43bcf71",
+      "mode": "0",
+      "device_controls": {
+        "defer_globals": "0",
+        "read_tlb_cache": "0",
+        "sse_native": "1",
+        "ram_span": "0",
+        "fp_local": "1",
+        "fp_preserve": "1",
+        "jmp_cache2": "1",
+        "tcg_ordered": "4",
+        "fast_fpu": "1",
+        "tcg_dump": "0",
+        "diagnostics": "0",
+        "fpu_audit": "0",
+        "order_audit": "0",
+        "inline_lookup": "1",
+        "inline_lookup_count": "1"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/jmp-cache2-clean-host-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "a9ec1fe7f12ff04369ef6a55f25f9d915d7502fe52a53b2c2131668152e45dcb",
+      "test_source_sha256": "2b64b9c9ed0063726e83820ddcd71367552873c72d13cda18f35e73ac91d2187",
+      "executable_sha256": "3d31f1fcee25408b05adcc4eabfd7fdd66e6bff797c5bfd54f654e8796e468c9",
+      "core_sha256": "1e73d6870ede4c1e627ee9c657353d7b8aa8da70be2258bca19d10746003315e",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0"
+    },
+    "result_log_archived": false
+  },
+  {
+    "directory": "build/native-perf-run/jmp-cache2-clean-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "a9ec1fe7f12ff04369ef6a55f25f9d915d7502fe52a53b2c2131668152e45dcb",
+      "test_source_sha256": "2b64b9c9ed0063726e83820ddcd71367552873c72d13cda18f35e73ac91d2187",
+      "executable_sha256": "acf8d22b539e2ce8532e2ab0415bc82d4721d4b410fd77180dc8a255477af6f0",
+      "core_sha256": "1e73d6870ede4c1e627ee9c657353d7b8aa8da70be2258bca19d10746003315e",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0",
+      "device_controls": {
+        "defer_globals": "0",
+        "read_tlb_cache": "0",
+        "sse_native": "1",
+        "ram_span": "0",
+        "fp_local": "1",
+        "fp_preserve": "1",
+        "jmp_cache2": "1",
+        "tcg_ordered": "4",
+        "fast_fpu": "1",
+        "tcg_dump": "0",
+        "diagnostics": "0",
+        "fpu_audit": "0",
+        "order_audit": "0"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/jmp-cache2-fixed-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "e5c7691038eb9fb683369958b4750c2d1bf8bcde4c33bf2cdd7175d935dd4acf",
+      "test_source_sha256": "2b64b9c9ed0063726e83820ddcd71367552873c72d13cda18f35e73ac91d2187",
+      "executable_sha256": "7579fb714b7d33a1e494f9009312a08d45452ce5b8964c9d51781cd31ac5c20e",
+      "core_sha256": "c2ea4d130f98f774ec926974caf7c5ce4ec73aa4fe6d194bff7ebfbb40ba26c3",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0",
+      "device_controls": {
+        "defer_globals": "0",
+        "read_tlb_cache": "0",
+        "sse_native": "1",
+        "ram_span": "0",
+        "fp_local": "1",
+        "fp_preserve": "1",
+        "jmp_cache2": "1",
+        "tcg_ordered": "4",
+        "fast_fpu": "1",
+        "tcg_dump": "0",
+        "diagnostics": "0",
+        "fpu_audit": "0",
+        "order_audit": "0"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/lookup-bridges-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "8b2b4e3a30bdb0eaa37ecb0724305be13df5f82a7854635af53ad910a566230a",
+      "test_source_sha256": "04690dc773b8600f45336372378d3e3d4136a3b770e4cd9e62156885f61577f2",
+      "executable_sha256": "07be17a5ac61c8f4e3aedf60294318f359c2a44bd5006ab3f44cec2f6b0979a5",
+      "core_sha256": "d1f78ee07a2ff3037409c51889976de4e8777075d32087ec0b8c08dbca1f8adb",
+      "runtime_source_sha256": "76cd0b7c417920534b580d5da910e012d271c7e5d4823a79375f3a13c43bcf71",
+      "mode": "0",
+      "device_controls": {
+        "inline_lookup": "1",
+        "inline_lookup_count": "1",
+        "lookup_no_bridges": "1",
+        "jmp_cache2": "1",
+        "fp_local": "1",
+        "fp_preserve": "1",
+        "sse_native": "1"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/ram-span-fixed-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "d7c175d726481355bfa50aa273ddf2b943059cd8414da8a37d8c372e0de6e3be",
+      "test_source_sha256": "ae95520dceab8ed2efdaedb0d4e1976793100ba697d12e4b35f10c1b6adf04fc",
+      "executable_sha256": "5df2cf8ef608f59bc26d1fa3d5d7cfc6b758025330e1365d7f9a2bd2729a432a",
+      "core_sha256": "3696c91f2ab622cae458ea3910dacb0df878140306ea4c46371bced1f89fc3fb",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0",
+      "device_controls": {
+        "defer_globals": "0",
+        "read_tlb_cache": "0",
+        "sse_native": "1",
+        "ram_span": "1",
+        "tcg_ordered": "4",
+        "fast_fpu": "1",
+        "tcg_dump": "0",
+        "diagnostics": "0",
+        "fpu_audit": "0",
+        "order_audit": "0"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/ram-span-on-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "530386e1fa13c5605cecfd7897536d34b29f3b44d94869ee89d0a66367a23670",
+      "test_source_sha256": "24fc84481dee334ed91a12669287b0af418553636c63a96117e490cf1aa368d9",
+      "executable_sha256": "bb95ecd79c8a670e8f34d1f0f000d2d8f905f0087f235855bc5b7b331597856d",
+      "core_sha256": "1ed674f125d7069bfa278a7c412f0d268a0c7ef395f339b56b62c9570caa1b76",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0",
+      "device_controls": {
+        "defer_globals": "0",
+        "read_tlb_cache": "0",
+        "sse_native": "1",
+        "ram_span": "1",
+        "tcg_ordered": "4",
+        "fast_fpu": "1",
+        "tcg_dump": "0",
+        "diagnostics": "0",
+        "fpu_audit": "0",
+        "order_audit": "0"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/read-tlb-cache-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "219222da4c5f97ec94efb742cd9213bc60a669f68e0bd7154960f2f2b66f4777",
+      "test_source_sha256": "889f5ecc0e3b777d71176d9c20840270882ee27519af89314e297ca02db42eff",
+      "executable_sha256": "40e4451542282ff2f1b2c2e3fc23cbfa3b1cdae63f94dbd88e997367f4df7c05",
+      "core_sha256": "6f73c54fe9535023c64de2bba92669a9361bfdb5b52bafe11e9fcbb598af6031",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0"
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/read-tlb-io-resume-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "219222da4c5f97ec94efb742cd9213bc60a669f68e0bd7154960f2f2b66f4777",
+      "test_source_sha256": "f41fe540fe6b1a99548fbf4d9d7479415c6ce06a02f344bb12f0faaf605cff3a",
+      "executable_sha256": "872bb4cbbcff1b486e73fb2de7ad219b750df639c503a452959b9fb8dc3fd590",
+      "core_sha256": "6f73c54fe9535023c64de2bba92669a9361bfdb5b52bafe11e9fcbb598af6031",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0",
+      "device_controls": {
+        "defer_globals": "0",
+        "read_tlb_cache": "1",
+        "tcg_ordered": "4",
+        "fast_fpu": "1",
+        "tcg_dump": "0",
+        "diagnostics": "0",
+        "fpu_audit": "0",
+        "order_audit": "0"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/read-tlb-paused-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "219222da4c5f97ec94efb742cd9213bc60a669f68e0bd7154960f2f2b66f4777",
+      "test_source_sha256": "e1bd4f41d6565c03079371a7825f3a385a8610613219612ca3dac5140a74fe50",
+      "executable_sha256": "6ebd869cf8c845aa2fc3daf094b232e46c2c5b324eea7e7077695afa82303b92",
+      "core_sha256": "6f73c54fe9535023c64de2bba92669a9361bfdb5b52bafe11e9fcbb598af6031",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0"
+    },
+    "result_log_archived": false
+  },
+  {
+    "directory": "build/native-perf-run/read-tlb-transition-off-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "219222da4c5f97ec94efb742cd9213bc60a669f68e0bd7154960f2f2b66f4777",
+      "test_source_sha256": "7d0914c624eb6925d0a74ce2f34eab16934123cb978b3cba5fec923e856df695",
+      "executable_sha256": "f8c942103973d2d69d27d47f6cb630cd6417f02b816a3788b53790029b1d920d",
+      "core_sha256": "6f73c54fe9535023c64de2bba92669a9361bfdb5b52bafe11e9fcbb598af6031",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0",
+      "device_controls": {
+        "defer_globals": "0",
+        "read_tlb_cache": "0",
+        "tcg_ordered": "4",
+        "fast_fpu": "1",
+        "tcg_dump": "0",
+        "diagnostics": "0",
+        "fpu_audit": "0",
+        "order_audit": "0"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/read-tlb-transition-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "219222da4c5f97ec94efb742cd9213bc60a669f68e0bd7154960f2f2b66f4777",
+      "test_source_sha256": "9937e358c806083a70c4e26b29bbf98752ecb083db87064d14c3ddcab3be1c75",
+      "executable_sha256": "8c7711f8e3bb5bf094c504e0718e952d37467cd832ca2ce6f40b77ab5b543065",
+      "core_sha256": "6f73c54fe9535023c64de2bba92669a9361bfdb5b52bafe11e9fcbb598af6031",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0"
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/read-tlb-vcpu-off-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "219222da4c5f97ec94efb742cd9213bc60a669f68e0bd7154960f2f2b66f4777",
+      "test_source_sha256": "0fa9d186f621251d4e48e615f1931510281404170b6ab8e90c3f632eba8dff9d",
+      "executable_sha256": "519a61e539fb0247c33dbc5267026876a5cff8425774b2529856a9a142d5d0d0",
+      "core_sha256": "6f73c54fe9535023c64de2bba92669a9361bfdb5b52bafe11e9fcbb598af6031",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0",
+      "device_controls": {
+        "defer_globals": "0",
+        "read_tlb_cache": "0",
+        "tcg_ordered": "4",
+        "fast_fpu": "1",
+        "tcg_dump": "0",
+        "diagnostics": "0",
+        "fpu_audit": "0",
+        "order_audit": "0"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/read-tlb-vcpu-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "219222da4c5f97ec94efb742cd9213bc60a669f68e0bd7154960f2f2b66f4777",
+      "test_source_sha256": "0fa9d186f621251d4e48e615f1931510281404170b6ab8e90c3f632eba8dff9d",
+      "executable_sha256": "94ed54eaf06bae373bb9b2cfe482890846e1778ae14667910aab9b044b6f84fd",
+      "core_sha256": "6f73c54fe9535023c64de2bba92669a9361bfdb5b52bafe11e9fcbb598af6031",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0"
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/read-tlb-warm-fault-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "219222da4c5f97ec94efb742cd9213bc60a669f68e0bd7154960f2f2b66f4777",
+      "test_source_sha256": "1a362c60d1b9c2bb7fa0da73a5f733042c52b1353759f582a6492b643087a5e7",
+      "executable_sha256": "c3e8d210edcda130f6b670e571d937f8d49fd850583ae3e47277b08cd746c69e",
+      "core_sha256": "6f73c54fe9535023c64de2bba92669a9361bfdb5b52bafe11e9fcbb598af6031",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0"
+    },
+    "result_log_archived": false
+  },
+  {
+    "directory": "build/native-perf-run/shared-fmul-abi-observer-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "558b4ba255eb70820a38cf21db0e62e10b5c7c7efac3cd77eba771389164e09d",
+      "test_source_sha256": "b1e5b3edeab19c353f825dc064c06786cf182a9f78493254bf3794a644c1dcb9",
+      "executable_sha256": "22225138071722718850ae29498436f42810b7d51d299db6facb9d02639ca08a",
+      "core_sha256": "149c1654be103cf7d826f8499fb3d0aec04cd2e71a7a6a22ac3cd0bdcbb8c3b9",
+      "runtime_source_sha256": "9d9807a220e4fd44b7b4690cabb209a50e7f9fb286a3bcadde7859b05c4d72f8",
+      "mode": "0",
+      "device_controls": {
+        "fmul_shared": "1",
+        "fp_local": "1",
+        "fp_preserve": "1",
+        "sse_native": "1",
+        "jmp_cache2": "1",
+        "inline_lookup": "1",
+        "lookup_no_bridges": "1",
+        "inline_lookup_count": "1"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/shared-fmul-abi-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "558b4ba255eb70820a38cf21db0e62e10b5c7c7efac3cd77eba771389164e09d",
+      "test_source_sha256": "839cc5e5f9f702b833f66f90586324dcd9df3566d9c1f3af8a3db496c5b6f606",
+      "executable_sha256": "3865a19d2c3de18db077c6b79786fd0fe909dbbcf22169bb5c708569a8857490",
+      "core_sha256": "149c1654be103cf7d826f8499fb3d0aec04cd2e71a7a6a22ac3cd0bdcbb8c3b9",
+      "runtime_source_sha256": "9d9807a220e4fd44b7b4690cabb209a50e7f9fb286a3bcadde7859b05c4d72f8",
+      "mode": "0"
+    },
+    "result_log_archived": false
+  },
+  {
+    "directory": "build/native-perf-run/shared-fmul-abi-tests-fixed",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "558b4ba255eb70820a38cf21db0e62e10b5c7c7efac3cd77eba771389164e09d",
+      "test_source_sha256": "4a902936f6a8d6a62ef4f3dceae28ffecf56791ce8213b292dead3097389479f",
+      "executable_sha256": "943d7e109554ca291a017100010c93e3b689195c7734f26648c038279f3ae9bd",
+      "core_sha256": "149c1654be103cf7d826f8499fb3d0aec04cd2e71a7a6a22ac3cd0bdcbb8c3b9",
+      "runtime_source_sha256": "9d9807a220e4fd44b7b4690cabb209a50e7f9fb286a3bcadde7859b05c4d72f8",
+      "mode": "0",
+      "device_controls": {
+        "fmul_shared": "1",
+        "fp_local": "1",
+        "fp_preserve": "1",
+        "sse_native": "1",
+        "jmp_cache2": "1",
+        "inline_lookup": "1",
+        "lookup_no_bridges": "1",
+        "inline_lookup_count": "1"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/shared-fmul-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "558b4ba255eb70820a38cf21db0e62e10b5c7c7efac3cd77eba771389164e09d",
+      "test_source_sha256": "839cc5e5f9f702b833f66f90586324dcd9df3566d9c1f3af8a3db496c5b6f606",
+      "executable_sha256": "ddbe389a4108e43e41df70adc79c6e0a0bcc768dcc97762485e9621b1a317c9b",
+      "core_sha256": "149c1654be103cf7d826f8499fb3d0aec04cd2e71a7a6a22ac3cd0bdcbb8c3b9",
+      "runtime_source_sha256": "9d9807a220e4fd44b7b4690cabb209a50e7f9fb286a3bcadde7859b05c4d72f8",
+      "mode": "0",
+      "device_controls": {
+        "inline_lookup": "1",
+        "inline_lookup_count": "1",
+        "lookup_no_bridges": "1",
+        "fmul_shared": "1",
+        "jmp_cache2": "1",
+        "fp_local": "1",
+        "fp_preserve": "1",
+        "sse_native": "1"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/shared-lookup-coverage-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "657b6fb939f2dc502b016162601b85b2090c5b8f74313d7c8d942542e1bd51e3",
+      "test_source_sha256": "a01aa152789a4cb21e6750c5dddbadbd750f6edcec9e7418a6037f5df798aaeb",
+      "executable_sha256": "4337c102703754b7b873f1d6eec6ff6e3dcaecc78a04fbee6580de2ccaf7d84c",
+      "core_sha256": "d8e98e596243279293d7dad8cc34d596439d77f6e1943e5f1dbf4a19e5849f3f",
+      "runtime_source_sha256": "9d9807a220e4fd44b7b4690cabb209a50e7f9fb286a3bcadde7859b05c4d72f8",
+      "mode": "0",
+      "device_controls": {
+        "lookup_shared": "1",
+        "tcg_absolute_pc": "1",
+        "fmul_shared": "0",
+        "fp_local": "1",
+        "fp_preserve": "1",
+        "sse_native": "1",
+        "jmp_cache2": "1",
+        "inline_lookup": "1",
+        "lookup_no_bridges": "1",
+        "inline_lookup_count": "1"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/shared-lookup-fixed-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "b057dc2e1336c3d47eef6d2c5cc90eceeafe9c03c1bb773f62eca209abfc5f51",
+      "test_source_sha256": "aaaed8928b6dfe39090c4d2a48fb6ae5e70e25254c89e35b79b70f355845cd46",
+      "executable_sha256": "8b79a662e1654f4c18efd11d2f89865e1c36fb07598677f68031889c39e4e0f1",
+      "core_sha256": "dc1aa80f33f1d0d45c2631fec8e3b2cf4157aec5a726cc5abecd015e09bfde59",
+      "runtime_source_sha256": "9d9807a220e4fd44b7b4690cabb209a50e7f9fb286a3bcadde7859b05c4d72f8",
+      "mode": "0",
+      "device_controls": {
+        "lookup_shared": "1",
+        "tcg_absolute_pc": "1",
+        "fmul_shared": "0",
+        "fp_local": "1",
+        "fp_preserve": "1",
+        "sse_native": "1",
+        "jmp_cache2": "1",
+        "inline_lookup": "1",
+        "lookup_no_bridges": "1",
+        "inline_lookup_count": "1"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/shared-lookup-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "657b6fb939f2dc502b016162601b85b2090c5b8f74313d7c8d942542e1bd51e3",
+      "test_source_sha256": "bd1e4d5c75f02ccbed9960f6ec2e5266a496cdb22ab64b19157fbc74d329871e",
+      "executable_sha256": "e1ae42ac960fafe639e3937eae6fee5d3b467ecba9dfd522b405e10c5ac8df30",
+      "core_sha256": "d8e98e596243279293d7dad8cc34d596439d77f6e1943e5f1dbf4a19e5849f3f",
+      "runtime_source_sha256": "9d9807a220e4fd44b7b4690cabb209a50e7f9fb286a3bcadde7859b05c4d72f8",
+      "mode": "0"
+    },
+    "result_log_archived": false
+  },
+  {
+    "directory": "build/native-perf-run/sse-broadcast-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "cdf7acc1af1913d6186f33581b187ae5117e755e7b759af435097f67e26d14dc",
+      "test_source_sha256": "6f60bc05991ba35437db866eab767da23e9909f1d03da0fa84bffb5adee25dd6",
+      "executable_sha256": "03c8994ca57a5a71acde4a677fb1669f81affa230d8bfedf94854282fe828a7f",
+      "core_sha256": "cebdfb972eca425a23bcb64a7ae5644935749f4f82703a050fe5e931f4bd9f56",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0",
+      "device_controls": {
+        "defer_globals": "0",
+        "read_tlb_cache": "0",
+        "sse_native": "1",
+        "tcg_ordered": "4",
+        "fast_fpu": "1",
+        "tcg_dump": "0",
+        "diagnostics": "0",
+        "fpu_audit": "0",
+        "order_audit": "0"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/sse-direct-fault-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "1dec7993639143bf246b2f50c0f441e8cf5ade08d01b06168b4c4c35370ab9b8",
+      "test_source_sha256": "beacaa93f4cbcb0a2f661ab079897481b5d92f77f1ed7582b1a1736b8750c634",
+      "executable_sha256": "656bdcd895b17234d0ec1ea98d534193eb58a8923bec7322916951acb42f1bdb",
+      "core_sha256": "8ed2e5a0020d191dcea0a49c542f62eeb7b6ba4e6d889b13515c29317070efd8",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0"
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/sse-direct-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "1dec7993639143bf246b2f50c0f441e8cf5ade08d01b06168b4c4c35370ab9b8",
+      "test_source_sha256": "a71b81734d488c5f7ea8cd3c7381f2459f104c7542fae1dcb10c63869d0c623f",
+      "executable_sha256": "3f66a9fe9bc55d73b1789ebbb9f74156ffb55fb81310655195b3a78b6b67f714",
+      "core_sha256": "8ed2e5a0020d191dcea0a49c542f62eeb7b6ba4e6d889b13515c29317070efd8",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0"
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/sse-local-helper-tests-fixed",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "e29c3c86b97a3fc8f604bfc2ab4e7ebaee33ae5f00a278be07eff766fa98cbdd",
+      "test_source_sha256": "065640d2f4d7ead564f58dfc6b67acd453666086400d9eaa8b6657c323367d3c",
+      "executable_sha256": "2a3b325b638d29f47843c39b2d590bd91e4ec08f7652f8cd4ab3a85e411c4ed9",
+      "core_sha256": "6447aada8ef0c31e0cc8f2ca3def9cf21050b7e15e582b7a50d08c9466ccead3",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0",
+      "device_controls": {
+        "defer_globals": "0",
+        "read_tlb_cache": "0",
+        "tcg_ordered": "4",
+        "fast_fpu": "1",
+        "tcg_dump": "0",
+        "diagnostics": "0",
+        "fpu_audit": "0",
+        "order_audit": "0"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/sse-native-host-build-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "6e6ec82a429593be46173981d98c3a06aacced8d3b6ec40ef3e6c620d122c7bd",
+      "test_source_sha256": "41782088d965e19f3db52ae46afe2f27597cb92d70dfce18117c18f1ea309f99",
+      "executable_sha256": "43dee390f48cea4a230d404245ca6cdcbfa3029d07218ad6f4e944b3136e9f91",
+      "core_sha256": "0a8b97e6453316b8bc3b1a104f0bf8b61149b36e3fb8678eb22a582c53e06bd7",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0"
+    },
+    "result_log_archived": false
+  },
+  {
+    "directory": "build/native-perf-run/sse-native-no-cache-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "5d8c4aa0ba284908bb407917e6d7c041507931a99070c838eb3491a8b59997bc",
+      "test_source_sha256": "41782088d965e19f3db52ae46afe2f27597cb92d70dfce18117c18f1ea309f99",
+      "executable_sha256": "fde29082ec330e4b7bbd2b6ebdb1037dc771b0747d1d1c74aed219d2cee16eed",
+      "core_sha256": "1042fef4d2f284bc594cd05b1f9df7ee1f2efc95089b97c632076876f61939eb",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0",
+      "device_controls": {
+        "defer_globals": "0",
+        "read_tlb_cache": "0",
+        "sse_native": "1",
+        "tcg_ordered": "4",
+        "fast_fpu": "1",
+        "tcg_dump": "0",
+        "diagnostics": "0",
+        "fpu_audit": "0",
+        "order_audit": "0"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/sse-native-on-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "6e6ec82a429593be46173981d98c3a06aacced8d3b6ec40ef3e6c620d122c7bd",
+      "test_source_sha256": "41782088d965e19f3db52ae46afe2f27597cb92d70dfce18117c18f1ea309f99",
+      "executable_sha256": "d6b2cd00f7ce3b87d79b33aa494e9c6ceeef8b2f58162978c7c2602c6d1c2dc9",
+      "core_sha256": "0a8b97e6453316b8bc3b1a104f0bf8b61149b36e3fb8678eb22a582c53e06bd7",
+      "runtime_source_sha256": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "mode": "0",
+      "device_controls": {
+        "defer_globals": "0",
+        "read_tlb_cache": "1",
+        "sse_native": "1",
+        "tcg_ordered": "4",
+        "fast_fpu": "1",
+        "tcg_dump": "0",
+        "diagnostics": "0",
+        "fpu_audit": "0",
+        "order_audit": "0"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/tlb-resident-lifetime-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "8930d7cca9c4c6274d931c6e3bf026dd2c3170a00ed0f5ad89f373466a838abc",
+      "test_source_sha256": "f17a08ebe16bab2e612d33a995edd971e4cfede620c6268df6d23b6b31f98334",
+      "executable_sha256": "c3aa4b2cec6fcc59d2a47b0ebafa08ec8f42526a4fc498b09ad6a2edab916c55",
+      "core_sha256": "6575f4af8a2ae92a8df48567deac27f7a6fae7d01170f8514ecb718845eaee7c",
+      "runtime_source_sha256": "9d9807a220e4fd44b7b4690cabb209a50e7f9fb286a3bcadde7859b05c4d72f8",
+      "mode": "0"
+    },
+    "result_log_archived": false
+  },
+  {
+    "directory": "build/native-perf-run/tlb-resident-movsd-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "0edd3242053ca17699b4372cb0fd4cb9f710c856f191593a9882d5f5d08c6851",
+      "test_source_sha256": "5e41ea637c9abfbe9685e77e2a563828a1147373d231944ceda4e8c305f2d2a6",
+      "executable_sha256": "f3ca0e89523f05accad10e822f85509197530b0c8ac84c0f484e5a072f50d32d",
+      "core_sha256": "ff0186f309393a952c261efa957093d1808891547f97f9fc02ef572c7ae6e552",
+      "runtime_source_sha256": "9d9807a220e4fd44b7b4690cabb209a50e7f9fb286a3bcadde7859b05c4d72f8",
+      "mode": "0",
+      "device_controls": {
+        "tlb_resident": "1",
+        "lookup_shared": "1",
+        "tcg_absolute_pc": "1",
+        "fmul_shared": "0",
+        "fp_local": "1",
+        "fp_preserve": "1",
+        "sse_native": "1",
+        "jmp_cache2": "1",
+        "inline_lookup": "1",
+        "lookup_no_bridges": "1",
+        "inline_lookup_count": "1"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/tlb-resident-rollback-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "8930d7cca9c4c6274d931c6e3bf026dd2c3170a00ed0f5ad89f373466a838abc",
+      "test_source_sha256": "aaaed8928b6dfe39090c4d2a48fb6ae5e70e25254c89e35b79b70f355845cd46",
+      "executable_sha256": "73b51e5a98a4283076d0a0b1f31ce3278bcc37217f12cb680c5a31112ab5394b",
+      "core_sha256": "6575f4af8a2ae92a8df48567deac27f7a6fae7d01170f8514ecb718845eaee7c",
+      "runtime_source_sha256": "9d9807a220e4fd44b7b4690cabb209a50e7f9fb286a3bcadde7859b05c4d72f8",
+      "mode": "0",
+      "device_controls": {
+        "tlb_resident": "1",
+        "lookup_shared": "1",
+        "tcg_absolute_pc": "1",
+        "fmul_shared": "0",
+        "fp_local": "1",
+        "fp_preserve": "1",
+        "sse_native": "1",
+        "jmp_cache2": "1",
+        "inline_lookup": "1",
+        "lookup_no_bridges": "1",
+        "inline_lookup_count": "1"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/tlb-resident-tests-fixed",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "0edd3242053ca17699b4372cb0fd4cb9f710c856f191593a9882d5f5d08c6851",
+      "test_source_sha256": "0b7044ca2b5e65b244e2ae9e63fc4889f77ebf03023a35d41a93bfcd8a6437d1",
+      "executable_sha256": "2233e8a3a99c834bc62989943291302a14b64683efebbbd5ec9e078f711ee533",
+      "core_sha256": "ff0186f309393a952c261efa957093d1808891547f97f9fc02ef572c7ae6e552",
+      "runtime_source_sha256": "9d9807a220e4fd44b7b4690cabb209a50e7f9fb286a3bcadde7859b05c4d72f8",
+      "mode": "0",
+      "device_controls": {
+        "tlb_resident": "1",
+        "lookup_shared": "1",
+        "tcg_absolute_pc": "1",
+        "fmul_shared": "0",
+        "fp_local": "1",
+        "fp_preserve": "1",
+        "sse_native": "1",
+        "jmp_cache2": "1",
+        "inline_lookup": "1",
+        "lookup_no_bridges": "1",
+        "inline_lookup_count": "1"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/vector-acquire-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "b572c0a3832e412283d829cc4c6ccde1d6b4ac0f5820c5c3e9dae527933b31a6",
+      "test_source_sha256": "883e40039860c7d1ba68a5dcf5ab1ab2563bbf3415a3d65424996695cf49b409",
+      "executable_sha256": "de77726955f8107166472d16803c3793530e2d4bd57f38f93939daafea2b4af7",
+      "core_sha256": "c7ce18442747bc304d0bda8171975fea5c9ee6408c70928b973bac887aa326b0",
+      "runtime_source_sha256": "76cd0b7c417920534b580d5da910e012d271c7e5d4823a79375f3a13c43bcf71",
+      "mode": "0",
+      "device_controls": {
+        "inline_lookup": "1",
+        "inline_lookup_count": "1",
+        "lookup_no_bridges": "1",
+        "vector_acquire": "1",
+        "jmp_cache2": "1",
+        "fp_local": "1",
+        "fp_preserve": "1",
+        "sse_native": "1"
+      }
+    },
+    "result_log_archived": true
+  },
+  {
+    "directory": "build/native-perf-run/vector-acquire-warm-tests",
+    "identity": {
+      "root_head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_head": "478b4f496102379c7eaa7f3ec10e714a703c4300",
+      "source_diff_sha256": "b572c0a3832e412283d829cc4c6ccde1d6b4ac0f5820c5c3e9dae527933b31a6",
+      "test_source_sha256": "7e21b11f72ff809dc79fda0e40584cfe4f626aa16e131b93c5a6eb5f9ac3a8d7",
+      "executable_sha256": "4bc5dac6908a1fc3f3ddcaa6f2c63b16e072f86645adcdfb24c0b1d54ecaa974",
+      "core_sha256": "c7ce18442747bc304d0bda8171975fea5c9ee6408c70928b973bac887aa326b0",
+      "runtime_source_sha256": "76cd0b7c417920534b580d5da910e012d271c7e5d4823a79375f3a13c43bcf71",
+      "mode": "0",
+      "device_controls": {
+        "inline_lookup": "1",
+        "inline_lookup_count": "1",
+        "lookup_no_bridges": "1",
+        "vector_acquire": "1",
+        "jmp_cache2": "1",
+        "fp_local": "1",
+        "fp_preserve": "1",
+        "sse_native": "1"
+      }
+    },
+    "result_log_archived": true
+  }
+]

@@ -1,0 +1,84 @@
+# Diagnostic-only successful x86 TLB-fill page-size, table occupancy and existing flush statistics. Default off; separate diagnostic captures only; no paging/memory/ordering changes.
+
+diff --git a/target/i386/tcg/system/excp_helper.c b/target/i386/tcg/system/excp_helper.c
+index f622b5d588..5f5df2a8df 100644
+--- a/target/i386/tcg/system/excp_helper.c
++++ b/target/i386/tcg/system/excp_helper.c
+@@ -42,6 +42,67 @@ typedef struct TranslateResult {
+     int page_size;
+ } TranslateResult;
+ 
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++#include <android/log.h>
++#include <sys/system_properties.h>
++/* Diagnostic fill counts, not an executed-access histogram. Keep disabled
++ * during performance captures; the supported Xbox has one vCPU. */
++static void boxdroid_profile_page_size(CPUState *cpu, int mmu_idx,
++                                      vaddr addr, int page_size,
++                                      MMUAccessType access_type)
++{
++    static int enabled = -1;
++    static uint64_t counts[3][3], large_low_reads, large_kernel_reads;
++    static unsigned samples;
++    static int64_t last_report;
++    if (enabled < 0) {
++        char prop[PROP_VALUE_MAX] = {0};
++        enabled = __system_property_get("debug.boxdroid.page_profile", prop) &&
++                  !strcmp(prop, "1");
++    }
++    if (!enabled) {
++        return;
++    }
++    unsigned bucket = page_size == (1 << 22) ? 2 :
++                      page_size == (1 << 21) ? 1 : 0;
++    if (access_type > MMU_INST_FETCH) {
++        return;
++    }
++    ++counts[access_type][bucket];
++    if (bucket && access_type == MMU_DATA_LOAD) {
++        if (addr < UINT64_C(0x80000000)) {
++            ++large_low_reads;
++        } else {
++            ++large_kernel_reads;
++        }
++    }
++    if ((++samples & 1023) == 0) {
++        int64_t now = g_get_monotonic_time();
++        if (now - last_report >= G_USEC_PER_SEC) {
++            __android_log_print(ANDROID_LOG_INFO, "BoxDroid3",
++                "MMU_PAGE_COUNTS mono_us=%" PRId64
++                " load4k=%" PRIu64 " load2m=%" PRIu64 " load4m=%" PRIu64
++                " store4k=%" PRIu64 " store2m=%" PRIu64 " store4m=%" PRIu64
++                " code4k=%" PRIu64 " code2m=%" PRIu64 " code4m=%" PRIu64
++                " large_low_reads=%" PRIu64 " large_kernel_reads=%" PRIu64
++                " mmu_idx=%d tlb_entries=%" PRIuPTR " used_entries=%zu"
++                " flush_full=%zu flush_part=%zu flush_elided=%zu",
++                now, counts[MMU_DATA_LOAD][0], counts[MMU_DATA_LOAD][1],
++                counts[MMU_DATA_LOAD][2], counts[MMU_DATA_STORE][0],
++                counts[MMU_DATA_STORE][1], counts[MMU_DATA_STORE][2],
++                counts[MMU_INST_FETCH][0], counts[MMU_INST_FETCH][1],
++                counts[MMU_INST_FETCH][2], large_low_reads, large_kernel_reads,
++                mmu_idx, (cpu_tlb_fast(cpu, mmu_idx)->mask >> CPU_TLB_ENTRY_BITS) + 1,
++                cpu->neg.tlb.d[mmu_idx].n_used_entries,
++                qatomic_read(&cpu->neg.tlb.c.full_flush_count),
++                qatomic_read(&cpu->neg.tlb.c.part_flush_count),
++                qatomic_read(&cpu->neg.tlb.c.elide_flush_count));
++            last_report = now;
++        }
++    }
++}
++#endif
++
+ typedef enum TranslateFaultStage2 {
+     S2_NONE,
+     S2_GPA,
+@@ -629,6 +690,9 @@ bool x86_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
+                                 out.paddr & TARGET_PAGE_MASK,
+                                 cpu_get_mem_attrs(env),
+                                 out.prot, mmu_idx, out.page_size);
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++        boxdroid_profile_page_size(cs, mmu_idx, addr, out.page_size, access_type);
++#endif
+         return true;
+     }
+ 

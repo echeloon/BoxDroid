@@ -1,0 +1,4 @@
+after step eip=10003 fpstt=0 exception=-1 hflags=200000b0 cr0=1
+actual TCG MMX load/register/EMMS execution PASS
+/Users/maverick/Documents/BoxDroid/BoxDroid/scripts/tests/tcg-state-recovery.c:1281: void test_on_cpu(CPUState *, run_on_cpu_data): assertion "saved_tb && env->regs[R_EAX] == 7" failed
+Aborted 

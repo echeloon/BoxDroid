@@ -1,0 +1,518 @@
+[
+  {
+    "directory": "build/native-perf-run/absolute-pc",
+    "provenance": {
+      "libboxdroid.so": "958c65222fc7f24d1e5ba1b6ff72ca494067c9c0e870b8325d37924224d27ee6",
+      "apk-lib.so": "958c65222fc7f24d1e5ba1b6ff72ca494067c9c0e870b8325d37924224d27ee6",
+      ".rodata": "a1b0364d77766049dbaf06bf8aa7c57ef0568ad66df11708e0af6f50efd804bb",
+      ".data.rel.ro": "3e596a13d9cedd0386a0f837767d20e4fd684b8e4c3caefb53268a0ea926e0d4",
+      ".data": "10932f634427bed238ba032342e9c6d7447657109c4d854acef0dbb76cb0dda7",
+      "apk": "2b2cae52862b917c1e00177ca8c86386f1bcd174ca6cddc811603a50fd0f9cd3",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "9d9807a220e4fd44b7b4690cabb209a50e7f9fb286a3bcadde7859b05c4d72f8",
+      "source_diff": "99e311d89a056f0049043a6f86af4c905faa8ff3d9e55ffc226cc3ab09a2c5d7"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/cpu-local",
+    "provenance": {
+      "libboxdroid.so": "962023d691f5f49e630678dbbb2a95caf22cd91c311d154840b81971411b8de1",
+      "apk-lib.so": "962023d691f5f49e630678dbbb2a95caf22cd91c311d154840b81971411b8de1",
+      "apk": "dda8c7d36b871810c9315e74bbf0dd563136f244ca42f900ff88ee5cf02fa80f",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_diff": "533a3dd1ccd487e5f442db10efa878c1868d8994f07721178beb6cca3b13f263"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/defer-boottrace",
+    "provenance": {
+      "libboxdroid.so": "8241ce7b5399aac04962e8f3bc678f507f713f5dad3da1101f964a223bd04055",
+      "apk-lib.so": "8241ce7b5399aac04962e8f3bc678f507f713f5dad3da1101f964a223bd04055",
+      "apk": "54936866ac81edc617b5ccac6627894175af9507586bda27a877ec7ee6a44f9e",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_diff": "b8f30e6390123bb72565799ab82cf5e85c23afaaaaca23c385d64c478a76d739"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/defer-boottrace-asm",
+    "provenance": {
+      "libboxdroid.so": "a45f195be83b98f83477169507f42147114de9185bf339802e94d15486527bd8",
+      "apk-lib.so": "a45f195be83b98f83477169507f42147114de9185bf339802e94d15486527bd8",
+      "apk": "9d9e1af3c0e2b14193aafb4cb979bfef39eb5777b6cb894685e13da605e61e21",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_diff": "b8f30e6390123bb72565799ab82cf5e85c23afaaaaca23c385d64c478a76d739"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/defer-boottrace-full",
+    "provenance": {
+      "libboxdroid.so": "d5aaeaa0b6e299a7b1872b6b25fe8cb5b7cc22cf7226f6c346c4dc5dc3a485d9",
+      "apk-lib.so": "d5aaeaa0b6e299a7b1872b6b25fe8cb5b7cc22cf7226f6c346c4dc5dc3a485d9",
+      "apk": "a41f3ba4c9b596659fa223fd62fcd2e4ed62fe37f1d71cc6f555425dc24757b7",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_diff": "b8f30e6390123bb72565799ab82cf5e85c23afaaaaca23c385d64c478a76d739"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/defer-boottrace-long",
+    "provenance": {
+      "libboxdroid.so": "ee71b2e019a2b3586374ad87c4b4cd4de3af9c36aff0bc66fcd22fa7f6d5e949",
+      "apk-lib.so": "ee71b2e019a2b3586374ad87c4b4cd4de3af9c36aff0bc66fcd22fa7f6d5e949",
+      "apk": "a196da7602c4279ae1a2f2f6cd62da62e0e23c2753fa300d78987171d48725c5",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_diff": "96a86cbfdfcf06b353b9e82eb29cde54fa23aead9e36e2458316ef725013c3fa"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/defer-fixed",
+    "provenance": {
+      "libboxdroid.so": "dcf8616eed689af6331c68c8d24aaa75d12267c03420ad6bb934ce8838aab17b",
+      "apk-lib.so": "dcf8616eed689af6331c68c8d24aaa75d12267c03420ad6bb934ce8838aab17b",
+      "apk": "392be8067ecc2c14a0a7f10d2f10c75f7a1ce3aab3f621a4e59cebcf3556cc32",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "922b333a4ab30a97b8d2f2137dd3ee652373f338a813095b3b4b6635db88f8f8",
+      "source_diff": "3e85d830886f92bd69666d052f42dcda32cf3dc9e1df2a41e24341041fbdb532"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/defer-globals",
+    "provenance": {
+      "libboxdroid.so": "3caff25f7f6732577e9613736fad3867ea91cbbdb9d2286a686b27a243e371fa",
+      "apk-lib.so": "3caff25f7f6732577e9613736fad3867ea91cbbdb9d2286a686b27a243e371fa",
+      "apk": "ccf0cac835359aa75b329b48915fcbf93ece44bf2beb5bbb81f21d66d585a637",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_diff": "016a94448f41e9e10752eebb5f709dd4a39c01c6d7fe1b7966dee635d2ba9ed3"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/diagnostic",
+    "provenance": {
+      "libboxdroid.so": "3db79a8ae59b624a8dc3a35a5da868ca5dec977c76103fa91a4c853c3d899614",
+      "apk-lib.so": "3db79a8ae59b624a8dc3a35a5da868ca5dec977c76103fa91a4c853c3d899614",
+      "apk": "6002a9d7a2e79b2397df213d18309125a68e14536837612da2abc4cf94287a70",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_diff": "e2c7a76669cd7008b4c593f6540a1e8a32d7cf2976cd25c05b15f0e455a534a9"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/flags-ramfree",
+    "provenance": {
+      "libboxdroid.so": "f220850956abb05e29992eb4e0082774f4388d844e0d32e2c9549126289ab2ba",
+      "apk-lib.so": "f220850956abb05e29992eb4e0082774f4388d844e0d32e2c9549126289ab2ba",
+      "apk": "6fc753e180702546fae92552aca36cace70c29d04f4e7711a7c8fe0d75859604",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "source_diff": "e01d7b7288f15859e26cdd61bb3190dd86fcf257abf7d87e9d6c4a82110587c3"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/fp-exact",
+    "provenance": {
+      "libboxdroid.so": "45c54c0130ae7787579b605e80252208438b82cb00e33477dbd1a0fbacc27ee2",
+      "apk-lib.so": "45c54c0130ae7787579b605e80252208438b82cb00e33477dbd1a0fbacc27ee2",
+      ".rodata": "98e7a2dd8106f5e3adc3a4bd239535f70de118a0a051bb2fce22b4b2a402f4a6",
+      ".data.rel.ro": "cf08aa4199676a4aba48d8108c2ddf688dce5ee6d06ebc8cbffa60a94f5b3818",
+      ".data": "2516d1413a4378a92fc8948774cd58632d44854eceb755176e47c962acaf7487",
+      "apk": "c3c28c324ac4085ffca6df45313ba64abd8e799926bd5dbb0b9762f5baf6044a",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "source_diff": "5985150f82ce941c87564d3be4718a47e5ef05a8a4c143aa7368cb22b6279253"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/fp-local",
+    "provenance": {
+      "libboxdroid.so": "844e45fa8d753e002e669bac6207b5f10e04b75ed939ce573f8f0abe9ba322dc",
+      "apk-lib.so": "844e45fa8d753e002e669bac6207b5f10e04b75ed939ce573f8f0abe9ba322dc",
+      ".rodata": "5865a664d9d01c1db179e3b8c7601ea85badca12b454ffc91e0dd05406a7539a",
+      ".data.rel.ro": "a5fc5411c2180534c7878d6bb1ab37b99dec9e56113a11433381a223f9e86ec0",
+      ".data": "c0c8f6873b7de20094428d5e7c0eaed8f7af57d114a1924458d97846cdecb806",
+      "apk": "7182d98aa93e1b753bb9202a768e072550edcb3aa601f9f1db1bf3fc80610129",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "source_diff": "49b2701aa7cff7628ccaeedd9525148974ba2b59b1f322ac6bff4bbaf68dd032"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/fp-local-fixed",
+    "provenance": {
+      "libboxdroid.so": "953f3366356c8170bc6539007430b349ce13fb6cf0a319c6cdc013815d041949",
+      "apk-lib.so": "953f3366356c8170bc6539007430b349ce13fb6cf0a319c6cdc013815d041949",
+      ".rodata": "0530635c631e1592e29361c714744d4a5a987d8c1fa0b3a753d79dc9f2708b79",
+      ".data.rel.ro": "34de391792866706e351ed58d89088e78dfe308e9302b0d2f448aa04307d44a9",
+      ".data": "dfce9f6cc3f890601adef8757498f53a2dadb73ff42c57ede5b8ee22e62a7281",
+      "apk": "2b7faae31c14b81b10e52a9ce9de425d85a2c13f6ed4897fd9a6f79b012c66c0",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "source_diff": "33eed43ff587ff58fa928a6a6b2cb1d391284c269da5db71d33e539fe23a0a76"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/fp-local-tag",
+    "provenance": {
+      "libboxdroid.so": "a0c5aaf75a4e9e57d3f6ac345876e16a993962222e69fa313cfe3b9c2a19cf32",
+      "apk-lib.so": "a0c5aaf75a4e9e57d3f6ac345876e16a993962222e69fa313cfe3b9c2a19cf32",
+      ".rodata": "e477a3670c6dd6e0db9cc6028589865e6cc425de0caf06d65fa3c3e7219e31bc",
+      ".data.rel.ro": "e8e51ba52beeeba81db4f430f6c64efb02626100e9965331ac48b825f9efc1fd",
+      ".data": "7daff042a4ef59d02ff163a8f09d7a1df5f234c3bf80f8302cd6cd7bbdab531f",
+      "apk": "b4afa10ae76841bb3f6a46706843d2a80f6b33bf2c28e0ef0c99d2379d13598a",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "source_diff": "6c07211d60aeab8a826a9c812d2e257b6ecb07dd0145e1ff350c99ba1085daf0"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/fp-pointer",
+    "provenance": {
+      "libboxdroid.so": "872925b55709866a9ce0d0f71e25c847cc50ffc578c07fa1361bdd30db0c524f",
+      "apk-lib.so": "872925b55709866a9ce0d0f71e25c847cc50ffc578c07fa1361bdd30db0c524f",
+      "apk": "a66fa4458fa7e91dfdc3adb4eb183d01585ac9c3d89b08e3534063b5ebacbd64",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_diff": "9edbea99b8a00679a7fcb879bffa4bec87c6be164fd7b7a934addc626f2f3516"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/fp-preserve-split",
+    "provenance": {
+      "libboxdroid.so": "d2776d4abb8a03597bc40dedb5a0a7ba6321e6ebb468cd9d983c19cbd19fc527",
+      "apk-lib.so": "d2776d4abb8a03597bc40dedb5a0a7ba6321e6ebb468cd9d983c19cbd19fc527",
+      ".rodata": "3c1f710bf87044609c3d395b3d5d3c715721e04ac7002218934924d3e8259532",
+      ".data.rel.ro": "e8cc7a1fbfb08e225727110fc096bbb49392eac9370c815f86040a2431854cc3",
+      ".data": "2c32a0374b2a013405d0bf838b1e7dc985fc31b3018bcd2c43ab2a5d25e66021",
+      "apk": "c77701a6b646473dd7cc592ecebbbc71c578ee5b6b00eabd5ed19429fa5bdcd7",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "source_diff": "f04ee3cd5277a6764a2ab92ef08cd437c9db3898e2b55d4768454d6cae6cc189"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/inline-counts",
+    "provenance": {
+      "libboxdroid.so": "6f12547b0e94804d0e360326216d7bddf069466a921215770cd7f5ba3719a651",
+      "apk-lib.so": "6f12547b0e94804d0e360326216d7bddf069466a921215770cd7f5ba3719a651",
+      ".rodata": "0c117bfa56db8994d3b5d30960e43372acd2b87e2f464c98de0975723c227549",
+      ".data.rel.ro": "bdf60f8e19505114e7f5fa3df232bc47091a5ec6f33aaf8c1511aaa858f02dde",
+      ".data": "87dedf716bfc7b64106051e0ccab0242171c9e44141b0757b838130b5b1d3679",
+      "apk": "cb39e6293c21eae4eaf770148521d17cb0fb36d4258bfb20559a16a6d106b3da",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "588f70d74957b5b249cb03068616f538a31f58b4459c0a9bfc751965d783f5fd",
+      "source_diff": "0e2dd3ed49ddbba386aef8da52100add01206edb88d689a148fe2d209688908c"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/inline-fmul",
+    "provenance": {
+      "libboxdroid.so": "135d4bc73d3e6bc444c03800fc14077a3d85da4d404e84e44207b3d1d06efd55",
+      "apk-lib.so": "135d4bc73d3e6bc444c03800fc14077a3d85da4d404e84e44207b3d1d06efd55",
+      ".rodata": "abbaf3fe86d86663678114d1278d69dd35ea4cc78db0eae0acb7e21dda99175a",
+      ".data.rel.ro": "90c223dd5503320673f3aaf8bcc124948646a3987a8299beaac4da4ea922e99b",
+      ".data": "2a79219aa1ce98b790aaaf683f0aabbdac7552451e7fc187415558d4044659d2",
+      "apk": "756bc0c5a7adb0cf002797b69c6d12de09d1bbbf8132a0aebe6b82a85e9f71e7",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "76cd0b7c417920534b580d5da910e012d271c7e5d4823a79375f3a13c43bcf71",
+      "source_diff": "bf2c1681e086f1b37de8372efe353a6af034df5176cf9f72afd46c55e9b0c7fa"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/inline-fp-preserve",
+    "provenance": {
+      "libboxdroid.so": "73b607ff40e8585c1af6c3cadf928b8c37a3964b010e14fe65d5bd6bbffdfd15",
+      "apk-lib.so": "73b607ff40e8585c1af6c3cadf928b8c37a3964b010e14fe65d5bd6bbffdfd15",
+      ".rodata": "d852854601d5a68ea69dcc9757bf6aa6dbeccea27a29eee8e38a9c67f323ad5b",
+      ".data.rel.ro": "cdd1955f5b6222bdd0cd1634f9a53b3d23fb587850952c80f422c515cadf88c8",
+      ".data": "9d39433fa661fb02ebb7d3b9ce4068462ac6bcc151e19534d9b3edbdc3c67cbc",
+      "apk": "f7cc050f6a3e7c44505e2af74e704b97b70e5779a39bcb02264afbd99aaa6e14",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "76cd0b7c417920534b580d5da910e012d271c7e5d4823a79375f3a13c43bcf71",
+      "source_diff": "dfa0f42c9a3f7a42a65139cc543c2a66caec120d8cfc4246bed2a105d37aff55"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/inline-lookup",
+    "provenance": {
+      "libboxdroid.so": "5b547165454150a901a8ad7863b086bc999e7a419c699a95ff30a591e66f99d5",
+      "apk-lib.so": "5b547165454150a901a8ad7863b086bc999e7a419c699a95ff30a591e66f99d5",
+      ".rodata": "b5c1df9422f7da4151f9341784536e715811ccf47e3dcaf38eacd24c8ab0205e",
+      ".data.rel.ro": "94e6211dd0408c17f11f6d92f0026117e91fc85e33af28a452e51b13260f6365",
+      ".data": "7c9d5fd1e3d9a36ee1ad1fc15df1670c002aaf2ee1c9ebce776cb4d300f1d5d0",
+      "apk": "07b40397d25cf4dbe9e44e4f5fcbab53c8559e51c1e0c4b97273fb06cb02b75b",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "76cd0b7c417920534b580d5da910e012d271c7e5d4823a79375f3a13c43bcf71",
+      "source_diff": "993ce29670d553d88a0393523fc2dfd7042ec629597eaf4f30d12aae4363e429"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/jmp-cache2",
+    "provenance": {
+      "libboxdroid.so": "199f5dde86d1a6230bcce94310bbeaa373905820f9d9f9b65a7ef66420ed0825",
+      "apk-lib.so": "199f5dde86d1a6230bcce94310bbeaa373905820f9d9f9b65a7ef66420ed0825",
+      ".rodata": "46810735350e23b292443e5ecf43aa279cfdaa888d404fa9eed7c91420206075",
+      ".data.rel.ro": "31fe01b5975d5114d6b25ba963c87906301b78acf8648a62a0811968fc4cfae2",
+      ".data": "400bef216e5c4dd60e09e51539596b8eac36251bdca3d8a8040bc77b8d0274ef",
+      "apk": "576aca38e7800af591f103b4ea21ef7b8a0dafbfc6514afd61d5c195dd00ef87",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "source_diff": "e5c7691038eb9fb683369958b4750c2d1bf8bcde4c33bf2cdd7175d935dd4acf"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/jmp-cache2-clean",
+    "provenance": {
+      "libboxdroid.so": "12b4d25022e23200f7fc94acf359fe5567c1dde7142a8ca3950cf6b6dd5e5e25",
+      "apk-lib.so": "12b4d25022e23200f7fc94acf359fe5567c1dde7142a8ca3950cf6b6dd5e5e25",
+      ".rodata": "f6e4b283713b67225167210b8d233c5c6293f9eb55652ceaee8b0ee63b7fad3a",
+      ".data.rel.ro": "7503d386aeccad7001da117500aa5dd7c5082cb94b8f398f0766de586373cba0",
+      ".data": "2fb5fb0e2768530851d46943d5efe59328f397c1afde6b5ac93972155f48f607",
+      "apk": "2499bd2e98fbac767e28be0c1cf0530022b7dcb6ff2a535959f19347e18ef542",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "source_diff": "a9ec1fe7f12ff04369ef6a55f25f9d915d7502fe52a53b2c2131668152e45dcb"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/lookup-bridges",
+    "provenance": {
+      "libboxdroid.so": "c391cfd76a9d1c5da0eac801278af65230033b131c190b5e5272b220d1353b5b",
+      "apk-lib.so": "c391cfd76a9d1c5da0eac801278af65230033b131c190b5e5272b220d1353b5b",
+      ".rodata": "57c34678e269f5a21dc6f4cbf3a52d09406ea50a9b916b71dd1ba803e6e27c15",
+      ".data.rel.ro": "fd138131f8ced24c600853e4652bea392b2bf78da4c0bd35d96c0ed9cc569651",
+      ".data": "92e8cc884881c1c332eba0f733fed80fe4900459f2856d07c33003f5f2d09444",
+      "apk": "7d984866816193f1021e2becfa33699d20f9bcfa9e6583bef1a7677db49d60ed",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "76cd0b7c417920534b580d5da910e012d271c7e5d4823a79375f3a13c43bcf71",
+      "source_diff": "8b2b4e3a30bdb0eaa37ecb0724305be13df5f82a7854635af53ad910a566230a"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/lookup-diagnostic",
+    "provenance": {
+      "libboxdroid.so": "e9e0b011ab3824668d288f7779308e12af1d298b2934bcc5f192ed1a7ac2a759",
+      "apk-lib.so": "e9e0b011ab3824668d288f7779308e12af1d298b2934bcc5f192ed1a7ac2a759",
+      ".rodata": "adc7335325eabde64957955c36db7240663b2a22e6c29e05a0d2a8841cc458dc",
+      ".data.rel.ro": "a52d1be1a6f92148860472b196739939e14b04f39dc36c47f4b35922069ef10b",
+      ".data": "1f09f2ebb6e95274e835c8acd320be0773ec48be68c3387103ce3ee376aec32a",
+      "apk": "1a9d65153387caee9e64c258e2f6d629384f2f4f2eaed236b9b5b7bc738fbbdb",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "a80f579dbd3eb955080955fb6c3ed4a4b5755b0fb656b187ea00337a26660ee2",
+      "source_diff": "8b0a31ce46f76125626a60792a1fa92632f886ac69954bd82d3f4121b5005567"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/mem-preserve",
+    "provenance": {
+      "libboxdroid.so": "8424849246021089b076a24d30d13957efa08ba9856ece9ab8c9af289fcef8d6",
+      "apk-lib.so": "8424849246021089b076a24d30d13957efa08ba9856ece9ab8c9af289fcef8d6",
+      "apk": "59bbd0743ed04571ba77498ab3cc900b6918643aac5a7b784249dc1e65590a12",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "922b333a4ab30a97b8d2f2137dd3ee652373f338a813095b3b4b6635db88f8f8",
+      "source_diff": "28902981e7e03255d46d52ce7a7126ff8eda1b32231de1f6526f59a467dc51de"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/mmx-inline",
+    "provenance": {
+      "libboxdroid.so": "35a681cffdb2e2f654545dd17f7a7141cc52fefc653abc62d3d82d55668f94a7",
+      "apk-lib.so": "35a681cffdb2e2f654545dd17f7a7141cc52fefc653abc62d3d82d55668f94a7",
+      "apk": "cbdd175ec3feb125a8a4df37afc69ec0586e1752acbe70ceb5aef138a33cdb55",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_diff": "48e669133a0db2c773d2de20feda014196506a1cd1227709596ebb0724ea2763"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/paired-tlb",
+    "provenance": {
+      "libboxdroid.so": "985337bb5bb4dee366a7d5e30069b7f2a720fce544864dbae6dfea064854c206",
+      "apk-lib.so": "985337bb5bb4dee366a7d5e30069b7f2a720fce544864dbae6dfea064854c206",
+      "apk": "755212c147fec0efc3c428740f3eb87ccfb950235b89b0879c0a55fdd99d73e9",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "source_diff": "cb65d5485f6759e3210e45c49b6a1ef7c6a9f25b9be12405845e86a46f876aad"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/ram-span",
+    "provenance": {
+      "libboxdroid.so": "bf11aa9f92355eb5fe9a88dcaab7e1d6f275843aeafcd8f9148a5288360e20e3",
+      "apk-lib.so": "bf11aa9f92355eb5fe9a88dcaab7e1d6f275843aeafcd8f9148a5288360e20e3",
+      ".rodata": "91a7abba5168fa5cd7dfca1439e9c92e8baca48d97451c7129cccc566da807f4",
+      ".data.rel.ro": "040a519bda1ab92582ff37c4f808ffeec43a683906408c2a28f98d68f75253a1",
+      ".data": "25888c98db5c131806b3ebebeac63a5b3c38976d9f586f0e90ca6ff60a959fad",
+      "apk": "3bbb786c878c4107e7d4fdfda5993ee635df50bd52ae4fc9e4972d6f7702e5f1",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "source_diff": "530386e1fa13c5605cecfd7897536d34b29f3b44d94869ee89d0a66367a23670"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/ram-span-fixed",
+    "provenance": {
+      "libboxdroid.so": "844e45fa8d753e002e669bac6207b5f10e04b75ed939ce573f8f0abe9ba322dc",
+      "apk-lib.so": "844e45fa8d753e002e669bac6207b5f10e04b75ed939ce573f8f0abe9ba322dc",
+      ".rodata": "5865a664d9d01c1db179e3b8c7601ea85badca12b454ffc91e0dd05406a7539a",
+      ".data.rel.ro": "a5fc5411c2180534c7878d6bb1ab37b99dec9e56113a11433381a223f9e86ec0",
+      ".data": "c0c8f6873b7de20094428d5e7c0eaed8f7af57d114a1924458d97846cdecb806",
+      "apk": "7182d98aa93e1b753bb9202a768e072550edcb3aa601f9f1db1bf3fc80610129",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "source_diff": "d7c175d726481355bfa50aa273ddf2b943059cd8414da8a37d8c372e0de6e3be"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/read-tlb-cache",
+    "provenance": {
+      "libboxdroid.so": "9e06873b1e7fb0d2e8b33d5147652a01eb974d7e0191b8f58b3d736927e6fa24",
+      "apk-lib.so": "9e06873b1e7fb0d2e8b33d5147652a01eb974d7e0191b8f58b3d736927e6fa24",
+      "apk": "689a2d22af845e250e8a756d3512c3e0e98f160bd12b63715d0c32280200f0ba",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "source_diff": "219222da4c5f97ec94efb742cd9213bc60a669f68e0bd7154960f2f2b66f4777"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/shared-fmul",
+    "provenance": {
+      "libboxdroid.so": "3fcb27211b52fc287a457dbbabeccc06cb15463be49974c1b61fcc04a947b32e",
+      "apk-lib.so": "3fcb27211b52fc287a457dbbabeccc06cb15463be49974c1b61fcc04a947b32e",
+      ".rodata": "18dd67151bfbb973e1c2c56eb4af4adcbc3a4da85ab9ee33c028c0d10b15b382",
+      ".data.rel.ro": "65d7510380cf0d54f729d994121b6527e85487baa0ecfd5b0383fa7c938042d4",
+      ".data": "85b96b95a8568b3f23234bb7f9e2d0a30bbb6dfe102ef87753b7db7318dccd50",
+      "apk": "3ead92d51787340c52db58ed8760cee89b5674a7d4e9fbfa9b8302e3d1644c23",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "9d9807a220e4fd44b7b4690cabb209a50e7f9fb286a3bcadde7859b05c4d72f8",
+      "source_diff": "558b4ba255eb70820a38cf21db0e62e10b5c7c7efac3cd77eba771389164e09d"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/shared-lookup",
+    "provenance": {
+      "libboxdroid.so": "f39531deeb53992381aea4f891d190f2d53e51c91cef20b47b153d61c5fcccfc",
+      "apk-lib.so": "f39531deeb53992381aea4f891d190f2d53e51c91cef20b47b153d61c5fcccfc",
+      ".rodata": "afc45287c114cb30b5680b5aa195f1f7998ffb1e3647428a51f82585d6b467fb",
+      ".data.rel.ro": "bcddcdbd71f60de7322d2f80072c9dee3d5b2c0a40db3c4fa3ced9d2b140926a",
+      ".data": "7020c3a35e20b1cc7dabc25ea3fa1f4bb2080fd5c3612d601bdbb3a2d109b71a",
+      "apk": "dc55ff169821a74e043f20b1600293fd57c8358e2f4755a1f4101f4aa01499c4",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "9d9807a220e4fd44b7b4690cabb209a50e7f9fb286a3bcadde7859b05c4d72f8",
+      "source_diff": "657b6fb939f2dc502b016162601b85b2090c5b8f74313d7c8d942542e1bd51e3"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/shared-lookup-fixed",
+    "provenance": {
+      "libboxdroid.so": "3968e44850279caf88f170ca67b1649ca0429a69858544c8a80b50722930ce6c",
+      "apk-lib.so": "3968e44850279caf88f170ca67b1649ca0429a69858544c8a80b50722930ce6c",
+      ".rodata": "c08d29784cb083c2c4ae88b0abe266337abb56fd7a5e180e11fa885a879e3152",
+      ".data.rel.ro": "6116f25fc21fa0aba306711f666b2f5859747e10984c971e0080264e5e45ca31",
+      ".data": "355827217b7ab5f290fc5a1dafecacc7d967c515e30b1e454f70b2e7d61b48ca",
+      "apk": "0f7d9700f68d8e743d003b7b8504db550ca0a9a793d9265be3d5a322f78d8afe",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "9d9807a220e4fd44b7b4690cabb209a50e7f9fb286a3bcadde7859b05c4d72f8",
+      "source_diff": "b057dc2e1336c3d47eef6d2c5cc90eceeafe9c03c1bb773f62eca209abfc5f51"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/sse-broadcast",
+    "provenance": {
+      "libboxdroid.so": "f30db33a6259d7a46135b7a13606ab01779ce8ae5b78710c9e97110adc3c0354",
+      "apk-lib.so": "f30db33a6259d7a46135b7a13606ab01779ce8ae5b78710c9e97110adc3c0354",
+      ".rodata": "dc7e70d042f77cc97e2f3e2cc6750ea7971d6933def3af58ccde65b72b291eea",
+      ".data.rel.ro": "efb37a7fc2da4f3336e52271b61ae436be4662090084ff91c81399831ce17d2d",
+      ".data": "5196ed1d9150631d54b5c49329cbb54e3a11fbd18613a3276dbfcbab147dbf44",
+      "apk": "aec463078e2a53c48e440194cda6b831630fc1a3342176bb4303c21ae5de93ad",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "source_diff": "cdf7acc1af1913d6186f33581b187ae5117e755e7b759af435097f67e26d14dc"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/sse-direct",
+    "provenance": {
+      "libboxdroid.so": "b18b492b131b6967e05b9d659411499adcdae976a7df7253f2e568fa1cd30e98",
+      "apk-lib.so": "b18b492b131b6967e05b9d659411499adcdae976a7df7253f2e568fa1cd30e98",
+      "apk": "3db6f356878ec2c83f64c7461eb6098e82920f7c88908982c0299138e34eb54e",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "source_diff": "1dec7993639143bf246b2f50c0f441e8cf5ade08d01b06168b4c4c35370ab9b8"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/sse-local-helper",
+    "provenance": {
+      "libboxdroid.so": "9e06873b1e7fb0d2e8b33d5147652a01eb974d7e0191b8f58b3d736927e6fa24",
+      "apk-lib.so": "9e06873b1e7fb0d2e8b33d5147652a01eb974d7e0191b8f58b3d736927e6fa24",
+      "apk": "66318caf3abfac05bf1fd416ab630533fba63cbb162e5a9d4e3dea9f3d4e01d9",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "source_diff": "e29c3c86b97a3fc8f604bfc2ab4e7ebaee33ae5f00a278be07eff766fa98cbdd"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/sse-native",
+    "provenance": {
+      "libboxdroid.so": "4ad5058ce520a1a8490b51b2b7283938aae64abd5663749f2a5b09d9a9d8796d",
+      "apk-lib.so": "4ad5058ce520a1a8490b51b2b7283938aae64abd5663749f2a5b09d9a9d8796d",
+      ".rodata": "baa0df8655f56119a016e8adc9457345cb6f73b51d02a078e1d4492e5d99aef4",
+      ".data.rel.ro": "66feaa65ce25f307ec4ebe1de3a4bb5167d51ec6ed881582787da8b3b383a4ce",
+      ".data": "aff5225bc80ccac962c7da2694246ff5b231cb950d230d59e326964beefa6d10",
+      "apk": "e3fb350150a6582a543b4acb2a59e511a27798c7d1ee89ce7f5ee1f06de072a9",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "source_diff": "6e6ec82a429593be46173981d98c3a06aacced8d3b6ec40ef3e6c620d122c7bd"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/sse-native-no-cache",
+    "provenance": {
+      "libboxdroid.so": "86c6a081adaec3f1526a884181f1dcbcefb5ce1ae9b383411f89b377a3c93305",
+      "apk-lib.so": "86c6a081adaec3f1526a884181f1dcbcefb5ce1ae9b383411f89b377a3c93305",
+      ".rodata": "1583500e76f3f95ac80328d62cc539b01be518c579daedc957e2e8a7dfa9b4ef",
+      ".data.rel.ro": "4f63b1c88be97f204ecb7b01b16ccbd9c116cbf75364e8ce35a7be960a9762b8",
+      ".data": "b82df30575032e28be9d51e359d841f48a72153684478fb41acaf3b8da1023ab",
+      "apk": "8e5af0b3206399c5b6f77436edb647453051d56978f7c4b028245d6e3c256bd8",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "fd0e64255908c1d3ace33464e8b029a5e4019ef6c4021607a5eafe5bb9cbe3c2",
+      "source_diff": "5d8c4aa0ba284908bb407917e6d7c041507931a99070c838eb3491a8b59997bc"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/tlb-resident",
+    "provenance": {
+      "libboxdroid.so": "e4cbaf2a969142e10a592e9ef5f5d31410b63e7aec38b146bcbee6d04da83212",
+      "apk-lib.so": "e4cbaf2a969142e10a592e9ef5f5d31410b63e7aec38b146bcbee6d04da83212",
+      ".rodata": "84eb62d77e7302001ac08a380697a99a8f868cc53d90719a23278d85eba9407f",
+      ".data.rel.ro": "6aafb266e018a1a21b20641e2cb2dd349292e9dc65246415280e06385e40d1d1",
+      ".data": "1a6835a22ba5248c68151ca792982e9db4951d3fc131062a9200e9cbebe7dacf",
+      "apk": "431a351ade6048b9f16f5724144270f2eb683f67695858cad2b0f4c4f524eb04",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "9d9807a220e4fd44b7b4690cabb209a50e7f9fb286a3bcadde7859b05c4d72f8",
+      "source_diff": "0edd3242053ca17699b4372cb0fd4cb9f710c856f191593a9882d5f5d08c6851"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/tlb-resident-lifetime",
+    "provenance": {
+      "libboxdroid.so": "7a412c5503852bd8b9676b5e02f7eb5c688d1efd482bc0e3fa3383043cb6deab",
+      "apk-lib.so": "7a412c5503852bd8b9676b5e02f7eb5c688d1efd482bc0e3fa3383043cb6deab",
+      ".rodata": "d647a9c4db0e39eeeaa1511da3d882a7cd165eb42e476b5f307bfc35e9cb39db",
+      ".data.rel.ro": "c2b19f0157129416dee1b3836276911ede2f355900fdfbc914e2beb7dd68b5b1",
+      ".data": "c308a9a1f9afa20db0e76685f4c6c822604b26ac7157e88a4d15623e9b08fc18",
+      "apk": "36e405e150911ff134c7b7085f19d0ff35404dab7a2fb47d855999aa83d3b029",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "9d9807a220e4fd44b7b4690cabb209a50e7f9fb286a3bcadde7859b05c4d72f8",
+      "source_diff": "8930d7cca9c4c6274d931c6e3bf026dd2c3170a00ed0f5ad89f373466a838abc"
+    }
+  },
+  {
+    "directory": "build/native-perf-run/vector-acquire",
+    "provenance": {
+      "libboxdroid.so": "26615674fb887f9135760b4d1002b85b836d677596640abf19718cb920599e03",
+      "apk-lib.so": "26615674fb887f9135760b4d1002b85b836d677596640abf19718cb920599e03",
+      ".rodata": "bca2596b16ad84918bcc75b9ffe226d02ef89241ba1393d2aa323f0a7fca2daf",
+      ".data.rel.ro": "4d9d9ecc14e996279402328c31fb3da8a4c92349265755e24558ebc0596ef028",
+      ".data": "3c9305772803c6035db17542f009bba0fd5103665cff65c0bfc6fce03431534b",
+      "apk": "f29c63d2ed967b76a8690fb97e6149240771239005db4605943a7f3c585a28d1",
+      "head": "599c2cc54e1ba345c3e4f64be5e57c377377d781",
+      "runtime_source": "76cd0b7c417920534b580d5da910e012d271c7e5d4823a79375f3a13c43bcf71",
+      "source_diff": "b572c0a3832e412283d829cc4c6ccde1d6b4ac0f5820c5c3e9dae527933b31a6"
+    }
+  }
+]

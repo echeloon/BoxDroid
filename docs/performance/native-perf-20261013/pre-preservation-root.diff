@@ -1,0 +1,138 @@
+diff --git a/native/android/core/boxdroid-xbox-runtime.c b/native/android/core/boxdroid-xbox-runtime.c
+index 0f01422..7887321 100644
+--- a/native/android/core/boxdroid-xbox-runtime.c
++++ b/native/android/core/boxdroid-xbox-runtime.c
+@@ -67,6 +67,7 @@ Java_org_boxdroid_MainActivity_nativeXboxStartWithDvd(JNIEnv *, jobject,
+ 
+ static bool performance_profile;
+ static bool detailed_diagnostics;
++bool boxdroid_tcg_diagnostics_active(void);
+ extern void boxdroid_android_configure_workers(void);
+ bool boxdroid_performance_profile_active(void);
+ bool boxdroid_performance_profile_active(void)
+@@ -546,7 +547,7 @@ void boxdroid_diag_cpu_store_value(uint64_t address, size_t size,
+ /* Single vCPU owns these counters. Logs use host time only once per 4096
+  * dispatches. Count dispatches separately from chained guest TBs. */
+ static struct {
+-    uint64_t dispatches, idle, returns, chains, exits[4], events[4];
++    uint64_t dispatches, idle, returns, chains, exits[4], events[5];
+     uint64_t reads, writes, samples, execution_us;
+     int64_t sample_begin, report_us;
+     bool decoded;
+@@ -558,6 +559,11 @@ void boxdroid_tcg_event(unsigned kind)
+     if (kind < G_N_ELEMENTS(x87_exec.events)) ++x87_exec.events[kind];
+ }
+ 
++bool boxdroid_tcg_diagnostics_active(void)
++{
++    return detailed_diagnostics;
++}
++
+ /* Sample indirect-chain lookups as well as outer C dispatches. The latter
+  * disproportionately sample STI's interrupt-shadow exits in the idle loop. */
+ void boxdroid_lookup_pc(uint64_t pc)
+@@ -650,13 +656,17 @@ static void x87_tb_profile(CPUState *cpu, uint64_t pc)
+             !cpu_memory_rw_debug(cpu, env->regs[R_EBX] + 0x2c, bytes, 4, false);
+         if (next_ok) next = ldl_le_p(bytes);
+         __android_log_print(ANDROID_LOG_INFO, "BoxDroid4",
+-            "EXEC_WINDOW mono_us=%lld elapsed_us=%lld dispatch=%llu idle=%llu returns=%llu chain_returns=%llu exit0=%llu exit1=%llu requested=%llu lookup_hit=%llu lookup_miss=%llu mmio_reads=%llu mmio_writes=%llu samples=%llu execution_us=%llu pc=0x%llx queue_addr=0x%llx queue=0x%x queue_ok=%d next_addr=0x%llx next=0x%x next_ok=%d eflags=0x%x hflags=0x%x",
++            "EXEC_WINDOW mono_us=%lld elapsed_us=%lld dispatch=%llu idle=%llu returns=%llu chain_returns=%llu exit0=%llu exit1=%llu requested=%llu lookup_hit=%llu lookup_miss=%llu jc_primary=%llu jc_secondary=%llu qht_fallback=%llu mmio_reads=%llu mmio_writes=%llu samples=%llu execution_us=%llu pc=0x%llx queue_addr=0x%llx queue=0x%x queue_ok=%d next_addr=0x%llx next=0x%x next_ok=%d eflags=0x%x hflags=0x%x",
+             (long long)now, (long long)(now-x87_exec.report_us),
+             (unsigned long long)x87_exec.dispatches, (unsigned long long)x87_exec.idle,
+             (unsigned long long)x87_exec.returns, (unsigned long long)x87_exec.chains,
+             (unsigned long long)x87_exec.exits[0], (unsigned long long)x87_exec.exits[1],
+             (unsigned long long)x87_exec.exits[3], (unsigned long long)x87_exec.events[0],
+-            (unsigned long long)x87_exec.events[1], (unsigned long long)x87_exec.reads,
++            (unsigned long long)x87_exec.events[1],
++            (unsigned long long)x87_exec.events[2],
++            (unsigned long long)x87_exec.events[4],
++            (unsigned long long)x87_exec.events[3],
++            (unsigned long long)x87_exec.reads,
+             (unsigned long long)x87_exec.writes, (unsigned long long)x87_exec.samples,
+             (unsigned long long)x87_exec.execution_us, (unsigned long long)pc,
+             (unsigned long long)env->regs[R_EBP], queue, queue_ok,
+@@ -1452,6 +1462,12 @@ Java_org_boxdroid_PerformanceActivity_nativeUniqueFrames(JNIEnv *env, jobject se
+     return __atomic_load_n(&timing_unique, __ATOMIC_RELAXED);
+ }
+ extern uint64_t boxdroid_guest_flips(void);
++#ifdef BOXDROID_XBOX_RUNTIME
++extern bool boxdroid_inline_lookup_observe;
++extern uint64_t boxdroid_inline_lookup_hits[2], boxdroid_inline_lookup_fallbacks;
++extern uint64_t boxdroid_inline_fmul_requests, boxdroid_inline_fmul_hits;
++extern uint64_t boxdroid_fmul53_slow_calls;
++#endif
+ static void timing_report(int64_t now)
+ {
+     if (!performance_profile) return;
+@@ -1473,6 +1489,20 @@ static void timing_report(int64_t now)
+         timing_conversion_us, timing_present_us, g_nv2a->pramdac.video_clock_coeff,
+         v->cr[0],v->cr[6],v->cr[7],v->cr[0x25],v->sr[1],v->msr,
+         g_nv2a->pramdac.fp_hcrtc,g_nv2a->pramdac.fp_vcrtc,g_nv2a->pcrtc.start);
++#ifdef BOXDROID_XBOX_RUNTIME
++    if (boxdroid_inline_lookup_observe) {
++        __android_log_print(ANDROID_LOG_INFO, "BoxDroid3",
++            "TCG_INLINE_COUNTS lookup_primary=%" PRIu64 " lookup_secondary=%" PRIu64
++            " lookup_fallback=%" PRIu64 " fmul_requests=%" PRIu64
++            " fmul_hits=%" PRIu64 " fmul_slow_calls=%" PRIu64,
++            qatomic_read(&boxdroid_inline_lookup_hits[0]),
++            qatomic_read(&boxdroid_inline_lookup_hits[1]),
++            qatomic_read(&boxdroid_inline_lookup_fallbacks),
++            qatomic_read(&boxdroid_inline_fmul_requests),
++            qatomic_read(&boxdroid_inline_fmul_hits),
++            qatomic_read(&boxdroid_fmul53_slow_calls));
++    }
++#endif
+     last_unique=timing_unique; last_flips=flips; timing_report_us=now;
+     timing_frames=timing_green=timing_refreshes=0;
+     timing_period_us=timing_scanout_us=timing_bql_us=timing_refresh_us=0;
+diff --git a/scripts/profile-android.py b/scripts/profile-android.py
+index 8acb2e6..268e020 100644
+--- a/scripts/profile-android.py
++++ b/scripts/profile-android.py
+@@ -140,6 +140,7 @@ def summarize(samples, log, page_size=4096):
+                         "allowed": last[tid].get("allowed"),
+                         "sampled_cpus": sorted({s["threads"][tid]["cpu"] for s in samples if tid in s["threads"]})})
+     perf, presentation, guest_frames, audio, queues, apu, voices, voice_wait = [], [], [], [], [], [], [], []
++    guest_flip_events = []
+     for line in log.splitlines():
+         if " PERF mono_us=" in line:
+             perf.append(metrics(line))
+@@ -147,6 +148,8 @@ def summarize(samples, log, page_size=4096):
+             presentation.append(metrics(line))
+         elif " GUEST_FRAME mono_us=" in line:
+             guest_frames.append(metrics(line))
++        elif " GUEST_FLIP mono_us=" in line:
++            guest_flip_events.append(metrics(line))
+         elif " PRESENT_QUEUE submitted=" in line:
+             queues.append(metrics(line))
+         elif " AUDIO_STATS backend=" in line:
+@@ -174,6 +177,20 @@ def summarize(samples, log, page_size=4096):
+         intervals = [b["mono_us"] - a["mono_us"] for a, b in zip(guest_frames, guest_frames[1:])]
+         timing["unique_frame_interval_us"] = {"p50": percentile(intervals, .50), "p95": percentile(intervals, .95), "p99": percentile(intervals, .99), "max": max(intervals)}
+         timing["unique_frame_gaps_over_1s"] = sum(interval > 1000000 for interval in intervals)
++        # Historical "unique frame" intervals are image-change intervals.
++        timing["changed_image_interval_us"] = timing["unique_frame_interval_us"]
++    if len(guest_flip_events) > 1:
++        intervals = [b["mono_us"] - a["mono_us"]
++                     for a, b in zip(guest_flip_events, guest_flip_events[1:])]
++        timing["guest_flip_interval_us"] = {
++            "p50": percentile(intervals, .50), "p95": percentile(intervals, .95),
++            "p99": percentile(intervals, .99), "max": max(intervals)}
++        timing["guest_flip_events"] = len(guest_flip_events)
++        timing["guest_flip_event_id_gaps"] = sum(
++            b["guest_flips"] != a["guest_flips"] + 1
++            for a, b in zip(guest_flip_events, guest_flip_events[1:]))
++        timing["guest_flip_interval_scope"] = "NV097 FLIP_INCREMENT_WRITE submission"
++
+     if len(successful) > 1:
+         intervals = [b["mono_us"] - a["mono_us"] for a, b in zip(successful, successful[1:])]
+         timing["completed_presents_per_second"] = (len(successful) - 1) * 1e6 / (successful[-1]["mono_us"] - successful[0]["mono_us"])
+@@ -265,7 +282,7 @@ def main():
+     pid = int(adb("shell", "pidof", args.process))
+     page_size = int(adb("shell", "getconf", "PAGESIZE"))
+     controls = {name: adb("shell", "getprop", "debug.boxdroid." + name)
+-                for name in ("profile", "diagnostics", "async_present", "voice_workers", "voice_apu", "dsp_jit", "tcg_prime", "fast_fpu", "voice_coarse", "tcg_ordered", "voice_audit", "order_audit", "fpu_audit", "sample_pc")}
++                for name in ("profile", "diagnostics", "async_present", "voice_workers", "voice_apu", "dsp_jit", "tcg_prime", "fast_fpu", "voice_coarse", "tcg_ordered", "voice_audit", "order_audit", "fpu_audit", "sample_pc", "tcg_dump", "defer_globals", "boot_trace", "read_tlb_cache", "sse_native", "ram_span", "fp_local", "fp_preserve", "jmp_cache2", "inline_lookup", "inline_lookup_count", "lookup_no_bridges", "vector_acquire", "inline_fmul", "inline_fp_preserve", "fmul_shared", "tcg_absolute_pc", "lookup_shared", "tlb_resident")}
+     metadata = {"pid": pid, "process": args.process, "note": args.note,
+                 "page_size": page_size, "wall_start_epoch": time.time(), "controls": controls}
+     apk = adb("shell", "pm", "path", "org.boxdroid").splitlines()[0].removeprefix("package:")

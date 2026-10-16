@@ -1,0 +1,53 @@
+--------- beginning of crash
+10-15 00:28:42.870  2681  3158 E AndroidRuntime: FATAL EXCEPTION: [com.google.android.gms.chimera.container.intentoperation.GmsIntentOperationChimeraService-Executor] idle
+10-15 00:28:42.870  2681  3158 E AndroidRuntime: Process: com.google.android.gms, PID: 2681
+10-15 00:28:42.870  2681  3158 E AndroidRuntime: java.lang.SecurityException: isSafetyCenterEnabled requires any of: [android.permission.READ_SAFETY_CENTER_STATUS, android.permission.SEND_SAFETY_CENTER_UPDATE], but none were granted
+10-15 00:28:42.870  2681  3158 E AndroidRuntime: 	at android.os.Parcel.createExceptionOrNull(Parcel.java:3011)
+10-15 00:28:42.870  2681  3158 E AndroidRuntime: 	at android.os.Parcel.createException(Parcel.java:2995)
+10-15 00:28:42.870  2681  3158 E AndroidRuntime: 	at android.os.Parcel.readException(Parcel.java:2978)
+10-15 00:28:42.870  2681  3158 E AndroidRuntime: 	at android.os.Parcel.readException(Parcel.java:2920)
+10-15 00:28:42.870  2681  3158 E AndroidRuntime: 	at android.safetycenter.ISafetyCenterManager$Stub$Proxy.isSafetyCenterEnabled(ISafetyCenterManager.java:329)
+10-15 00:28:42.870  2681  3158 E AndroidRuntime: 	at android.safetycenter.SafetyCenterManager.isSafetyCenterEnabled(SafetyCenterManager.java:324)
+10-15 00:28:42.870  2681  3158 E AndroidRuntime: 	at hlfm.a(:com.google.android.gms@263737029@26.37.37 (190400-994713346):19)
+10-15 00:28:42.870  2681  3158 E AndroidRuntime: 	at com.google.android.personalsafety.settings.autolock.AutoLockSettingsInitIntentOperation.b(:com.google.android.gms@263737029@26.37.37 (190400-994713346):201)
+10-15 00:28:42.870  2681  3158 E AndroidRuntime: 	at bhwz.j(:com.google.android.gms@263737029@26.37.37 (190400-994713346):60)
+10-15 00:28:42.870  2681  3158 E AndroidRuntime: 	at bhwz.onHandleIntent(:com.google.android.gms@263737029@26.37.37 (190400-994713346):1)
+10-15 00:28:42.870  2681  3158 E AndroidRuntime: 	at com.google.android.chimera.IntentOperation.onHandleIntent(:com.google.android.gms@263737029@26.37.37 (190400-994713346):1)
+10-15 00:28:42.870  2681  3158 E AndroidRuntime: 	at bidl.onHandleIntent(:com.google.android.gms@263737029@26.37.37 (190400-994713346):88)
+10-15 00:28:42.870  2681  3158 E AndroidRuntime: 	at aele.run(:com.google.android.gms@263737029@26.37.37 (190400-994713346):58)
+10-15 00:28:42.870  2681  3158 E AndroidRuntime: 	at aeld.run(:com.google.android.gms@263737029@26.37.37 (190400-994713346):132)
+10-15 00:28:42.870  2681  3158 E AndroidRuntime: 	at hret.run(:com.google.android.gms@263737029@26.37.37 (190400-994713346):23)
+10-15 00:28:42.870  2681  3158 E AndroidRuntime: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1137)
+10-15 00:28:42.870  2681  3158 E AndroidRuntime: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)
+10-15 00:28:42.870  2681  3158 E AndroidRuntime: 	at java.lang.Thread.run(Thread.java:1012)
+10-15 02:03:36.398 15877 15878 F libc    : Pointer tag for 0x70dfcbdc40 was truncated, see 'https://source.android.com/devices/tech/debug/tagged-pointers'.
+10-15 02:03:36.398 15877 15878 F libc    : Fatal signal 6 (SIGABRT), code -1 (SI_QUEUE) in tid 15878 (boxdroid-tcg-st), pid 15877 (boxdroid-tcg-st)
+10-15 02:03:36.503 15914 15914 F DEBUG   : *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+10-15 02:03:36.503 15914 15914 F DEBUG   : Build fingerprint: 'qti/kona/kona:13/TKQ1.240621.001/eng.RP5.20251128.173135:user/release-keys'
+10-15 02:03:36.503 15914 15914 F DEBUG   : Revision: '0'
+10-15 02:03:36.503 15914 15914 F DEBUG   : ABI: 'arm64'
+10-15 02:03:36.503 15914 15914 F DEBUG   : Timestamp: 2026-10-15 02:03:36.430504748+0200
+10-15 02:03:36.503 15914 15914 F DEBUG   : Process uptime: 18s
+10-15 02:03:36.503 15914 15914 F DEBUG   : Cmdline: /data/local/tmp/boxdroid-tcg-state-tests
+10-15 02:03:36.503 15914 15914 F DEBUG   : pid: 15877, tid: 15878, name: boxdroid-tcg-st  >>> /data/local/tmp/boxdroid-tcg-state-tests <<<
+10-15 02:03:36.503 15914 15914 F DEBUG   : uid: 2000
+10-15 02:03:36.503 15914 15914 F DEBUG   : signal 6 (SIGABRT), code -1 (SI_QUEUE), fault addr --------
+10-15 02:03:36.503 15914 15914 F DEBUG   : Abort message: 'Pointer tag for 0x70dfcbdc40 was truncated, see 'https://source.android.com/devices/tech/debug/tagged-pointers'.'
+10-15 02:03:36.503 15914 15914 F DEBUG   :     x0  0000000000000000  x1  0000000000003e06  x2  0000000000000006  x3  00000070e007d730
+10-15 02:03:36.503 15914 15914 F DEBUG   :     x4  8080808080808080  x5  8080808080808080  x6  8080808080808080  x7  8080808080808080
+10-15 02:03:36.503 15914 15914 F DEBUG   :     x8  00000000000000f0  x9  00000070cc134b28  x10 0000000000000001  x11 00000070cc17484c
+10-15 02:03:36.503 15914 15914 F DEBUG   :     x12 0101010101010101  x13 000000198fd811ce  x14 00175d697d354c00  x15 0000000000000048
+10-15 02:03:36.503 15914 15914 F DEBUG   :     x16 00000070cc1dcd68  x17 00000070cc1b84e0  x18 0000006dc1894000  x19 0000000000003e05
+10-15 02:03:36.503 15914 15914 F DEBUG   :     x20 0000000000003e06  x21 00000000ffffffff  x22 00000056942d6a54  x23 00000056942778c0
+10-15 02:03:36.503 15914 15914 F DEBUG   :     x24 0000005694277000  x25 b400006e09e482a0  x26 00000056942d6ab8  x27 00000070e007dcc0
+10-15 02:03:36.503 15914 15914 F DEBUG   :     x28 0000005692c037ea  x29 00000070e007d7b0
+10-15 02:03:36.503 15914 15914 F DEBUG   :     lr  00000070cc165788  sp  00000070e007d710  pc  00000070cc1657b4  pst 0000000000001000
+10-15 02:03:36.503 15914 15914 F DEBUG   : backtrace:
+10-15 02:03:36.503 15914 15914 F DEBUG   :       #00 pc 00000000000527b4  /apex/com.android.runtime/lib64/bionic/libc.so (abort+168) (BuildId: bf5f1ce73f89cca7d6a062eb7877e86a)
+10-15 02:03:36.503 15914 15914 F DEBUG   :       #01 pc 000000000003e0dc  /apex/com.android.runtime/lib64/bionic/libc.so (free+108) (BuildId: bf5f1ce73f89cca7d6a062eb7877e86a)
+10-15 02:03:36.503 15914 15914 F DEBUG   :       #02 pc 0000000000fab0ac  /data/local/tmp/boxdroid-tcg-state-tests (address_space_dispatch_free+132)
+10-15 02:03:36.503 15914 15914 F DEBUG   :       #03 pc 0000000000f9a54c  /data/local/tmp/boxdroid-tcg-state-tests (flatview_destroy.llvm.16189988779011059849+40)
+10-15 02:03:36.503 15914 15914 F DEBUG   :       #04 pc 00000000013f5fdc  /data/local/tmp/boxdroid-tcg-state-tests (call_rcu_thread+1072)
+10-15 02:03:36.503 15914 15914 F DEBUG   :       #05 pc 00000000013ebda8  /data/local/tmp/boxdroid-tcg-state-tests (qemu_thread_start.llvm.317329753509362786+112)
+10-15 02:03:36.503 15914 15914 F DEBUG   :       #06 pc 00000000000ba650  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+208) (BuildId: bf5f1ce73f89cca7d6a062eb7877e86a)
+10-15 02:03:36.503 15914 15914 F DEBUG   :       #07 pc 0000000000053ffc  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+68) (BuildId: bf5f1ce73f89cca7d6a062eb7877e86a)

@@ -1,0 +1,481 @@
+# Experiment29c recovery/commit IR, permit output-register reuse after exact guard; opt-in recovery_uses1/2/3 default0. Revised validation/performance pending.
+
+diff --git a/accel/tcg/translate-all.c b/accel/tcg/translate-all.c
+index 9fd1fc7225..bbf36f39bf 100644
+--- a/accel/tcg/translate-all.c
++++ b/accel/tcg/translate-all.c
+@@ -443,6 +443,19 @@ TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
+     tcg_ctx->gen_tb = tb;
+     tcg_ctx->addr_type = target_long_bits() == 32 ? TCG_TYPE_I32 : TCG_TYPE_I64;
+     tcg_ctx->guest_mo = cpu->cc->tcg_ops->guest_default_memory_order;
++    tcg_ctx->boxdroid_recovery_mode = 0;
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    static int recovery_mode = -1;
++    if (recovery_mode < 0) {
++        char prop[PROP_VALUE_MAX] = {0};
++        __system_property_get("debug.boxdroid.recovery_uses", prop);
++        recovery_mode = !strcmp(prop, "3") ? 3 : !strcmp(prop, "2") ? 2 :
++                        !strcmp(prop, "1") ? 1 : 0;
++    }
++    if (!(s.cflags & CF_PARALLEL)) {
++        tcg_ctx->boxdroid_recovery_mode = recovery_mode;
++    }
++#endif
+     tcg_ctx->boxdroid_ordered_stores = false;
+     tcg_ctx->boxdroid_ordered_loads = false;
+     tcg_ctx->boxdroid_acquire_reads = false;
+diff --git a/include/tcg/tcg-opc.h b/include/tcg/tcg-opc.h
+index 031834305e..bf72a61dc0 100644
+--- a/include/tcg/tcg-opc.h
++++ b/include/tcg/tcg-opc.h
+@@ -27,6 +27,10 @@
+  */
+ 
+ /* predefined ops */
++/* Architectural value needed by a following RAM operation's cold exit.
++ * A real IR use, without forcing a load of an already canonical value. */
++DEF(boxdroid_recover, 0, 1, 0, TCG_OPF_NOT_PRESENT)
++DEF(boxdroid_commit, 0, 1, 0, TCG_OPF_NOT_PRESENT)
+ DEF(discard, 1, 0, 0, TCG_OPF_NOT_PRESENT)
+ DEF(set_label, 0, 0, 1, TCG_OPF_BB_END | TCG_OPF_NOT_PRESENT)
+ 
+diff --git a/include/tcg/tcg.h b/include/tcg/tcg.h
+index bc95069775..69e0b85c77 100644
+--- a/include/tcg/tcg.h
++++ b/include/tcg/tcg.h
+@@ -386,6 +386,10 @@ struct TCGContext {
+     int nb_ops;
+     TCGType addr_type;            /* TCG_TYPE_I32 or TCG_TYPE_I64 */
+     TCGBar guest_mo;
++    unsigned boxdroid_recovery_mode;
++    void *boxdroid_mem_recovery;
++    bool *boxdroid_recovery_dead;
++    bool boxdroid_recovery_pending;
+     bool boxdroid_ordered_stores, boxdroid_ordered_loads, boxdroid_rcpc;
+ #if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
+     bool boxdroid_fp_local_requested;
+diff --git a/tcg/aarch64/tcg-target.c.inc b/tcg/aarch64/tcg-target.c.inc
+index d01bed8857..5d759ae724 100644
+--- a/tcg/aarch64/tcg-target.c.inc
++++ b/tcg/aarch64/tcg-target.c.inc
+@@ -1822,6 +1822,94 @@ static const TCGLdstHelperParam ldst_helper_param = {
+     .ntmp = 1, .tmp = { TCG_REG_TMP0 }
+ };
+ 
++static void boxdroid_recovery_count(TCGContext *s, TCGLabelQemuLdst *lb,
++                                     bool cold)
++{
++    if (lb && lb->recovery && lb->recovery->count &&
++        boxdroid_inline_lookup_observe) {
++        uint64_t *counter = cold ? &boxdroid_recovery_cold_hits :
++                                   &boxdroid_recovery_fast_hits;
++        tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_TMP2, (intptr_t)counter);
++        tcg_out_ld(s, TCG_TYPE_I64, TCG_REG_TMP0, TCG_REG_TMP2, 0);
++        tcg_out_insn(s, 3401, ADDI, TCG_TYPE_I64, TCG_REG_TMP0,
++                     TCG_REG_TMP0, 1);
++        tcg_out_st(s, TCG_TYPE_I64, TCG_REG_TMP0, TCG_REG_TMP2, 0);
++    }
++}
++
++static void boxdroid_out_recover_globals(TCGContext *s, TCGLabelQemuLdst *lb)
++{
++    boxdroid_recovery_count(s, lb, true);
++    BoxDroidMemRecovery *r = lb->recovery;
++    if (!r) {
++        return;
++    }
++    for (unsigned i = 0; i < r->count; i++) {
++        TCGReg value = r->entries[i].reg;
++        if (r->entries[i].constant) {
++            value = TCG_REG_TMP2;
++            tcg_out_movi(s, r->entries[i].type, value, r->entries[i].value);
++        }
++        tcg_out_st(s, r->entries[i].type, value, r->entries[i].base,
++                    r->entries[i].offset);
++    }
++}
++
++/* Preserve live caller registers only on the out-of-line helper path.
++ * Scalar memory helpers use register arguments; the dynamic frame does not
++ * overlap TCG's spill slots. A fault unwinds directly through QEMU's recovery. */
++static unsigned boxdroid_mem_frame_size(TCGRegSet regs)
++{
++    unsigned size = 0;
++    for (int i = 0; i < TCG_TARGET_NB_REGS; i++) {
++        if (tcg_regset_test_reg(regs, i)) {
++            size += i >= TCG_REG_V0 ? 16 : 8;
++        }
++    }
++    return QEMU_ALIGN_UP(size, 16);
++}
++
++static void boxdroid_mem_push_regs(TCGContext *s, TCGLabelQemuLdst *lb)
++{
++    unsigned frame = boxdroid_mem_frame_size(lb->preserved_regs);
++    unsigned offset = 0;
++    if (!frame) {
++        return;
++    }
++    tcg_debug_assert(frame <= 4095);
++    tcg_out_insn(s, 3401, SUBI, TCG_TYPE_I64, TCG_REG_SP, TCG_REG_SP, frame);
++    for (int i = 0; i < TCG_TARGET_NB_REGS; i++) {
++        if (tcg_regset_test_reg(lb->preserved_regs, i)) {
++            bool vector = i >= TCG_REG_V0;
++            tcg_out_st(s, vector ? TCG_TYPE_V128 : TCG_TYPE_I64,
++                       i, TCG_REG_SP, offset);
++            offset += vector ? 16 : 8;
++        }
++    }
++}
++
++static void boxdroid_mem_pop_regs(TCGContext *s, TCGLabelQemuLdst *lb)
++{
++    unsigned frame = boxdroid_mem_frame_size(lb->preserved_regs);
++    unsigned offset = 0;
++    if (!frame) {
++        return;
++    }
++    for (int i = 0; i < TCG_TARGET_NB_REGS; i++) {
++        if (tcg_regset_test_reg(lb->preserved_regs, i)) {
++            bool vector = i >= TCG_REG_V0;
++            /* The load result has already replaced its old value. */
++            if (!lb->is_ld || i != lb->datalo_reg) {
++                tcg_out_ld(s, vector ? TCG_TYPE_V128 : TCG_TYPE_I64,
++                           i, TCG_REG_SP, offset);
++            }
++            offset += vector ? 16 : 8;
++        }
++    }
++    tcg_out_insn(s, 3401, ADDI, TCG_TYPE_I64, TCG_REG_SP, TCG_REG_SP, frame);
++}
++
++
+ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
+ {
+     MemOp opc = get_memop(lb->oi);
+@@ -1830,9 +1918,12 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
+         return false;
+     }
+ 
++    boxdroid_out_recover_globals(s, lb);
++    boxdroid_mem_push_regs(s, lb);
+     tcg_out_ld_helper_args(s, lb, &ldst_helper_param);
+     tcg_out_call_int(s, qemu_ld_helpers[opc & MO_SIZE]);
+     tcg_out_ld_helper_ret(s, lb, false, &ldst_helper_param);
++    boxdroid_mem_pop_regs(s, lb);
+     if (s->boxdroid_acquire_reads && (opc & MO_SIZE) <= MO_64) {
+         /* The ordinary helper read must have acquire ordering on return,
+          * including a TLB miss, MMIO, watchpoint and unaligned access. */
+@@ -1850,8 +1941,11 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
+         return false;
+     }
+ 
++    boxdroid_out_recover_globals(s, lb);
++    boxdroid_mem_push_regs(s, lb);
+     tcg_out_st_helper_args(s, lb, &ldst_helper_param);
+     tcg_out_call_int(s, qemu_st_helpers[opc & MO_SIZE]);
++    boxdroid_mem_pop_regs(s, lb);
+     if (s->boxdroid_acquire_reads) {
+         /* Store helpers can read RAM in a page walk or MMIO callback.
+          * Bridge those ordinary reads before returning to an acquire region. */
+@@ -2161,6 +2255,7 @@ static void tgen_qemu_ld(TCGContext *s, TCGType data_type, TCGReg data_reg,
+     HostAddress h;
+ 
+     ldst = prepare_host_addr(s, &h, addr_reg, oi, true);
++    boxdroid_recovery_count(s, ldst, false);
+     tcg_out_qemu_ld_direct(s, get_memop(oi), data_type, data_reg, h);
+ 
+     if (ldst) {
+@@ -2182,6 +2277,7 @@ static void tgen_qemu_st(TCGContext *s, TCGType data_type, TCGReg data_reg,
+     HostAddress h;
+ 
+     ldst = prepare_host_addr(s, &h, addr_reg, oi, false);
++    boxdroid_recovery_count(s, ldst, false);
+     tcg_out_qemu_st_direct(s, get_memop(oi), data_reg, h);
+ 
+     if (ldst) {
+diff --git a/tcg/optimize.c b/tcg/optimize.c
+index f69702b26e..b29efee55e 100644
+--- a/tcg/optimize.c
++++ b/tcg/optimize.c
+@@ -3124,6 +3124,11 @@ void tcg_optimize(TCGContext *s)
+             continue;
+         }
+ 
++        /* Keep the architectural global as the recovery use. Replacing it
++         * with a copy would allow the committed definition to be removed. */
++        if (opc == INDEX_op_boxdroid_recover || opc == INDEX_op_boxdroid_commit) {
++            continue;
++        }
+         def = &tcg_op_defs[opc];
+         init_arguments(&ctx, op, def->nb_oargs + def->nb_iargs);
+         copy_propagate(&ctx, op, def->nb_oargs, def->nb_iargs);
+diff --git a/tcg/tcg.c b/tcg/tcg.c
+index fae8cd809c..4ea9cddaab 100644
+--- a/tcg/tcg.c
++++ b/tcg/tcg.c
+@@ -97,7 +97,23 @@ typedef struct QEMU_PACKED {
+     DebugFrameFDEHeader fde;
+ } DebugFrameHeader;
+ 
++uint64_t boxdroid_recovery_fast_hits, boxdroid_recovery_cold_hits;
++
++typedef struct BoxDroidMemRecovery {
++    unsigned count;
++    TCGRegSet regs;
++    struct {
++        TCGType type;
++        TCGReg reg, base;
++        intptr_t offset;
++        uint64_t value;
++        bool constant;
++    } entries[];
++} BoxDroidMemRecovery;
++
+ struct TCGLabelQemuLdst {
++    BoxDroidMemRecovery *recovery;
++    TCGRegSet preserved_regs;
+     bool is_ld;             /* qemu_ld: true, qemu_st: false */
+     MemOpIdx oi;
+     TCGType type;           /* result type of a load */
+@@ -657,6 +673,15 @@ static TCGLabelQemuLdst *new_ldst_label(TCGContext *s)
+     TCGLabelQemuLdst *l = tcg_malloc(sizeof(*l));
+ 
+     memset(l, 0, sizeof(*l));
++    l->recovery = s->boxdroid_mem_recovery;
++    if (l->recovery && s->boxdroid_recovery_mode >= 2) {
++        TCGRegSet candidates = tcg_target_call_clobber_regs & ~s->reserved_regs;
++        for (int i = 0; i < TCG_TARGET_NB_REGS; i++) {
++            if (tcg_regset_test_reg(candidates, i) && s->reg_to_temp[i]) {
++                tcg_regset_set_reg(l->preserved_regs, i);
++            }
++        }
++    }
+     QSIMPLEQ_INSERT_TAIL(&s->ldst_labels, l, next);
+ 
+     return l;
+@@ -3879,6 +3904,58 @@ reachable_code_pass(TCGContext *s)
+     }
+ }
+ 
++static bool boxdroid_recovery_memop(TCGContext *s, const TCGOp *op)
++{
++    return s->boxdroid_recovery_mode && s->nb_indirects == 0 &&
++           s->addr_type == TCG_TYPE_I32 &&
++           (op->opc == INDEX_op_qemu_ld || op->opc == INDEX_op_qemu_st) &&
++           (get_memop(op->args[2]) & MO_SIZE) <= MO_64;
++}
++
++static void boxdroid_insert_recovery_uses(TCGContext *s)
++{
++    TCGOp *op, *next;
++    if (!s->boxdroid_recovery_mode || s->nb_indirects) {
++        return;
++    }
++    /* Restrict the prototype to globals with fixed, scalar CPU homes. */
++    for (unsigned i = 0; i < s->nb_globals; i++) {
++        TCGTemp *ts = &s->temps[i];
++        if (ts->kind != TEMP_FIXED &&
++            (ts->kind != TEMP_GLOBAL || !ts->mem_base ||
++             ts->mem_base->kind != TEMP_FIXED ||
++             (ts->type != TCG_TYPE_I32 && ts->type != TCG_TYPE_I64))) {
++            s->boxdroid_recovery_mode = 0;
++            return;
++        }
++    }
++    QTAILQ_FOREACH_SAFE(op, &s->ops, link, next) {
++        bool recover = boxdroid_recovery_memop(s, op);
++        bool commit = false;
++        if (!recover && s->boxdroid_recovery_mode == 3) {
++            if (op->opc == INDEX_op_call) {
++                commit = !(tcg_call_flags(op) & TCG_CALL_NO_READ_GLOBALS) ||
++                         !(tcg_call_flags(op) & TCG_CALL_NO_WRITE_GLOBALS);
++            } else {
++                commit = (tcg_op_defs[op->opc].flags &
++                    (TCG_OPF_SIDE_EFFECTS | TCG_OPF_BB_END | TCG_OPF_BB_EXIT)) != 0;
++            }
++        }
++        if (!recover && !commit) {
++            continue;
++        }
++        for (unsigned i = 0; i < s->nb_globals; i++) {
++            TCGTemp *ts = &s->temps[i];
++            if (ts->kind == TEMP_GLOBAL) {
++                TCGOp *use = tcg_op_insert_before(s, op,
++                    (recover ? INDEX_op_boxdroid_recover : INDEX_op_boxdroid_commit),
++                    ts->type, 1);
++                use->args[0] = temp_arg(ts);
++            }
++        }
++    }
++}
++
+ #define TS_DEAD  1
+ #define TS_MEM   2
+ 
+@@ -4146,6 +4223,17 @@ liveness_pass_1(TCGContext *s)
+         const TCGArgConstraint *args_ct;
+ 
+         switch (opc) {
++        case INDEX_op_boxdroid_commit:
++            /* This explicit store satisfies future canonical-memory demand.
++             * Preceding definitions need only produce a live value, not emit
++             * an early home store. BB/call state rules remain unchanged. */
++            ts = arg_temp(op->args[0]);
++            if (ts->state & TS_DEAD) {
++                arg_life |= DEAD_ARG;
++            }
++            ts->state &= ~(TS_DEAD | TS_MEM);
++            la_reset_pref(ts);
++            break;
+         case INDEX_op_call:
+             assert_carry_dead(s);
+             {
+@@ -4433,8 +4521,12 @@ liveness_pass_1(TCGContext *s)
+                 la_bb_end(s, nb_globals, nb_temps);
+             } else if (def->flags & TCG_OPF_SIDE_EFFECTS) {
+                 assert_carry_dead(s);
+-                la_global_sync(s, nb_globals);
+-                if (def->flags & TCG_OPF_CALL_CLOBBER) {
++                if (!boxdroid_recovery_memop(s, op)) {
++                    la_global_sync(s, nb_globals);
++                }
++                if ((def->flags & TCG_OPF_CALL_CLOBBER) &&
++                    !(boxdroid_recovery_memop(s, op) &&
++                      s->boxdroid_recovery_mode >= 2)) {
+                     la_cross_call(s, nb_temps, 0);
+                 }
+             }
+@@ -4466,6 +4558,10 @@ liveness_pass_1(TCGContext *s)
+ 
+             /* Incorporate constraints for this operand.  */
+             switch (opc) {
++            case INDEX_op_boxdroid_recover:
++                /* No physical input constraint: canonical globals need no
++                 * host load, and dirty values are captured at the memop. */
++                break;
+             case INDEX_op_mov:
+                 /* Note that these are TCG_OPF_NOT_PRESENT and do not
+                    have proper constraints.  That said, special case
+@@ -5374,6 +5470,33 @@ static void tcg_reg_alloc_dup(TCGContext *s, const TCGOp *op)
+     }
+ }
+ 
++static BoxDroidMemRecovery *boxdroid_capture_globals(TCGContext *s)
++{
++    BoxDroidMemRecovery *r = tcg_malloc(sizeof(*r) + s->nb_globals *
++                                       sizeof(r->entries[0]));
++    r->count = 0;
++    r->regs = 0;
++    for (unsigned i = 0; i < s->nb_globals; i++) {
++        TCGTemp *ts = &s->temps[i];
++        if (temp_readonly(ts) || ts->mem_coherent ||
++            (ts->val_type != TEMP_VAL_REG && ts->val_type != TEMP_VAL_CONST)) {
++            continue;
++        }
++        tcg_debug_assert(ts->mem_allocated && ts->mem_base->kind == TEMP_FIXED);
++        unsigned n = r->count++;
++        r->entries[n].type = ts->type;
++        r->entries[n].reg = ts->reg;
++        r->entries[n].base = ts->mem_base->reg;
++        r->entries[n].offset = ts->mem_offset;
++        r->entries[n].constant = ts->val_type == TEMP_VAL_CONST;
++        r->entries[n].value = ts->val;
++        if (!r->entries[n].constant) {
++            tcg_regset_set_reg(r->regs, ts->reg);
++        }
++    }
++    return r;
++}
++
+ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
+ {
+     const TCGLifeData arg_life = op->life;
+@@ -5404,6 +5527,12 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
+ 
+     i_allocated_regs = s->reserved_regs;
+     o_allocated_regs = s->reserved_regs;
++    bool recover = boxdroid_recovery_memop(s, op) &&
++                   s->boxdroid_recovery_pending;
++    s->boxdroid_mem_recovery = recover ? boxdroid_capture_globals(s) : NULL;
++    if (recover) {
++        i_allocated_regs |= ((BoxDroidMemRecovery *)s->boxdroid_mem_recovery)->regs;
++    }
+ 
+     switch (op->opc) {
+     case INDEX_op_brcond:
+@@ -5649,7 +5778,8 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
+     } else if (def->flags & TCG_OPF_BB_END) {
+         tcg_reg_alloc_bb_end(s, i_allocated_regs);
+     } else {
+-        if (def->flags & TCG_OPF_CALL_CLOBBER) {
++        if ((def->flags & TCG_OPF_CALL_CLOBBER) &&
++            !(recover && s->boxdroid_recovery_mode >= 2)) {
+             assert_carry_dead(s);
+             /* XXX: permit generic clobber register list ? */
+             for (i = 0; i < TCG_TARGET_NB_REGS; i++) {
+@@ -5658,12 +5788,16 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
+                 }
+             }
+         }
+-        if (def->flags & TCG_OPF_SIDE_EFFECTS) {
++        if ((def->flags & TCG_OPF_SIDE_EFFECTS) && !recover) {
+             /* sync globals if the op has side effects and might trigger
+                an exception. */
+             sync_globals(s, i_allocated_regs);
+         }
+ 
++        /* Output allocation may spill the old owner, but cannot overwrite
++         * its physical value before the backend's guard. Scalar AArch64
++         * lowering touches the output only after that guard. Permit reuse;
++         * recovery inputs remain protected during input moves above. */
+         /* satisfy the output constraints */
+         for (k = 0; k < nb_oargs; k++) {
+             i = args_ct[k].sort_index;
+@@ -6086,6 +6220,23 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
+             temp_dead(s, ts);
+         }
+     }
++    if (recover) {
++        for (unsigned n = 0; n < s->nb_globals; n++) {
++            if (!s->boxdroid_recovery_dead[n]) {
++                continue;
++            }
++            bool output = false;
++            for (k = 0; k < nb_oargs; k++) {
++                output |= op->args[k] == temp_arg(&s->temps[n]);
++            }
++            if (!output) {
++                temp_dead(s, &s->temps[n]);
++            }
++        }
++        memset(s->boxdroid_recovery_dead, 0, s->nb_globals * sizeof(bool));
++        s->boxdroid_recovery_pending = false;
++    }
++    s->boxdroid_mem_recovery = NULL;
+ }
+ 
+ static bool tcg_reg_alloc_dup2(TCGContext *s, const TCGOp *op)
+@@ -7120,6 +7276,22 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
+                     tcg_get_insn_start_param(op, i);
+             }
+             break;
++        case INDEX_op_boxdroid_commit: {
++            TCGTemp *ts = arg_temp(op->args[0]);
++            tcg_debug_assert(!s->boxdroid_recovery_pending);
++            temp_sync(s, ts, s->reserved_regs, 0, (op->life & DEAD_ARG) != 0);
++            break;
++        }
++        case INDEX_op_boxdroid_recover: {
++            TCGTemp *ts = arg_temp(op->args[0]);
++            unsigned n = ts - s->temps;
++            tcg_debug_assert(n < s->nb_globals && ts->kind == TEMP_GLOBAL);
++            s->boxdroid_recovery_dead[n] = (op->life & DEAD_ARG) != 0;
++            s->boxdroid_recovery_pending = true;
++            /* Delay death until after the guarded access. No host instruction
++             * is required for this architectural use. */
++            break;
++        }
+         case INDEX_op_discard:
+             temp_dead(s, arg_temp(op->args[0]));
+             break;

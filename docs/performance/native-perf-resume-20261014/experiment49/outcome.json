@@ -1,0 +1,80 @@
+{
+  "experiment": 49,
+  "status": "retained_provisional",
+  "purpose": "Scoped RAM callback TLB invalidation (preserving tb_jmp_cache and unrelated TLB entries while eliminating the second stop-the-world tlb_flush_all_cpus_synced barrier on mem_access_callback_insert/remove), dirty-MMU mode filtering in tlb_reset_dirty/tlb_set_dirty/tlb_flush_page/tlb_flush_range, 2MiB/4MiB large-page presence bitmap in tlb_flush_page_locked, batched single-RCU-guard dirty-bitmap checks in physical_memory_get_dirty_flag/physical_memory_is_clean, and MMU_PHYS_IDX preservation across CR0/CR3/CR4 updates",
+  "patch": "patches/xemu/0059-scoped-tlb-callback-and-dirty-mmuidx.patch",
+  "control": "debug.boxdroid.tlb_cb_scope=1 (default 0 unless set to 1; latched in tlb_init for 32-bit i386)",
+  "build_provenance": "docs/performance/native-perf-resume-20261014/experiment49/build-provenance.json",
+  "apk_sha256": "84cd7cff86290e368bc027a7bc268177f0c56d5edd724e7e55c30fa2acd08dee",
+  "libboxdroid_text_sha256": "2567e41a6d3e87b85593abc7ab97aa0285a08754982b60e102b786f8e8198acb",
+  "source_diff_sha256": "edd6116d04620dd48a2631fe4d81a4be3b514ea45f1f84cdf380d3d19cd2bff6",
+  "validation": {
+    "patch_series_verification": "Verified complete ordered downstream patch series (experiment49/patch-verification.txt)",
+    "device_focused_suite_on": "docs/performance/native-perf-resume-20261014/experiment49/tlb-cb-scope-20261016-tests-on.log (PASS: enabled=1 cb_flushes=2 lp_skips=1; full 2048-case MMX/x87/SSE/SMC/#NM/MMIO/watchpoint/#PF recovery suite PASS)",
+    "device_focused_suite_off": "docs/performance/native-perf-resume-20261014/experiment49/tlb-cb-scope-20261016-tests-off.log (PASS: enabled=0 cb_flushes=0 lp_skips=0; full 2048-case MMX/x87/SSE/SMC/#NM/MMIO/watchpoint/#PF recovery suite PASS)"
+  },
+  "performance_same_apk_bracket": {
+    "scene": "Splinter Cell: Pandora Tomorrow — Dili embassy stilt bridge (checkpoint-row 2, warmup 20s, duration 35s, motion=none, System Vulkan driver)",
+    "on_1": {
+      "capture": "docs/performance/native-perf-resume-20261014/experiment49/native-run-tlb-cb-scope-on-20261016",
+      "tlb_cb_scope": "1",
+      "guest_flips_per_second": 13.684274824662792,
+      "guest_flip_events_per_second": 13.673030818086854,
+      "guest_flip_events": 489,
+      "guest_flip_interval_us": {
+        "p50": 71841,
+        "p95": 84745,
+        "p99": 92072,
+        "max": 105482
+      },
+      "bql_reacquire_us_per_second": 73.23778555228431,
+      "audio_underrun_frame_fraction": 0.06614207650273224,
+      "battery_temperature_tenths_c": [312, 312]
+    },
+    "off": {
+      "capture": "docs/performance/native-perf-resume-20261014/experiment49/native-run-tlb-cb-scope-off-20261016",
+      "tlb_cb_scope": "0",
+      "guest_flips_per_second": 12.841706865664253,
+      "guest_flip_events_per_second": 12.839548563730002,
+      "guest_flip_events": 456,
+      "guest_flip_interval_us": {
+        "p50": 76412,
+        "p95": 89402,
+        "p99": 97191,
+        "max": 101888
+      },
+      "bql_reacquire_us_per_second": 256.69635075893245,
+      "audio_underrun_frame_fraction": 0.058601626016260164,
+      "battery_temperature_tenths_c": [312, 315]
+    },
+    "on_2_repeat": {
+      "capture": "docs/performance/native-perf-resume-20261014/experiment49/native-run-tlb-cb-scope-on-repeat-20261016",
+      "tlb_cb_scope": "1",
+      "guest_flips_per_second": 13.491004446029347,
+      "guest_flip_events_per_second": 13.493227327540954,
+      "guest_flip_events": 481,
+      "guest_flip_interval_us": {
+        "p50": 72652,
+        "p95": 86681,
+        "p99": 92310,
+        "max": 103793
+      },
+      "bql_reacquire_us_per_second": 55.8637714714154,
+      "audio_underrun_frame_fraction": 0.062285714285714285,
+      "battery_temperature_tenths_c": [317, 317]
+    },
+    "same_apk_gain_percent": {
+      "on_1_vs_off": 6.561183453841142,
+      "on_2_repeat_vs_off": 5.056162490302551,
+      "bql_reacquire_reduction_percent": [71.4691, 78.2374]
+    },
+    "gain_vs_experiment48_retained_percent": {
+      "on_1_vs_exp48_on2": 9.213885020856686,
+      "on_2_repeat_vs_exp48_on2": 7.671398789158064
+    },
+    "gain_vs_clean_baseline_9_354035_percent": {
+      "on_1": 46.29274751123758,
+      "on_2_repeat": 44.22657651087842
+    }
+  }
+}

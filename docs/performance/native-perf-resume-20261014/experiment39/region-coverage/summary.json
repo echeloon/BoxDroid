@@ -1,0 +1,4408 @@
+{
+  "inputs": {
+    "docs/performance/native-perf-resume-20261014/experiment39/tcg-dump.bin.gz": "93b2c06497797c53e21ee31e24c6106f369192ff4dbfb7db769fe4f135981d12",
+    "docs/performance/native-perf-resume-20261014/experiment39/tcg-guest-bytes.bin.gz": "049864940f9b1f62bdff2b52a326916a5876ba5efdfc543ed58a75cd5b8f7f86",
+    "build/native-perf-run/guest-code-diagnostic-20261015/report/native-raw.txt": "eeec1b17fae41613bf183dcb4f52ab4624eb65c70d9c44521106eb85bd08ae4a"
+  },
+  "total_tcg_sample_weight": 19120000000,
+  "mapped_jit_sample_weight": 9806000000,
+  "unmapped_jit_sample_weight": 2000000,
+  "sampled_tbs": 2126,
+  "byte_matched_sampled_tbs": 2122,
+  "validated_decoded_tbs": 2121,
+  "decoded_instruction_count": 23236,
+  "byte_matched_tb_sample_weight": 9798000000,
+  "validated_tb_sample_weight": 8358000000,
+  "metadata_decode_mismatch_count": 1,
+  "results": {
+    "base": {
+      "regions": 60,
+      "affected_tbs": 45,
+      "eligible_instructions_in_sampled_tbs": 1555,
+      "instructions_in_length3plus_regions": 302,
+      "affected_tb_sample_weight": 484000000,
+      "affected_tb_sample_fraction_of_tcg": 0.025313807531380753,
+      "direct_region_jit_sample_weight": 50000000,
+      "direct_region_jit_sample_fraction_of_tcg": 0.002615062761506276,
+      "direct_region_fraction_of_mapped_jit": 0.005098919029165817,
+      "length_histogram": {
+        "3": 25,
+        "4": 4,
+        "5": 11,
+        "6": 3,
+        "7": 3,
+        "8": 10,
+        "9": 3,
+        "10": 1
+      },
+      "top_regions": [
+        {
+          "host": "0x6eae60ab80",
+          "tb_pc": "0xe9d69",
+          "start_pc": "0xe9d7d",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 20,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 22,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 24,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 26,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 28,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 30,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 32,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 34,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 18000000,
+          "indices": [
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "direct_jit_sample_weight": 8000000
+        },
+        {
+          "host": "0x6eaeab8f00",
+          "tb_pc": "0x2d5169",
+          "start_pc": "0x2d5169",
+          "length": 5,
+          "total_instruction_count": 5,
+          "instructions": [
+            {
+              "offset": 0,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 2,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 4,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 6,
+              "mnemonic": "fmul",
+              "operands": "%st(5), %st"
+            },
+            {
+              "offset": 8,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 18000000,
+          "indices": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ],
+          "direct_jit_sample_weight": 6000000
+        },
+        {
+          "host": "0x6eacbf0900",
+          "tb_pc": "0x25120",
+          "start_pc": "0x2515c",
+          "length": 3,
+          "total_instruction_count": 3,
+          "instructions": [
+            {
+              "offset": 60,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(3)"
+            },
+            {
+              "offset": 62,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(5)"
+            },
+            {
+              "offset": 64,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(2)"
+            }
+          ],
+          "tb_sample_weight": 68000000,
+          "indices": [
+            24,
+            25,
+            26
+          ],
+          "direct_jit_sample_weight": 4000000
+        },
+        {
+          "host": "0x6eaeb30000",
+          "tb_pc": "0x18d0bf",
+          "start_pc": "0x18d11c",
+          "length": 6,
+          "total_instruction_count": 6,
+          "instructions": [
+            {
+              "offset": 93,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 95,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 97,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 99,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 101,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 103,
+              "mnemonic": "fadd",
+              "operands": "%st(3), %st"
+            }
+          ],
+          "tb_sample_weight": 94000000,
+          "indices": [
+            22,
+            23,
+            24,
+            25,
+            26,
+            27
+          ],
+          "direct_jit_sample_weight": 4000000
+        },
+        {
+          "host": "0x6eae4ba600",
+          "tb_pc": "0xe2d8d",
+          "start_pc": "0xe2daf",
+          "length": 7,
+          "total_instruction_count": 7,
+          "instructions": [
+            {
+              "offset": 34,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 36,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 38,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 40,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 42,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 44,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 46,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 8000000,
+          "indices": [
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ],
+          "direct_jit_sample_weight": 4000000
+        },
+        {
+          "host": "0x6eac6a99c0",
+          "tb_pc": "0x3fa00",
+          "start_pc": "0x3fa0c",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 12,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 14,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 16,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 18,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 20,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 22,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 24,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 26,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 8000000,
+          "indices": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eac916000",
+          "tb_pc": "0x42160",
+          "start_pc": "0x42170",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 16,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 18,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 20,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 22,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 24,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 26,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 28,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 30,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 2000000,
+          "indices": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eacd1dc80",
+          "tb_pc": "0x11d100",
+          "start_pc": "0x11d11a",
+          "length": 5,
+          "total_instruction_count": 5,
+          "instructions": [
+            {
+              "offset": 26,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 28,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 30,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 32,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 34,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 6000000,
+          "indices": [
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae1e1d00",
+          "tb_pc": "0x3ec10",
+          "start_pc": "0x3ec1b",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 11,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 13,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 15,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 17,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 19,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 21,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 23,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 25,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 4000000,
+          "indices": [
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae2a9e40",
+          "tb_pc": "0x96db0",
+          "start_pc": "0x96dc9",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 25,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 27,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 29,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 31,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 33,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 35,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 37,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 39,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 2000000,
+          "indices": [
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae2cba40",
+          "tb_pc": "0xbb0af",
+          "start_pc": "0xbb0b1",
+          "length": 3,
+          "total_instruction_count": 3,
+          "instructions": [
+            {
+              "offset": 2,
+              "mnemonic": "fsub",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 4,
+              "mnemonic": "fmul",
+              "operands": "%st(2), %st"
+            },
+            {
+              "offset": 6,
+              "mnemonic": "fadd",
+              "operands": "%st(1), %st"
+            }
+          ],
+          "tb_sample_weight": 4000000,
+          "indices": [
+            1,
+            2,
+            3
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae4b75c0",
+          "tb_pc": "0xe2c87",
+          "start_pc": "0xe2d22",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 155,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 157,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 159,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 161,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 163,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 165,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 167,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 169,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 8000000,
+          "indices": [
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae4bc280",
+          "tb_pc": "0xe2ea7",
+          "start_pc": "0xe2ecb",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 36,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 38,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 40,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 42,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 44,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 46,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 48,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 50,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 2000000,
+          "indices": [
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae799240",
+          "tb_pc": "0x214f5c",
+          "start_pc": "0x214ff5",
+          "length": 5,
+          "total_instruction_count": 5,
+          "instructions": [
+            {
+              "offset": 153,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 155,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 157,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 159,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 161,
+              "mnemonic": "fsubrp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 16000000,
+          "indices": [
+            61,
+            62,
+            63,
+            64,
+            65
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae85f740",
+          "tb_pc": "0x1f1f20",
+          "start_pc": "0x1f1fa0",
+          "length": 3,
+          "total_instruction_count": 3,
+          "instructions": [
+            {
+              "offset": 128,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(3)"
+            },
+            {
+              "offset": 130,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(5)"
+            },
+            {
+              "offset": 132,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(2)"
+            }
+          ],
+          "tb_sample_weight": 2000000,
+          "indices": [
+            39,
+            40,
+            41
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae927680",
+          "tb_pc": "0x1100af",
+          "start_pc": "0x1100d8",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 41,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 43,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 45,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 47,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 49,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 51,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 53,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 55,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 4000000,
+          "indices": [
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eaeaf3f80",
+          "tb_pc": "0x2bbcb0",
+          "start_pc": "0x2bbd30",
+          "length": 3,
+          "total_instruction_count": 3,
+          "instructions": [
+            {
+              "offset": 128,
+              "mnemonic": "fsubrp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 130,
+              "mnemonic": "fld",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 132,
+              "mnemonic": "fsub",
+              "operands": "%st(1), %st"
+            }
+          ],
+          "tb_sample_weight": 18000000,
+          "indices": [
+            38,
+            39,
+            40
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eacbf0900",
+          "tb_pc": "0x25120",
+          "start_pc": "0x25175",
+          "length": 3,
+          "total_instruction_count": 3,
+          "instructions": [
+            {
+              "offset": 85,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(4)"
+            },
+            {
+              "offset": 87,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(4)"
+            },
+            {
+              "offset": 89,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 68000000,
+          "indices": [
+            35,
+            36,
+            37
+          ],
+          "direct_jit_sample_weight": 0
+        },
+        {
+          "host": "0x6eacbeec00",
+          "tb_pc": "0x250a0",
+          "start_pc": "0x250e8",
+          "length": 3,
+          "total_instruction_count": 3,
+          "instructions": [
+            {
+              "offset": 72,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(3)"
+            },
+            {
+              "offset": 74,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(5)"
+            },
+            {
+              "offset": 76,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(2)"
+            }
+          ],
+          "tb_sample_weight": 46000000,
+          "indices": [
+            29,
+            30,
+            31
+          ],
+          "direct_jit_sample_weight": 0
+        },
+        {
+          "host": "0x6eacbeec00",
+          "tb_pc": "0x250a0",
+          "start_pc": "0x25101",
+          "length": 3,
+          "total_instruction_count": 3,
+          "instructions": [
+            {
+              "offset": 97,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(4)"
+            },
+            {
+              "offset": 99,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(4)"
+            },
+            {
+              "offset": 101,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 46000000,
+          "indices": [
+            40,
+            41,
+            42
+          ],
+          "direct_jit_sample_weight": 0
+        },
+        {
+          "host": "0x6eae464680",
+          "tb_pc": "0xa2b6d",
+          "start_pc": "0xa2b8d",
+          "length": 9,
+          "total_instruction_count": 9,
+          "instructions": [
+            {
+              "offset": 32,
+              "mnemonic": "fsub",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 34,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 36,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 38,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 40,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 42,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 44,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 46,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 48,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 6000000,
+          "indices": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "direct_jit_sample_weight": 0
+        },
+        {
+          "host": "0x6eac984200",
+          "tb_pc": "0x7bbd8",
+          "start_pc": "0x7bc1c",
+          "length": 3,
+          "total_instruction_count": 3,
+          "instructions": [
+            {
+              "offset": 68,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 70,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 72,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 2000000,
+          "indices": [
+            23,
+            24,
+            25
+          ],
+          "direct_jit_sample_weight": 0
+        },
+        {
+          "host": "0x6eac984200",
+          "tb_pc": "0x7bbd8",
+          "start_pc": "0x7bc30",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 88,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 90,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 92,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 94,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 96,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 98,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 100,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 102,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 2000000,
+          "indices": [
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38
+          ],
+          "direct_jit_sample_weight": 0
+        },
+        {
+          "host": "0x6eae4bb440",
+          "tb_pc": "0xe2e1a",
+          "start_pc": "0xe2e3c",
+          "length": 7,
+          "total_instruction_count": 7,
+          "instructions": [
+            {
+              "offset": 34,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 36,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 38,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 40,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 42,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 44,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 46,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 2000000,
+          "indices": [
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ],
+          "direct_jit_sample_weight": 0
+        },
+        {
+          "host": "0x6eae4bd100",
+          "tb_pc": "0xe2f36",
+          "start_pc": "0xe2f5a",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 36,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 38,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 40,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 42,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 44,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 46,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 48,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 50,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 2000000,
+          "indices": [
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "direct_jit_sample_weight": 0
+        },
+        {
+          "host": "0x6eae4bee00",
+          "tb_pc": "0xe2fc5",
+          "start_pc": "0xe2fe8",
+          "length": 7,
+          "total_instruction_count": 7,
+          "instructions": [
+            {
+              "offset": 35,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 37,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 39,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 41,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 43,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 45,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 47,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 2000000,
+          "indices": [
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ],
+          "direct_jit_sample_weight": 0
+        },
+        {
+          "host": "0x6eae55a500",
+          "tb_pc": "0xf0aa4",
+          "start_pc": "0xf0abc",
+          "length": 10,
+          "total_instruction_count": 10,
+          "instructions": [
+            {
+              "offset": 24,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 26,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 28,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 30,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 32,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 34,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 36,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 38,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 40,
+              "mnemonic": "fld",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 42,
+              "mnemonic": "fmul",
+              "operands": "%st(2), %st"
+            }
+          ],
+          "tb_sample_weight": 2000000,
+          "indices": [
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17
+          ],
+          "direct_jit_sample_weight": 0
+        },
+        {
+          "host": "0x6eae6c3040",
+          "tb_pc": "0x33eb81",
+          "start_pc": "0x33eb8f",
+          "length": 4,
+          "total_instruction_count": 4,
+          "instructions": [
+            {
+              "offset": 14,
+              "mnemonic": "fmul",
+              "operands": "%st(2), %st"
+            },
+            {
+              "offset": 16,
+              "mnemonic": "fld",
+              "operands": "%st(6)"
+            },
+            {
+              "offset": 18,
+              "mnemonic": "fmul",
+              "operands": "%st(2), %st"
+            },
+            {
+              "offset": 20,
+              "mnemonic": "fsubrp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 6000000,
+          "indices": [
+            5,
+            6,
+            7,
+            8
+          ],
+          "direct_jit_sample_weight": 0
+        },
+        {
+          "host": "0x6eae6c3040",
+          "tb_pc": "0x33eb81",
+          "start_pc": "0x33eba7",
+          "length": 5,
+          "total_instruction_count": 5,
+          "instructions": [
+            {
+              "offset": 38,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 40,
+              "mnemonic": "fld",
+              "operands": "%st(4)"
+            },
+            {
+              "offset": 42,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 44,
+              "mnemonic": "fsubrp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 46,
+              "mnemonic": "fld",
+              "operands": "%st(6)"
+            }
+          ],
+          "tb_sample_weight": 6000000,
+          "indices": [
+            14,
+            15,
+            16,
+            17,
+            18
+          ],
+          "direct_jit_sample_weight": 0
+        },
+        {
+          "host": "0x6eae6c3040",
+          "tb_pc": "0x33eb81",
+          "start_pc": "0x33ebba",
+          "length": 3,
+          "total_instruction_count": 3,
+          "instructions": [
+            {
+              "offset": 57,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 59,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 61,
+              "mnemonic": "fld",
+              "operands": "%st(5)"
+            }
+          ],
+          "tb_sample_weight": 6000000,
+          "indices": [
+            22,
+            23,
+            24
+          ],
+          "direct_jit_sample_weight": 0
+        }
+      ]
+    },
+    "extended": {
+      "regions": 88,
+      "affected_tbs": 58,
+      "eligible_instructions_in_sampled_tbs": 1846,
+      "instructions_in_length3plus_regions": 442,
+      "affected_tb_sample_weight": 570000000,
+      "affected_tb_sample_fraction_of_tcg": 0.02981171548117155,
+      "direct_region_jit_sample_weight": 68000000,
+      "direct_region_jit_sample_fraction_of_tcg": 0.0035564853556485356,
+      "direct_region_fraction_of_mapped_jit": 0.006934529879665511,
+      "length_histogram": {
+        "3": 29,
+        "4": 5,
+        "5": 28,
+        "6": 6,
+        "7": 6,
+        "8": 10,
+        "9": 3,
+        "10": 1
+      },
+      "top_regions": [
+        {
+          "host": "0x6eacbf0900",
+          "tb_pc": "0x25120",
+          "start_pc": "0x2515a",
+          "length": 6,
+          "total_instruction_count": 6,
+          "instructions": [
+            {
+              "offset": 58,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 60,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(3)"
+            },
+            {
+              "offset": 62,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(5)"
+            },
+            {
+              "offset": 64,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(2)"
+            },
+            {
+              "offset": 66,
+              "mnemonic": "fxch",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 68,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            }
+          ],
+          "tb_sample_weight": 68000000,
+          "indices": [
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "direct_jit_sample_weight": 8000000
+        },
+        {
+          "host": "0x6eae60ab80",
+          "tb_pc": "0xe9d69",
+          "start_pc": "0xe9d7d",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 20,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 22,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 24,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 26,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 28,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 30,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 32,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 34,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 18000000,
+          "indices": [
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "direct_jit_sample_weight": 8000000
+        },
+        {
+          "host": "0x6eaeab8f00",
+          "tb_pc": "0x2d5169",
+          "start_pc": "0x2d5169",
+          "length": 5,
+          "total_instruction_count": 5,
+          "instructions": [
+            {
+              "offset": 0,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 2,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 4,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 6,
+              "mnemonic": "fmul",
+              "operands": "%st(5), %st"
+            },
+            {
+              "offset": 8,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 18000000,
+          "indices": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ],
+          "direct_jit_sample_weight": 6000000
+        },
+        {
+          "host": "0x6eaeb30000",
+          "tb_pc": "0x18d0bf",
+          "start_pc": "0x18d11c",
+          "length": 7,
+          "total_instruction_count": 7,
+          "instructions": [
+            {
+              "offset": 93,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 95,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 97,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 99,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 101,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 103,
+              "mnemonic": "fadd",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 105,
+              "mnemonic": "fsqrt",
+              "operands": ""
+            }
+          ],
+          "tb_sample_weight": 94000000,
+          "indices": [
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "direct_jit_sample_weight": 4000000
+        },
+        {
+          "host": "0x6eae4ba600",
+          "tb_pc": "0xe2d8d",
+          "start_pc": "0xe2daf",
+          "length": 7,
+          "total_instruction_count": 7,
+          "instructions": [
+            {
+              "offset": 34,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 36,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 38,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 40,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 42,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 44,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 46,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 8000000,
+          "indices": [
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ],
+          "direct_jit_sample_weight": 4000000
+        },
+        {
+          "host": "0x6eaeabe100",
+          "tb_pc": "0x2d5100",
+          "start_pc": "0x2d511f",
+          "length": 5,
+          "total_instruction_count": 5,
+          "instructions": [
+            {
+              "offset": 31,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 33,
+              "mnemonic": "fmul",
+              "operands": "%st(2), %st"
+            },
+            {
+              "offset": 35,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 37,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 39,
+              "mnemonic": "fsubrp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 16000000,
+          "indices": [
+            12,
+            13,
+            14,
+            15,
+            16
+          ],
+          "direct_jit_sample_weight": 4000000
+        },
+        {
+          "host": "0x6eaeb001c0",
+          "tb_pc": "0x18cc54",
+          "start_pc": "0x18cc70",
+          "length": 3,
+          "total_instruction_count": 3,
+          "instructions": [
+            {
+              "offset": 28,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 30,
+              "mnemonic": "fadd",
+              "operands": "%st(2), %st"
+            },
+            {
+              "offset": 32,
+              "mnemonic": "fsqrt",
+              "operands": ""
+            }
+          ],
+          "tb_sample_weight": 30000000,
+          "indices": [
+            9,
+            10,
+            11
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eac498a00",
+          "tb_pc": "0xd0d63",
+          "start_pc": "0xd0d74",
+          "length": 3,
+          "total_instruction_count": 3,
+          "instructions": [
+            {
+              "offset": 17,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 19,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 21,
+              "mnemonic": "fchs",
+              "operands": ""
+            }
+          ],
+          "tb_sample_weight": 8000000,
+          "indices": [
+            6,
+            7,
+            8
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eac6a99c0",
+          "tb_pc": "0x3fa00",
+          "start_pc": "0x3fa0c",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 12,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 14,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 16,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 18,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 20,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 22,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 24,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 26,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 8000000,
+          "indices": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eac916000",
+          "tb_pc": "0x42160",
+          "start_pc": "0x42170",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 16,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 18,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 20,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 22,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 24,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 26,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 28,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 30,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 2000000,
+          "indices": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eacd1dc80",
+          "tb_pc": "0x11d100",
+          "start_pc": "0x11d11a",
+          "length": 5,
+          "total_instruction_count": 5,
+          "instructions": [
+            {
+              "offset": 26,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 28,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 30,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 32,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 34,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 6000000,
+          "indices": [
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae1e1d00",
+          "tb_pc": "0x3ec10",
+          "start_pc": "0x3ec1b",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 11,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 13,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 15,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 17,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 19,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 21,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 23,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 25,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 4000000,
+          "indices": [
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae2a9e40",
+          "tb_pc": "0x96db0",
+          "start_pc": "0x96dc9",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 25,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 27,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 29,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 31,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 33,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 35,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 37,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 39,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 2000000,
+          "indices": [
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae2cba40",
+          "tb_pc": "0xbb0af",
+          "start_pc": "0xbb0af",
+          "length": 4,
+          "total_instruction_count": 4,
+          "instructions": [
+            {
+              "offset": 0,
+              "mnemonic": "fxch",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 2,
+              "mnemonic": "fsub",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 4,
+              "mnemonic": "fmul",
+              "operands": "%st(2), %st"
+            },
+            {
+              "offset": 6,
+              "mnemonic": "fadd",
+              "operands": "%st(1), %st"
+            }
+          ],
+          "tb_sample_weight": 4000000,
+          "indices": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae4b75c0",
+          "tb_pc": "0xe2c87",
+          "start_pc": "0xe2d22",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 155,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 157,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 159,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 161,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 163,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 165,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 167,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 169,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 8000000,
+          "indices": [
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae4bc280",
+          "tb_pc": "0xe2ea7",
+          "start_pc": "0xe2ecb",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 36,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 38,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 40,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 42,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 44,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 46,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 48,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 50,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 2000000,
+          "indices": [
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae553640",
+          "tb_pc": "0xe0d4a",
+          "start_pc": "0xe0d4a",
+          "length": 3,
+          "total_instruction_count": 3,
+          "instructions": [
+            {
+              "offset": 0,
+              "mnemonic": "fchs",
+              "operands": ""
+            },
+            {
+              "offset": 2,
+              "mnemonic": "fadd",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 4,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(2)"
+            }
+          ],
+          "tb_sample_weight": 2000000,
+          "indices": [
+            0,
+            1,
+            2
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae799240",
+          "tb_pc": "0x214f5c",
+          "start_pc": "0x214ff5",
+          "length": 5,
+          "total_instruction_count": 5,
+          "instructions": [
+            {
+              "offset": 153,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 155,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 157,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 159,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 161,
+              "mnemonic": "fsubrp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 16000000,
+          "indices": [
+            61,
+            62,
+            63,
+            64,
+            65
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae85f740",
+          "tb_pc": "0x1f1f20",
+          "start_pc": "0x1f1f9e",
+          "length": 6,
+          "total_instruction_count": 6,
+          "instructions": [
+            {
+              "offset": 126,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 128,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(3)"
+            },
+            {
+              "offset": 130,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(5)"
+            },
+            {
+              "offset": 132,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(2)"
+            },
+            {
+              "offset": 134,
+              "mnemonic": "fxch",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 136,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            }
+          ],
+          "tb_sample_weight": 2000000,
+          "indices": [
+            38,
+            39,
+            40,
+            41,
+            42,
+            43
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae927680",
+          "tb_pc": "0x1100af",
+          "start_pc": "0x1100d8",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 41,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 43,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 45,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 47,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 49,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 51,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 53,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 55,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 4000000,
+          "indices": [
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae92f940",
+          "tb_pc": "0x10707f",
+          "start_pc": "0x1070ea",
+          "length": 5,
+          "total_instruction_count": 5,
+          "instructions": [
+            {
+              "offset": 107,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 109,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(4)"
+            },
+            {
+              "offset": 111,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(4)"
+            },
+            {
+              "offset": 113,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 115,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            }
+          ],
+          "tb_sample_weight": 4000000,
+          "indices": [
+            38,
+            39,
+            40,
+            41,
+            42
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eaeaba380",
+          "tb_pc": "0x2d51cc",
+          "start_pc": "0x2d51d2",
+          "length": 5,
+          "total_instruction_count": 5,
+          "instructions": [
+            {
+              "offset": 6,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 8,
+              "mnemonic": "fmul",
+              "operands": "%st(2), %st"
+            },
+            {
+              "offset": 10,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 12,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 14,
+              "mnemonic": "fsubrp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 18000000,
+          "indices": [
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eaeaf3f80",
+          "tb_pc": "0x2bbcb0",
+          "start_pc": "0x2bbd30",
+          "length": 3,
+          "total_instruction_count": 3,
+          "instructions": [
+            {
+              "offset": 128,
+              "mnemonic": "fsubrp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 130,
+              "mnemonic": "fld",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 132,
+              "mnemonic": "fsub",
+              "operands": "%st(1), %st"
+            }
+          ],
+          "tb_sample_weight": 18000000,
+          "indices": [
+            38,
+            39,
+            40
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eacbf0900",
+          "tb_pc": "0x25120",
+          "start_pc": "0x25173",
+          "length": 5,
+          "total_instruction_count": 5,
+          "instructions": [
+            {
+              "offset": 83,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 85,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(4)"
+            },
+            {
+              "offset": 87,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(4)"
+            },
+            {
+              "offset": 89,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 91,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            }
+          ],
+          "tb_sample_weight": 68000000,
+          "indices": [
+            34,
+            35,
+            36,
+            37,
+            38
+          ],
+          "direct_jit_sample_weight": 0
+        },
+        {
+          "host": "0x6eacbeec00",
+          "tb_pc": "0x250a0",
+          "start_pc": "0x250e6",
+          "length": 6,
+          "total_instruction_count": 6,
+          "instructions": [
+            {
+              "offset": 70,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 72,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(3)"
+            },
+            {
+              "offset": 74,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(5)"
+            },
+            {
+              "offset": 76,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(2)"
+            },
+            {
+              "offset": 78,
+              "mnemonic": "fxch",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 80,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            }
+          ],
+          "tb_sample_weight": 46000000,
+          "indices": [
+            28,
+            29,
+            30,
+            31,
+            32,
+            33
+          ],
+          "direct_jit_sample_weight": 0
+        },
+        {
+          "host": "0x6eacbeec00",
+          "tb_pc": "0x250a0",
+          "start_pc": "0x250ff",
+          "length": 5,
+          "total_instruction_count": 5,
+          "instructions": [
+            {
+              "offset": 95,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 97,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(4)"
+            },
+            {
+              "offset": 99,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(4)"
+            },
+            {
+              "offset": 101,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 103,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            }
+          ],
+          "tb_sample_weight": 46000000,
+          "indices": [
+            39,
+            40,
+            41,
+            42,
+            43
+          ],
+          "direct_jit_sample_weight": 0
+        },
+        {
+          "host": "0x6eae464680",
+          "tb_pc": "0xa2b6d",
+          "start_pc": "0xa2b8d",
+          "length": 9,
+          "total_instruction_count": 9,
+          "instructions": [
+            {
+              "offset": 32,
+              "mnemonic": "fsub",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 34,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 36,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 38,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 40,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 42,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 44,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 46,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 48,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 6000000,
+          "indices": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "direct_jit_sample_weight": 0
+        },
+        {
+          "host": "0x6eae552a00",
+          "tb_pc": "0xe0d4c",
+          "start_pc": "0xe0d52",
+          "length": 3,
+          "total_instruction_count": 3,
+          "instructions": [
+            {
+              "offset": 6,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 8,
+              "mnemonic": "fchs",
+              "operands": ""
+            },
+            {
+              "offset": 10,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            }
+          ],
+          "tb_sample_weight": 6000000,
+          "indices": [
+            3,
+            4,
+            5
+          ],
+          "direct_jit_sample_weight": 0
+        },
+        {
+          "host": "0x6eac497280",
+          "tb_pc": "0xd0cf6",
+          "start_pc": "0xd0d09",
+          "length": 3,
+          "total_instruction_count": 3,
+          "instructions": [
+            {
+              "offset": 19,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 21,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 23,
+              "mnemonic": "fchs",
+              "operands": ""
+            }
+          ],
+          "tb_sample_weight": 8000000,
+          "indices": [
+            7,
+            8,
+            9
+          ],
+          "direct_jit_sample_weight": 0
+        },
+        {
+          "host": "0x6eac497280",
+          "tb_pc": "0xd0cf6",
+          "start_pc": "0xd0d57",
+          "length": 3,
+          "total_instruction_count": 3,
+          "instructions": [
+            {
+              "offset": 97,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 99,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 101,
+              "mnemonic": "fchs",
+              "operands": ""
+            }
+          ],
+          "tb_sample_weight": 8000000,
+          "indices": [
+            34,
+            35,
+            36
+          ],
+          "direct_jit_sample_weight": 0
+        }
+      ]
+    },
+    "extended_integer_interleaved": {
+      "regions": 89,
+      "affected_tbs": 58,
+      "eligible_instructions_in_sampled_tbs": 1846,
+      "instructions_in_length3plus_regions": 451,
+      "affected_tb_sample_weight": 570000000,
+      "affected_tb_sample_fraction_of_tcg": 0.02981171548117155,
+      "direct_region_jit_sample_weight": 80000000,
+      "direct_region_jit_sample_fraction_of_tcg": 0.0041841004184100415,
+      "direct_region_fraction_of_mapped_jit": 0.008158270446665308,
+      "length_histogram": {
+        "3": 27,
+        "4": 7,
+        "5": 29,
+        "6": 6,
+        "7": 4,
+        "8": 12,
+        "9": 3,
+        "10": 1
+      },
+      "top_regions": [
+        {
+          "host": "0x6eacbf0900",
+          "tb_pc": "0x25120",
+          "start_pc": "0x2515a",
+          "length": 6,
+          "total_instruction_count": 6,
+          "instructions": [
+            {
+              "offset": 58,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 60,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(3)"
+            },
+            {
+              "offset": 62,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(5)"
+            },
+            {
+              "offset": 64,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(2)"
+            },
+            {
+              "offset": 66,
+              "mnemonic": "fxch",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 68,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            }
+          ],
+          "tb_sample_weight": 68000000,
+          "indices": [
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "direct_jit_sample_weight": 8000000
+        },
+        {
+          "host": "0x6eaeb30000",
+          "tb_pc": "0x18d0bf",
+          "start_pc": "0x18d117",
+          "length": 8,
+          "total_instruction_count": 9,
+          "instructions": [
+            {
+              "offset": 88,
+              "mnemonic": "fmul",
+              "operands": "%st(5), %st"
+            },
+            {
+              "offset": 90,
+              "mnemonic": "leal",
+              "operands": "0x10(%ecx), %edx"
+            },
+            {
+              "offset": 93,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 95,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 97,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 99,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 101,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 103,
+              "mnemonic": "fadd",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 105,
+              "mnemonic": "fsqrt",
+              "operands": ""
+            }
+          ],
+          "tb_sample_weight": 94000000,
+          "indices": [
+            20,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "direct_jit_sample_weight": 8000000
+        },
+        {
+          "host": "0x6eae60ab80",
+          "tb_pc": "0xe9d69",
+          "start_pc": "0xe9d7d",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 20,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 22,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 24,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 26,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 28,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 30,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 32,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 34,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 18000000,
+          "indices": [
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "direct_jit_sample_weight": 8000000
+        },
+        {
+          "host": "0x6eaeb001c0",
+          "tb_pc": "0x18cc54",
+          "start_pc": "0x18cc66",
+          "length": 4,
+          "total_instruction_count": 6,
+          "instructions": [
+            {
+              "offset": 18,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 20,
+              "mnemonic": "addl",
+              "operands": "$0x108, %eax"
+            },
+            {
+              "offset": 25,
+              "mnemonic": "cmpl",
+              "operands": "$0x40, %edx"
+            },
+            {
+              "offset": 28,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 30,
+              "mnemonic": "fadd",
+              "operands": "%st(2), %st"
+            },
+            {
+              "offset": 32,
+              "mnemonic": "fsqrt",
+              "operands": ""
+            }
+          ],
+          "tb_sample_weight": 30000000,
+          "indices": [
+            6,
+            9,
+            10,
+            11
+          ],
+          "direct_jit_sample_weight": 6000000
+        },
+        {
+          "host": "0x6eaeab8f00",
+          "tb_pc": "0x2d5169",
+          "start_pc": "0x2d5169",
+          "length": 5,
+          "total_instruction_count": 5,
+          "instructions": [
+            {
+              "offset": 0,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 2,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 4,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 6,
+              "mnemonic": "fmul",
+              "operands": "%st(5), %st"
+            },
+            {
+              "offset": 8,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 18000000,
+          "indices": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ],
+          "direct_jit_sample_weight": 6000000
+        },
+        {
+          "host": "0x6eae4ba600",
+          "tb_pc": "0xe2d8d",
+          "start_pc": "0xe2daf",
+          "length": 7,
+          "total_instruction_count": 7,
+          "instructions": [
+            {
+              "offset": 34,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 36,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 38,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 40,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 42,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 44,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 46,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 8000000,
+          "indices": [
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ],
+          "direct_jit_sample_weight": 4000000
+        },
+        {
+          "host": "0x6eaeab8f00",
+          "tb_pc": "0x2d5169",
+          "start_pc": "0x2d51c1",
+          "length": 4,
+          "total_instruction_count": 5,
+          "instructions": [
+            {
+              "offset": 88,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 90,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 92,
+              "mnemonic": "addl",
+              "operands": "$0x20, %ecx"
+            },
+            {
+              "offset": 95,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 97,
+              "mnemonic": "fmul",
+              "operands": "%st(5), %st"
+            }
+          ],
+          "tb_sample_weight": 18000000,
+          "indices": [
+            33,
+            34,
+            36,
+            37
+          ],
+          "direct_jit_sample_weight": 4000000
+        },
+        {
+          "host": "0x6eaeabe100",
+          "tb_pc": "0x2d5100",
+          "start_pc": "0x2d511f",
+          "length": 5,
+          "total_instruction_count": 5,
+          "instructions": [
+            {
+              "offset": 31,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 33,
+              "mnemonic": "fmul",
+              "operands": "%st(2), %st"
+            },
+            {
+              "offset": 35,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 37,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 39,
+              "mnemonic": "fsubrp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 16000000,
+          "indices": [
+            12,
+            13,
+            14,
+            15,
+            16
+          ],
+          "direct_jit_sample_weight": 4000000
+        },
+        {
+          "host": "0x6eac498a00",
+          "tb_pc": "0xd0d63",
+          "start_pc": "0xd0d74",
+          "length": 3,
+          "total_instruction_count": 3,
+          "instructions": [
+            {
+              "offset": 17,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 19,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 21,
+              "mnemonic": "fchs",
+              "operands": ""
+            }
+          ],
+          "tb_sample_weight": 8000000,
+          "indices": [
+            6,
+            7,
+            8
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eac6a99c0",
+          "tb_pc": "0x3fa00",
+          "start_pc": "0x3fa0c",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 12,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 14,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 16,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 18,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 20,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 22,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 24,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 26,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 8000000,
+          "indices": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eac916000",
+          "tb_pc": "0x42160",
+          "start_pc": "0x42170",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 16,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 18,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 20,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 22,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 24,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 26,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 28,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 30,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 2000000,
+          "indices": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eacd1dc80",
+          "tb_pc": "0x11d100",
+          "start_pc": "0x11d11a",
+          "length": 5,
+          "total_instruction_count": 5,
+          "instructions": [
+            {
+              "offset": 26,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 28,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 30,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 32,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 34,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 6000000,
+          "indices": [
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae1e1d00",
+          "tb_pc": "0x3ec10",
+          "start_pc": "0x3ec1b",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 11,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 13,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 15,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 17,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 19,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 21,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 23,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 25,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 4000000,
+          "indices": [
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae2a9e40",
+          "tb_pc": "0x96db0",
+          "start_pc": "0x96dc9",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 25,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 27,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 29,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 31,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 33,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 35,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 37,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 39,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 2000000,
+          "indices": [
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae2cba40",
+          "tb_pc": "0xbb0af",
+          "start_pc": "0xbb0af",
+          "length": 4,
+          "total_instruction_count": 4,
+          "instructions": [
+            {
+              "offset": 0,
+              "mnemonic": "fxch",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 2,
+              "mnemonic": "fsub",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 4,
+              "mnemonic": "fmul",
+              "operands": "%st(2), %st"
+            },
+            {
+              "offset": 6,
+              "mnemonic": "fadd",
+              "operands": "%st(1), %st"
+            }
+          ],
+          "tb_sample_weight": 4000000,
+          "indices": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae4b75c0",
+          "tb_pc": "0xe2c87",
+          "start_pc": "0xe2d22",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 155,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 157,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 159,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 161,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 163,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 165,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 167,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 169,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 8000000,
+          "indices": [
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae4bc280",
+          "tb_pc": "0xe2ea7",
+          "start_pc": "0xe2ecb",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 36,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 38,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 40,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 42,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 44,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 46,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 48,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 50,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 2000000,
+          "indices": [
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae553640",
+          "tb_pc": "0xe0d4a",
+          "start_pc": "0xe0d4a",
+          "length": 3,
+          "total_instruction_count": 3,
+          "instructions": [
+            {
+              "offset": 0,
+              "mnemonic": "fchs",
+              "operands": ""
+            },
+            {
+              "offset": 2,
+              "mnemonic": "fadd",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 4,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(2)"
+            }
+          ],
+          "tb_sample_weight": 2000000,
+          "indices": [
+            0,
+            1,
+            2
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae799240",
+          "tb_pc": "0x214f5c",
+          "start_pc": "0x214ff5",
+          "length": 5,
+          "total_instruction_count": 5,
+          "instructions": [
+            {
+              "offset": 153,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 155,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 157,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 159,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 161,
+              "mnemonic": "fsubrp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 16000000,
+          "indices": [
+            61,
+            62,
+            63,
+            64,
+            65
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae85f740",
+          "tb_pc": "0x1f1f20",
+          "start_pc": "0x1f1f9e",
+          "length": 6,
+          "total_instruction_count": 6,
+          "instructions": [
+            {
+              "offset": 126,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 128,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(3)"
+            },
+            {
+              "offset": 130,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(5)"
+            },
+            {
+              "offset": 132,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(2)"
+            },
+            {
+              "offset": 134,
+              "mnemonic": "fxch",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 136,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            }
+          ],
+          "tb_sample_weight": 2000000,
+          "indices": [
+            38,
+            39,
+            40,
+            41,
+            42,
+            43
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae927680",
+          "tb_pc": "0x1100af",
+          "start_pc": "0x1100d8",
+          "length": 8,
+          "total_instruction_count": 8,
+          "instructions": [
+            {
+              "offset": 41,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 43,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 45,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 47,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 49,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 51,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 53,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 55,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 4000000,
+          "indices": [
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eae92f940",
+          "tb_pc": "0x10707f",
+          "start_pc": "0x1070ea",
+          "length": 5,
+          "total_instruction_count": 5,
+          "instructions": [
+            {
+              "offset": 107,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 109,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(4)"
+            },
+            {
+              "offset": 111,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(4)"
+            },
+            {
+              "offset": 113,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 115,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            }
+          ],
+          "tb_sample_weight": 4000000,
+          "indices": [
+            38,
+            39,
+            40,
+            41,
+            42
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eaeaba380",
+          "tb_pc": "0x2d51cc",
+          "start_pc": "0x2d51d2",
+          "length": 5,
+          "total_instruction_count": 5,
+          "instructions": [
+            {
+              "offset": 6,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 8,
+              "mnemonic": "fmul",
+              "operands": "%st(2), %st"
+            },
+            {
+              "offset": 10,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 12,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 14,
+              "mnemonic": "fsubrp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 18000000,
+          "indices": [
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eaeaf3f80",
+          "tb_pc": "0x2bbcb0",
+          "start_pc": "0x2bbd30",
+          "length": 3,
+          "total_instruction_count": 3,
+          "instructions": [
+            {
+              "offset": 128,
+              "mnemonic": "fsubrp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 130,
+              "mnemonic": "fld",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 132,
+              "mnemonic": "fsub",
+              "operands": "%st(1), %st"
+            }
+          ],
+          "tb_sample_weight": 18000000,
+          "indices": [
+            38,
+            39,
+            40
+          ],
+          "direct_jit_sample_weight": 2000000
+        },
+        {
+          "host": "0x6eacbf0900",
+          "tb_pc": "0x25120",
+          "start_pc": "0x25173",
+          "length": 5,
+          "total_instruction_count": 5,
+          "instructions": [
+            {
+              "offset": 83,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 85,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(4)"
+            },
+            {
+              "offset": 87,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(4)"
+            },
+            {
+              "offset": 89,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 91,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            }
+          ],
+          "tb_sample_weight": 68000000,
+          "indices": [
+            34,
+            35,
+            36,
+            37,
+            38
+          ],
+          "direct_jit_sample_weight": 0
+        },
+        {
+          "host": "0x6eacbeec00",
+          "tb_pc": "0x250a0",
+          "start_pc": "0x250e6",
+          "length": 6,
+          "total_instruction_count": 6,
+          "instructions": [
+            {
+              "offset": 70,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 72,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(3)"
+            },
+            {
+              "offset": 74,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(5)"
+            },
+            {
+              "offset": 76,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(2)"
+            },
+            {
+              "offset": 78,
+              "mnemonic": "fxch",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 80,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            }
+          ],
+          "tb_sample_weight": 46000000,
+          "indices": [
+            28,
+            29,
+            30,
+            31,
+            32,
+            33
+          ],
+          "direct_jit_sample_weight": 0
+        },
+        {
+          "host": "0x6eacbeec00",
+          "tb_pc": "0x250a0",
+          "start_pc": "0x250ff",
+          "length": 5,
+          "total_instruction_count": 5,
+          "instructions": [
+            {
+              "offset": 95,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            },
+            {
+              "offset": 97,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(4)"
+            },
+            {
+              "offset": 99,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(4)"
+            },
+            {
+              "offset": 101,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 103,
+              "mnemonic": "fxch",
+              "operands": "%st(1)"
+            }
+          ],
+          "tb_sample_weight": 46000000,
+          "indices": [
+            39,
+            40,
+            41,
+            42,
+            43
+          ],
+          "direct_jit_sample_weight": 0
+        },
+        {
+          "host": "0x6eae464680",
+          "tb_pc": "0xa2b6d",
+          "start_pc": "0xa2b8d",
+          "length": 9,
+          "total_instruction_count": 9,
+          "instructions": [
+            {
+              "offset": 32,
+              "mnemonic": "fsub",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 34,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 36,
+              "mnemonic": "fmul",
+              "operands": "%st(1), %st"
+            },
+            {
+              "offset": 38,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            },
+            {
+              "offset": 40,
+              "mnemonic": "fmul",
+              "operands": "%st(3), %st"
+            },
+            {
+              "offset": 42,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 44,
+              "mnemonic": "fld",
+              "operands": "%st(3)"
+            },
+            {
+              "offset": 46,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 48,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            }
+          ],
+          "tb_sample_weight": 6000000,
+          "indices": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "direct_jit_sample_weight": 0
+        },
+        {
+          "host": "0x6eae552a00",
+          "tb_pc": "0xe0d4c",
+          "start_pc": "0xe0d52",
+          "length": 3,
+          "total_instruction_count": 3,
+          "instructions": [
+            {
+              "offset": 6,
+              "mnemonic": "fld",
+              "operands": "%st(0)"
+            },
+            {
+              "offset": 8,
+              "mnemonic": "fchs",
+              "operands": ""
+            },
+            {
+              "offset": 10,
+              "mnemonic": "fld",
+              "operands": "%st(2)"
+            }
+          ],
+          "tb_sample_weight": 6000000,
+          "indices": [
+            3,
+            4,
+            5
+          ],
+          "direct_jit_sample_weight": 0
+        },
+        {
+          "host": "0x6eac497280",
+          "tb_pc": "0xd0cf6",
+          "start_pc": "0xd0d09",
+          "length": 3,
+          "total_instruction_count": 3,
+          "instructions": [
+            {
+              "offset": 19,
+              "mnemonic": "faddp",
+              "operands": "%st, %st(1)"
+            },
+            {
+              "offset": 21,
+              "mnemonic": "fmul",
+              "operands": "%st(4), %st"
+            },
+            {
+              "offset": 23,
+              "mnemonic": "fchs",
+              "operands": ""
+            }
+          ],
+          "tb_sample_weight": 8000000,
+          "indices": [
+            7,
+            8,
+            9
+          ],
+          "direct_jit_sample_weight": 0
+        }
+      ]
+    }
+  },
+  "limitations": [
+    "CPU-clock self samples are time attribution, not execution counts or retired instructions.",
+    "Whole-TB weight includes unrelated instructions and is not removable cost.",
+    "Direct region weight excludes C helper execution; it includes guest-instruction bookkeeping and sampling skid.",
+    "Entry checks and cold generated memory paths can be attributed imprecisely by guest instruction metadata.",
+    "The last captured translation at a reused host address may differ from the translation sampled earlier.",
+    "Static region count is over sampled TB instances, not dynamic execution frequency or unique guest regions.",
+    "Numeric/control-state eligibility cannot be established from guest bytes.",
+    "Only 32-bit TBs with exact LLVM/TCG instruction-boundary agreement are included."
+  ]
+}

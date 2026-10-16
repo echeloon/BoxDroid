@@ -1,0 +1,51 @@
+# Default-off diagnostic: snapshot existing single-page RAM code mappings alongside TCG host-code dump; no additional guest fetches.
+
+diff --git a/accel/tcg/translate-all.c b/accel/tcg/translate-all.c
+index 7af1119912..b7fb75bebf 100644
+--- a/accel/tcg/translate-all.c
++++ b/accel/tcg/translate-all.c
+@@ -40,6 +40,7 @@ unsigned boxdroid_tcg_memory_mode(void)
+ #include "exec/mmap-lock.h"
+ #include "tb-internal.h"
+ #include "exec/tb-flush.h"
++#include "exec/target_page.h"
+ #include "exec/translation-block.h"
+ #include "qemu/cacheinfo.h"
+ #include "qemu/target-info.h"
+@@ -596,12 +597,15 @@ TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
+     /* Optional translation-only snapshot; never used in cadence captures. */
+     static bool dump_checked;
+     static FILE *dump_file;
++    static FILE *guest_dump_file;
+     if (!dump_checked) {
+         char prop[PROP_VALUE_MAX] = { 0 };
+         dump_checked = true;
+         if (__system_property_get("debug.boxdroid.tcg_dump", prop) &&
+             prop[0] == '1') {
+             dump_file = fopen("/data/data/org.boxdroid/files/tcg-dump.bin", "wb");
++            guest_dump_file = fopen(
++                "/data/data/org.boxdroid/files/tcg-guest-bytes.bin", "wb");
+         }
+     }
+     if (dump_file) {
+@@ -616,6 +620,20 @@ TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
+         fwrite(tb->tc.ptr, tb->tc.size, 1, dump_file);
+         fflush(dump_file);
+     }
++    if (guest_dump_file && host_pc && phys_pc != -1 && tb->size &&
++        tb->size <= qemu_target_page_size() -
++                    (s.pc & (qemu_target_page_size() - 1))) {
++        /* Read only the existing RAM code mapping while its page is locked.
++         * Skip cross-page and non-RAM translations: diagnostic capture must
++         * not perform additional guest MMU walks or device accesses.
++         */
++        uint64_t header[] = { UINT64_C(0x4244475545535442),
++            (uintptr_t)tb->tc.ptr, s.pc, tb->size, tb->icount,
++            tb->flags, tb_cflags(tb), 0 };
++        fwrite(header, sizeof(header), 1, guest_dump_file);
++        fwrite(host_pc, tb->size, 1, guest_dump_file);
++        fflush(guest_dump_file);
++    }
+     boxdroid_order_audit(tb, false);
+ #endif
+ 

@@ -1,0 +1,501 @@
+{
+  "previous_record": "../native-perf-20261013/experiments.json",
+  "experiments": [
+    {
+      "id": 27,
+      "status": "rejected",
+      "record": "experiment27/outcome.json"
+    },
+    {
+      "id": 28,
+      "status": "rejected",
+      "record": "experiment28/outcome.json"
+    },
+    {
+      "id": 29,
+      "status": "rejected",
+      "purpose": "Explicit architectural recovery IR and canonical commit IR; cold-only caller saves on scalar memory",
+      "controls": {
+        "recovery_uses": "0 off, 1 state recovery only, 2 caller preservation, 3 also explicit canonical commits"
+      },
+      "focused_device_validation": {
+        "variant2": "PASS; fast17631/cold10285",
+        "variant3": "PASS; fast20505/cold10319"
+      },
+      "performance": {
+        "variant2_flips_per_second": 11.422482892918673,
+        "variant2_accepted": false,
+        "variant3": "pending"
+      },
+      "acceptance": "rejected after actual measurements",
+      "record": "experiment29/outcome.json"
+    },
+    {
+      "id": 30,
+      "status": "provisional_default_disabled_pending_final_attribution",
+      "patch": "../../../patches/xemu/0041-x87-normal-f32-rounding-experiment.patch",
+      "control": "f32_round1; onceatCPUstatusinitialize",
+      "purpose": "Exact normal rounded binary80-to-binary32 narrowing with all four x86 rounding modes; exact fallback",
+      "validation": "PASS:170688 direct oracle,146244 eligiblehits plus existing actualTCG focusedsuite/ABI/faults",
+      "performance": {
+        "30a_on": 11.195765585724475,
+        "30a_off": 11.133158500490314,
+        "30b_on": 11.639083078132513,
+        "30b_off": 11.366437065582783
+      }
+    },
+    {
+      "id": 31,
+      "status": "rejected",
+      "purpose": "Remove ABI-optional caller-register clearing from internal TCG helper returns in fixed Clang/AArch64 Xbox build",
+      "scope": "Compiler-hardening exemption on helpers only; nonhelper host code unchanged; noinline retained",
+      "validation": "PASS: full actual-TCG focused suite including 170688 F32 oracle cases, full-state tests, ABI, precise exceptions, MMIO, SMC, TLB invalidation and interrupt checks",
+      "performance": {
+        "on_first": 11.791587767905725,
+        "off_bracket": 11.678005197165827,
+        "on_repeat": 11.67812303764307
+      },
+      "record": "experiment31/outcome.json"
+    },
+    {
+      "id": 32,
+      "status": "rejected",
+      "purpose": "Bounded forward-Jcc fallthrough regions, with original generic side exits and both direct-link slots reserved for terminal branch",
+      "control": "branch_fallthrough1 latched at translation; default0",
+      "guards": "32-bit non-PC-relative; no icount, single-step, RF/TF/interrupt shadow, plugins; current page and instruction budget; at most1 merged same-page branch",
+      "validation": "PASS including backward exclusion, PC-relative/icount translation guards,2048 branch full-state cases, software INT, STI shadow, TF debug, precise PF, SMC, MMIO, IRQ, full existing focused suite",
+      "performance": {
+        "32a": {
+          "selection": "Initially included backward encodings due unsigned comparison",
+          "on": 10.511111434723647,
+          "off": 11.564395414683204
+        },
+        "32b": {
+          "selection": "Signed forward-only, up to4 generic side exits",
+          "on": 10.941048976188508,
+          "off": 11.588568967569007,
+          "pmu_instructions_per_flip_on": 473384331.5011398,
+          "pmu_instructions_per_flip_off": 436297821.53206813,
+          "pmu_cycles_per_flip_on": 235908718.3850548,
+          "pmu_cycles_per_flip_off": 222487438.124452
+        },
+        "32c": {
+          "selection": "One directly chained same-page side exit plus static preferred terminal direct link",
+          "on": 11.502153154908875,
+          "off": 11.788982317518386,
+          "pmu_instructions_on": 442317390.471956,
+          "pmu_cycles_on": 223356290.56334886,
+          "off_pmu": {
+            "instructions_per_flip_approx": 434781685,
+            "cycles_per_flip_approx": 218898160
+          }
+        }
+      },
+      "variants": {
+        "32a": "All signed/unsigned positive encodings accidentally included backward branches; clean10.511111 vs OFF11.564395; rejected",
+        "32b": "Rejected: cleanON10.941049/OFF11.588569; PMU473.384M/436.298M instructionsperflip;235.909M/222.487M cyclesperflip",
+        "32c": "Rejected: cleanON11.502153/OFF11.788982; executed instructions and cycles increased by1.73% and2.04% respectively."
+      },
+      "record": "experiment32/outcome.json"
+    },
+    {
+      "id": 33,
+      "status": "rejected",
+      "patch": "../../../patches/xemu/0044-x87-arithmetic-leaf-abi-experiment.patch",
+      "purpose": "Extend exact masked-sticky normalPC53 leaf arithmetic to six private x87 helpers; preserve-most ABI and outlined original conservative protocol",
+      "control": "arith_leaf1; f32_round1; fp_preserve1; default leaf0",
+      "validation": "PASS: all six common/conservative paths preserveX9-X15 full64 and original completeCPUstate/status; full actual-TCG focused suite including147456 arithmetic,170688 F32, GP/EFLAGS, faults/MMIO/invalidation/IRQ",
+      "performance": {
+        "on_clean_flip_rate": 11.649651608806966,
+        "on_audio_missing_fraction": 0.05658536585365854,
+        "on_battery_tenths_c": [
+          285,
+          285
+        ],
+        "pmu": {
+          "on_repeat_instructions_per_flip": 417935498,
+          "on_repeat_cycles_per_flip": 215336031,
+          "parent_instructions_per_flip": 435025332,
+          "parent_cycles_per_flip": 220597512
+        },
+        "off": "pending",
+        "on_repeat": 11.734687890465363,
+        "on_repeat_temperature_tenths_c": 337,
+        "off_clean": 11.02292951216868,
+        "parent_comparison": "Completed: clean cadence gain0.48%, not sufficient for acceptance",
+        "parent_clean": 11.678179310620068,
+        "parent_battery_tenths_c": 337
+      },
+      "acceptance": "Rejected: only0.48% clean cadence difference versus exact parent30b; retired work reduction alone insufficient. Runtime group completely removed; patch and evidence preserved."
+    },
+    {
+      "id": 34,
+      "status": "completed_diagnostic_no_runtime_change",
+      "patch": "../../../patches/xemu/0045-x86-page-size-profiling.patch",
+      "purpose": "Determine successful TLB-fill page-size distribution before any large-page memory fast-path implementation",
+      "control": "page_profile1 for separate diagnostic only; production0; restart required",
+      "limitation": "Fill counts are not executed load/store counts or a complete estimate of available performance benefit",
+      "runtime_optimization": "none",
+      "first_result": "15.07s successful fills:987944 4KiB loads,7265 4MiB loads(allhigh-half),192856 4KiB stores,1801 4MiB stores,321558 4KiB code; no low-half large reads. Not executed-access counts.",
+      "occupancy_result": "experiment34/occupancy-result.json",
+      "flush_result": "experiment34/flush-result.json"
+    },
+    {
+      "id": 35,
+      "status": "rejected",
+      "purpose": "Physically revalidated two-way TB cache avoids QHT lookup after architectural virtual-cache invalidation",
+      "patch": "../../../patches/xemu/0046-physical-tb-cache-experiment.patch",
+      "control": "phys_lookup1 latched at TCG CPU realize; default0",
+      "guards": "Current code page translation, complete TB identity, precise second-page translation; explicit CF_INVALID rejection; global code-cache flush clears all pointers",
+      "validation": "PASS complete actual-TCG focused suite; physical cache positive hits; CR3 remap/reload, SMC, global code flush and precise first/second code-page faults.",
+      "build": "physical-tb-cache-20261014",
+      "apk": "3c55b8cee97b4470f3e0f6c951e9e69a5091d2ee38ecb75045e95d4b7147093c",
+      "source_diff": "e04172346f88d886018cc3a2bb109f15e8112ed9a1568f0732ba0a3a362bf950",
+      "performance": {
+        "on": 11.479590209808643,
+        "off": 11.677960180083216,
+        "on_repeat": 11.22448884145503
+      },
+      "acceptance": "Rejected: enabled captures do not improve guest cadence; only0.32% instructions saved, cycles unchanged. Entire runtime removed before36."
+    },
+    {
+      "id": 36,
+      "status": "provisionally_retained_pending_final_validation",
+      "purpose": "O(1) full virtual TB jump-cache invalidation using generations encoded in upper32 PC bits",
+      "patch": "../../../patches/xemu/0047-virtual-tb-cache-epochs-experiment.patch",
+      "control": "jmp_epoch1, phys_lookup0 for isolated comparison; default0; i38632 target guard",
+      "correctness": "Original TLB/page/SMC invalidation preserved; C/generated cache lookups compare generation before dereferencing TB; wrap/full code-cache flush clear pointers. Focused validation pending.",
+      "build": "virtual-tb-epochs-only-20261014",
+      "apk": "76191fbae9a58c28d959e8c33dfa9452231444f016766dbd5d46c61ca6072872",
+      "source_diff": "7ddb58f2d8b863ff9f03ee9dd30a741d7bb8304d6b9ce6da21555edc0541bcae",
+      "validation": "PASS: stale-key rejection/wrap clearing; C/generated lookup fullstate; CR3 reload/remap, first/second code-page faults, SMC/global code lifetime; full existing focused suite final marker.",
+      "performance": {
+        "on": 11.836881877603583,
+        "off": 11.507997179350209,
+        "on_audio_missing_fraction": 0.06194535519125683,
+        "off_audio_missing_fraction": 0.054513661202185794,
+        "on_pmu_instructions_per_flip": 436781431.02771485,
+        "off_pmu_instructions_per_flip": 437586198.33390075,
+        "on_pmu_cycles_per_flip": 219513949.85355845,
+        "off_pmu_cycles_per_flip": 223969139.6940788,
+        "on_repeat": 11.847660513621026,
+        "on_repeat_audio_missing_fraction": 0.05713661202185792,
+        "on_repeat_battery_tenths_c": 325
+      },
+      "acceptance": "Clean ON/OFF/ON11.836882/11.507997/11.847661; paired cycles~2% lower; preliminary real-cadence benefit confirmed. Broad final and sustained validation pending. Audio remains below native requirement; no target claim."
+    },
+    {
+      "id": 37,
+      "status": "rejected_runtime_removed",
+      "purpose": "Persistent EAX/ECX or all8 guest GPRs in fixed AAPCS64 callee-preserved registers across chained TCG blocks",
+      "patch": "../../../patches/xemu/0048-fixed-guest-registers-experiment.patch",
+      "control": "pin_gp0 default;1 EAX/ECX;2 all8, latched at translator initialize",
+      "correctness": "Exact CPU-state import/export, helper synchronization, all memory-slow paths synchronize before potentially faulting C and reload before successful load-result assignment. All normal TB exit-request/IRQ checks preserved. Audited numeric helpers NoGuestExit metadata only. Validation pending; not accepted.",
+      "build": "pinned-gp-helper-flags-20261014",
+      "apk": "63679a0762f1ed77417d8c58c3dffc3eacff0663b7b10a8d33ce1fdb2f56f9be",
+      "source_diff": "789abe8fd519402a486e9a3668fcf9c951f3347d2b8c1ab4d82a99b19a68cc96",
+      "validation": "pin_gp1 (2 bindings) and pin_gp2 (8 bindings) full focused suite PASS; exact GPR/flags/FP/memory state, helper boundaries, precise faults, MMIO, SMC/invalidation, IRQ and generated cache paths. No universal equivalence claim. Performance pending.",
+      "variant_a_performance": {
+        "all8_flips_per_second": 11.479600622143332,
+        "off_flips_per_second": 11.899297990998939,
+        "all8_instructions_per_flip": 445721133.6879704,
+        "off_instructions_per_flip": 435329743.0708269,
+        "all8_cycles_per_flip": 225199786.6325423,
+        "off_cycles_per_flip": 218199167.30851611,
+        "pair_flips_per_second": 11.752379127559445,
+        "pair_battery_start_tenths_c": 315
+      },
+      "variant_b": "Existing NO_READ_GLOBALS contract instead of added NoGuestExit flag; direct legal fixed outputs. Building unvalidated.",
+      "variant_b_build": "pinned-gp-direct-output-20261014",
+      "variant_b_apk": "bc79e8299b6a8ce98c161411258e362e9869acce049be669d8d491659b43e6b1",
+      "variant_b_performance": {
+        "pair_flips_per_second": 11.701039627454763,
+        "pair_instructions_per_flip": 436910724.4081735,
+        "pair_cycles_per_flip": 221547430.06628457,
+        "all8_flips_per_second": 11.252904000370524,
+        "note": "No gain relative to fresh37a mode0 11.899298. All8 warmer32C, same maximal observed CPU frequencies. No native claim."
+      },
+      "variant_c": "Adjacent dead-EBB single I32 producer retargeting to fixed destination, no intervening boundary/effect. All8 focused validation pending; APK not installed.",
+      "variant_c_performance": {
+        "all8": 11.563600596863182,
+        "off": 11.892977474304232,
+        "pair": 11.739411195777251,
+        "pair_pmu": {
+          "cpu-cycles:u": 220470077.93413746,
+          "instructions:u": 435550291.10538334,
+          "branch-misses:u": 1174852.8346378524
+        }
+      },
+      "acceptance": "All variants lacked real guest progress improvement. SameC APK ALL8/OFF/PAIR11.563601/11.892977/11.739411, mode0 warmer thanall8 and same battery32.2C aspair. Coalescing removes copies but fixed-register reservations still cost work; no register-residency impossibility claim."
+    },
+    {
+      "id": 38,
+      "status": "rejected_runtime_removed",
+      "purpose": "Reuse derived x87 stack addresses across dominating IR preserving TOP; no guest arithmetic/state model changed",
+      "patch": "../../../patches/xemu/0048-x87-pointer-reuse-experiment.patch",
+      "control": "fp_ptr_cache0 default;1 process-latched",
+      "build": "x87-pointer-reuse-20261014",
+      "apk": "a4d89dfc7bfe256b719e137237d241bdc130ae979cc44f0e8f5122ccf0a0a74a",
+      "source_diff": "49fbbc5b9937b817cc26b217fbab7f12d6a4c3da7f28e00ee131c6df4a982caf",
+      "correctness": "Inspect completed IR since previous cache lookup; invalidate on explicit TOP outputs, unknown helper global writes, branch/label boundaries and decode rollback. Plugin/hard-FPU paths excluded. Numeric helpers retain original exact semantics. Focused fullstate/TOP/PC/RM/fault/MMIO validation pending.",
+      "validation": "Full ON/OFF and expanded all-PC focused suite PASS; positive reuses53,1536 allTOP/RM/PC24/53/64/helper/IR TOP-change blocks plus all existing precise state/memory/MMIO/IRQ/SMC/invalidation checks. No universal equivalence claim.",
+      "performance": {
+        "on": 11.984709890122593,
+        "on_audio_missing": 0.05367741935483871,
+        "on_battery_tenths_c": 302,
+        "on_pmu": {
+          "cpu-cycles:u": 215326684.88883546,
+          "instructions:u": 434366510.9493427,
+          "branch-misses:u": 1061223.3310164332
+        },
+        "off": 11.813826335732966,
+        "on_repeat": 11.899395034756433,
+        "off_pmu": {
+          "cpu-cycles:u": 217880124.0082746,
+          "instructions:u": 436137634.0384114,
+          "branch-misses:u": 1085391.9578542532
+        }
+      },
+      "acceptance": "ON/OFF/ON11.984710/11.813826/11.899395. Only~0.4% retired-work reduction; gain comparable to run/temperature variation. No material reproducible guest-progress benefit established."
+    },
+    {
+      "id": 39,
+      "status": "completed_retained_diagnostic_default_off",
+      "purpose": "Join sampled generated-code costs with actual guest x86 instructions, to distinguish productive guest work from polling",
+      "patch": "../../../patches/xemu/0049-guest-code-profile-bytes.patch",
+      "control": "tcg_dump1 diagnostic only;0 for production, latched",
+      "build": "guest-code-profile-20261015",
+      "apk": "cf286dc76340e8fe7d11109f249ccfb48844e6291224ee5cfc1b95a6c75c33e3",
+      "correctness": "Only reads existing single-page RAM code mapping while translation page locked; skips non-RAM/cross-page; no guest MMU/device reads. Existing host dump unchanged. Not a runtime performance optimization.",
+      "environment": "Device debug controls absent at resume; restored archived controls. Custom Vulkan selection preserved driver-before-resume.json and System Vulkan restored to match prior captures.",
+      "validation": "Focused retained CPU suite PASS with dump0; actual Dili bridge capture and source decode complete; no production performance gain claimed.",
+      "finding": "Hot regions include substantial x87 arithmetic/exchanges and copies. Shared lookup stub lives inside reset-PC TB container (7.53% TCG sampled weight), not evidence of guest far-jump cost."
+    },
+    {
+      "id": 40,
+      "status": "rejected_runtime_removed",
+      "purpose": "Remove generic helper transitions for exact x87 register exchange and sign-bit operations observed in hot guest regions",
+      "patch": "../../../patches/xemu/0050-x87-bit-operations-experiment.patch",
+      "control": "x87_bits1 candidate,0 default/original helpers, process-latched",
+      "correctness": "Swap full128-bit stored representation, load both before writes; sign-bit-only modify high16; retain original decoder #NM/status/FIP updates, hard-FPU/profile fallbacks. Expanded full-state oracle validation pending.",
+      "validation": "ON focused full suite PASS:12288 stack/register fullstate oracle cases including full padding;6 #NM cases;64 swap/sign then precise #PF cases; original numeric/ordering/MMIO/SMC/IRQ suite PASS. Initial harness compile failure was misplaced #NM block before initial state declaration; fixed harness only.",
+      "build": "x87-bit-operations-20261015",
+      "apk": "3fd18d9ce4045eddfd394f93993a107264d8e331a7c04f4601b7903b87cdf926",
+      "performance": {
+        "on": 11.763124238178264,
+        "on_audio_missing": 0.052347509429054494,
+        "on_battery_tenths_c": 332,
+        "off": 11.758491782900428,
+        "off_audio_missing": 0.052571428571428575,
+        "off_battery_tenths_c": 332,
+        "pmu_per_timestamp_flip": {
+          "on": {
+            "cpu-cycles:u": 219637677.72427776,
+            "instructions:u": 436257603.7658431,
+            "branch-misses:u": 1129187.6142631297
+          },
+          "off": {
+            "cpu-cycles:u": 220771613.3668086,
+            "instructions:u": 437447573.0040561,
+            "branch-misses:u": 1097335.1837236588
+          }
+        }
+      },
+      "acceptance": "Same APK ON/OFF11.763124/11.758492 at identical battery33.2C; no measurable guest-progress gain. Expanded ON/OFF focused suites PASS. Runtime reversed; archived exact patch and evidence. Paired PMU complete; no material executed-work reduction supporting retention."
+    },
+    {
+      "id": 41,
+      "status": "rejected_runtime_removed",
+      "purpose": "Hide dependent primary-TB metadata load latency behind unchanged generated-lookup eligibility checks",
+      "patch": "../../../patches/xemu/0051-tb-lookup-pipeline-experiment.patch",
+      "control": "lookup_pipeline1 candidate;0 default/original scheduling, process-latched",
+      "build": "tb-lookup-pipeline-20261015",
+      "apk": "9e88ae7585b4c966e02b4480c85f6eb1c9df7e4e5a805f9630bcd57d1872e575",
+      "source_diff": "5c7ad9d6f0adaf52a43a2079ba365f25ad3cb5ac263661d74a6657aa5d136790",
+      "correctness": "Early primary probe checks full32-bitPC+generation key before any TB dereference, nulls nonmatching pointer. Only immutable cs_base fetched early under cpu_exec RCU. All debugger/mode/logging/audit/flag/cflags tests retained, mutable cflags/INVALID checked in original late position; secondary path and C fallback unchanged. Exclusive code-cache lifetime, page/SMC invalidation and interrupts unchanged. X9 is already caller-clobbered by ordinary lookup helper ABI; no private-F32 preserve_most change.",
+      "validation": "Full focused ON/OFF suites PASS: active pipeline1/0, primary271/secondary15 hits, stale-PC/generation rejection before dereference, wrapclear, CR3 reload/remap, code-page faults, page/SMC/global invalidation, precise state and IRQ/MMIO/ordering tests.",
+      "performance": {
+        "on": 11.766946449012513,
+        "on_audio_missing": 0.05046666666666667,
+        "on_battery_tenths_c": 332,
+        "off": 11.989520988591844,
+        "off_audio_missing": 0.05164227642276423,
+        "off_battery_tenths_c": 335,
+        "pmu_per_timestamp_flip": {
+          "on": {
+            "cpu-cycles:u": 221367039.7895739,
+            "instructions:u": 439666358.0237234,
+            "branch-misses:u": 1061112.8880987023
+          },
+          "off": {
+            "cpu-cycles:u": 216358782.6790671,
+            "instructions:u": 437115380.37381303,
+            "branch-misses:u": 1010092.7174102886
+          }
+        }
+      },
+      "acceptance": "ON11.766946 versus sameAPK OFF11.989521, ON cooler33.2C versus33.5C OFF. No real-progress benefit. Focused ON/OFF suites PASS. Rejected and fully reversed, exact patch archived. Paired PMU complete; no useful gain."
+    },
+    {
+      "id": 42,
+      "status": "rejected_runtime_removed",
+      "purpose": "Acquire-load sequence entry for TCG QHT lookup while retaining writer protocol and final retry barrier",
+      "patch": "../../../patches/xemu/0052-qht-acquire-read-experiment.patch",
+      "control": "qht_acquire1 candidate,0 default; latched at TB table initialization",
+      "correctness": "Limited to opt-in TCG QHT lookup; generic seqlock untouched. Map/bucket RCU dependency, protected reads after sequence acquire, odd/version retry and final read barrier retained. Concurrent readers/insert/remove/resize harness prepared, no validation result yet.",
+      "build": "qht-acquire-20261015",
+      "apk": "20d4627ebc7bd4845f901a8bf018c39c6fd4ca8626c2bd3274431f7e0e90d3f2",
+      "source_diff": "3712f8bdd9999d2964b1b1767eac2213cb185418069aeca7e637abd2e5feb517",
+      "validation": "ON full focused suite PASS,3353600 concurrent RCU reads while65536 insert/removes and resizing; no wrong-pointer matches. Existing precise CPU state/CR3/SMC/fault/IRQ/MMIO/ordering tests PASS. Disassembly confirms LDAR entry, original DMB ISHLD final retry barrier. OFF full focused suite PASS,3318144 concurrent RCU reads.",
+      "performance": {
+        "on": 11.678009831296976,
+        "off": 11.636571498565843,
+        "on_audio_missing": 0.051956989247311826,
+        "off_audio_missing": 0.05346236559139785,
+        "on_battery_tenths_c": 340,
+        "off_battery_tenths_c": 340,
+        "pmu_per_timestamp_flip": {
+          "on": {
+            "cpu-cycles:u": 221629218.46959618,
+            "instructions:u": 437435300.12493753,
+            "branch-misses:u": 1078305.1800878097
+          },
+          "off": {
+            "cpu-cycles:u": 220931497.9180213,
+            "instructions:u": 435941469.9208971,
+            "branch-misses:u": 1100168.957163691
+          }
+        }
+      },
+      "acceptance": "SameAPK ON/OFF11.678010/11.636571 at34.0C, only0.36% cadence within variation; ON437.435300M/OFF435.941470M instructions and221.629218M/220.931498M cycles perflip. No measurable material progress benefit; full concurrent/CPU ON/OFF PASS. Exact runtime patch removed and archived."
+    },
+    {
+      "id": 43,
+      "status": "rejected_runtime_removed",
+      "purpose": "Guard the entry x87 TOP and let TCG propagate the constant through exact x87 stack/address operations; exact generic TCG block fallback on mismatch",
+      "patch": "../../../patches/xemu/0053-guarded-x87-top-experiment.patch",
+      "control": "fp_top1 candidate,0 default, latched in CPU TCG flags at realize",
+      "correctness": "New distinct SPEC/GENERIC cflags separate block identities. Entry guard before guest work; fallback supplies canonical initial state/currentEIP and looks up exact generic block or leaves to dispatcher for safe generation with same count/debug/IRQ controls. Does not assume observed TOP remains true; guard removed from blocks without x87. Disables specialization for icount, PCrel, single-step/trap/shadow, plugins, hard-FPU, nonflat/non32 code. Unvalidated; special attention required for codegen inside helper, precise exception metadata, SMC/code-cache lifetime and mismatch fallback.",
+      "build": "guarded-x87-top-20261015",
+      "apk": "3fe203259f6aa13dbbb589d1118989c9c4140f98b46a424ddbf832f46cafb851",
+      "source_diff": "7ee6ecbbe6a6cbfee5c4f8629f818ac29dc9b205e6f258223c6e8611c8766825",
+      "validation": "Unchanged runtime passes static-lifetime harness full suite; expanded normal CPU-exec192 helper/control/memory programs all TOP/PC/RM plus96 arithmetic/fullstate and8MMIO/8precisePF cases PASS.11 specialized regions350 actual fallback entries. Original unrelated harness-lifetime RCU abort and original OFF pass preserved; Expanded OFF full focused suite PASS, no specialized regions/fallbacks active.",
+      "variant_a_performance": {
+        "on": 11.757689932944052,
+        "on_audio_missing": 0.05892896174863388,
+        "on_battery_tenths_c": 315,
+        "off_pending": false,
+        "off": 11.706424860115309,
+        "off_audio_missing": 0.04526829268292683,
+        "off_battery_tenths_c": 320,
+        "acceptance": "No material standalone gain; coherent explicit-operand helper group B remains experimental.",
+        "pmu_per_timestamp_flip": {
+          "on": {
+            "cpu-cycles:u": 220213374.07162368,
+            "instructions:u": 432498304.32732445,
+            "branch-misses:u": 1089824.9888641792
+          },
+          "off": {
+            "cpu-cycles:u": 221900313.55833337,
+            "instructions:u": 437178265.64104676,
+            "branch-misses:u": 1096116.2789022562
+          }
+        }
+      },
+      "variant_b": {
+        "build": "guarded-x87-top-operands-standard-20261015",
+        "apk": "cdb7f0981af842da5ac912d4570d88246c5d39244641b0569697b23be6a4c0ca",
+        "source_diff": "3b6bac9326f92ce74f572c6559495a18456eee9b6bdc07a2a0de75aaeb5f1639",
+        "purpose": "Carry proven TOP through FXCH/sign/SQRT/SIN/COS by explicit CPU-private operands and precise no-GPR/CC/TOP dependency metadata; same numerical algorithms/status paths. Enable only tagged fp_top1 contexts, original helpers whenoff/profile/hardFPU.",
+        "status": "rejected",
+        "intermediate": "Unmeasured intermediate APK52c7bb... inherited preserve_most declaration scope unintentionally. Caught before testing/install; moved six declarations before that scope to use ordinary ABI, rebuilt cdb7f... No intermediate performance result.",
+        "validation": "ON full focused PASS,9216 independent original SQRT/SIN/COS bit/fullstate/status oracles across TOP/PC/RM/masks/specials;12288 original register/sign/swap oracle cases inclpadding;192 normal helper/control/memory and96 basic normal fullstate plusMMIO/#PF,350actualfallbacks; existing recovery/SMC/MMIO/IRQ suite PASS. OFF full focused and9216 original-helper oracles PASS.",
+        "performance": {
+          "on": 11.315536716029431,
+          "on_audio_missing": 0.04728455284552845,
+          "on_battery_tenths_c": 317,
+          "off": 11.39438890971089,
+          "off_audio_missing": 0.05294308943089431,
+          "off_battery_tenths_c": 327,
+          "pmu_per_timestamp_flip": {
+            "on": {
+              "cpu-cycles:u": 228373950.36338365,
+              "instructions:u": 430268684.64572114,
+              "branch-misses:u": 1148063.6320269373
+            },
+            "off": {
+              "cpu-cycles:u": 226894263.16313368,
+              "instructions:u": 437505054.4470603,
+              "branch-misses:u": 1070251.5313338954
+            }
+          }
+        }
+      },
+      "acceptance": "VariantA ON/OFF11.757690/11.706425 at31.5/32.0C, no material standalone cadence gain. B ON/OFF11.315537/11.394389 at31.7/32.7C, ON430.268685M/OFF437.505054M instructions but228.373950M/226.894263M cycles perflip; less work did not improve progress. Both variants passed focused ON/OFF, rejected and completely removed; all patches/builds/captures/failures archived. No TOP-specialization impossibility claim."
+    },
+    {
+      "id": 44,
+      "status": "suspended_unvalidated_runtime_removed",
+      "record": "experiment44/outcome.json"
+    },
+    {
+      "id": 45,
+      "status": "closed_no_new_runtime_accepted",
+      "purpose": "Guarded x87 by-value operands/promoted dynamic TCG globals with dependent cold recovery, direct F32 conversion and helper ABI variants",
+      "control": "fp_values2 B;1 A;0 off",
+      "patch": "../../../patches/xemu/0055-x87-tcg-value-residency-experiment.patch",
+      "build": "fp-value-residency-cold-20261015",
+      "apk": "57ec224364cd0aeadb3b08dc5ef6e7996e02bd64aed875a737198751f8f7d26c",
+      "source_diff": "0ec5887880198ba114f9f8c91171bca6aed0d89389798ead3f9fcdb74244e90f",
+      "validation": "Focused A/B/C/D ON/OFF PASS, C direct conversion rounding170688 plus special operands, D all11 full64 helper ABI. Rebuilt rollback matches archived39 APK cf286dc...; rollback focused validation running at checkpoint preparation. Rollback full focused suite PASS.",
+      "performance": "A11.486763/11.710825; B11.440214/11.554975; C11.782243/11.560118 (+1.92% single-pair inside prior control range, only0.44% fewer instructions, not established repeatable material gain); D11.493348/11.825614 ON/OFF. No runtime retained.",
+      "record": "experiment45/outcome.json",
+      "acceptance": "None. A/B/D no gain/regression; C small single-pair difference not established above control variation. Entire0055 removed from active series; variants/evidence archived."
+    },
+    {
+      "id": 46,
+      "status": "closed_no_new_runtime_accepted",
+      "record": "experiment46/outcome.json",
+      "purpose": "Scoped explicit TLB descriptor TCG IR and exact generic miss retry",
+      "performance": "A10.730579/11.530537; B10.716112/11.677172; C9.450686/11.662344 ON/OFF. All rejected and runtime removed. Full focusedON/OFF PASS for all."
+    },
+    {
+      "id": 47,
+      "status": "retained_provisional",
+      "record": "experiment47/outcome.json",
+      "patch": "../../../patches/xemu/0057-gate-diagnostic-vram-watch.patch",
+      "purpose": "Gate diagnostic-only VRAM CPU watch from normal production",
+      "performance": "Watch-off 12.349662 vs legacy 11.554706 (+6.88%, p50 79.25ms vs 86.61ms). Retained together with Experiment 48."
+    },
+    {
+      "id": 48,
+      "status": "retained_provisional",
+      "record": "experiment48/outcome.json",
+      "patch": "../../../patches/xemu/0058-gate-diagnostic-producers-and-timers.patch",
+      "purpose": "Gate diagnostic GPU producers and MMIO/BQL/PGRAPH timers when diagnostics=0",
+      "validation": "144 policy checks PASS; focused device suites PASS for both timings/watch/producers OFF and ON.",
+      "performance": "Same-APK 3-run ON/OFF/ON bracket: ON#1 12.413075 (p50 79.21ms, 30.5C), Legacy-OFF 11.331378 (p50 87.55ms, 30.7C), ON#2-repeat 12.529794 (p50 77.79ms, 31.2C). +9.55% to +10.58% same-APK gain; +5.76% vs prior retained 11.847661; +33.95% vs 9.354035 baseline."
+    },
+    {
+      "id": 49,
+      "status": "retained_provisional",
+      "record": "experiment49/outcome.json",
+      "patch": "../../../patches/xemu/0059-scoped-tlb-callback-and-dirty-mmuidx.patch",
+      "control": "tlb_cb_scope=1 (default 0 unless set to 1; latched in tlb_init for 32-bit i386)",
+      "purpose": "Scoped RAM callback TLB invalidation (preserving tb_jmp_cache and unrelated TLB entries while eliminating the second stop-the-world tlb_flush_all_cpus_synced barrier on mem_access_callback_insert/remove), dirty-MMU mode filtering in tlb_reset_dirty/tlb_set_dirty/tlb_flush_page/tlb_flush_range, 2MiB/4MiB large-page presence bitmap in tlb_flush_page_locked, batched single-RCU-guard dirty-bitmap checks, and MMU_PHYS_IDX preservation across CR0/CR3/CR4 updates",
+      "validation": "Complete ordered patch series verified; focused device suites PASS for both tlb_cb_scope=1 (cb_flushes=2, lp_skips=1) and tlb_cb_scope=0.",
+      "performance": "Same-APK 3-run ON/OFF/ON bracket (APK 84cd7cff...): ON#1 13.684275 guest flips/s (489 flips, p50 71.84ms, p95 84.75ms, bql_reacquire 73.24us/s, 31.2C), OFF 12.841707 guest flips/s (456 flips, p50 76.41ms, p95 89.40ms, bql_reacquire 256.70us/s, 31.2-31.5C), ON#2-repeat 13.491004 guest flips/s (481 flips, p50 72.65ms, p95 86.68ms, bql_reacquire 55.86us/s, 31.7C). +5.06% to +6.56% same-APK gain; +7.67% to +9.21% vs Experiment 48 retained; +44.23% to +46.29% vs 9.354035 clean baseline."
+    },
+    {
+      "id": 50,
+      "status": "retained_provisional",
+      "record": "experiment50/outcome.json",
+      "patch": "../../../patches/xemu/0060-fpu-fast-paths-zero-bypass-and-cached-fpcr.patch",
+      "control": "debug.boxdroid.fast_fpu=1 (default 1; 0 reverts to un-cached SoftFloat fallback path)",
+      "purpose": "Cached host FPCR status eliminating per-operation mrs system register reads on hot execution paths (boxdroid_f80_double53, boxdroid_fp_estimate, helper_boxdroid_fmul53, boxdroid_sse_mulps); zero-operand fast bypass in boxdroid_f80_double53 for ADD/SUB/MUL/DIV/SQRT avoiding SoftFloat fallback; exact IEEE-754 zero-sign rules in identity paths; streamlined inexact-only exception flag merging and preserved x87 unmasked trap synchronization",
+      "validation": "Complete ordered patch series verified; 20,548,716 differential comparisons against reference SoftFloat passed with 0 mismatches; 288 x87 status cases passed; full 35+ test suite TCG state recovery passed on RP5 device.",
+      "performance": "Same-APK 3-run ON/OFF/ON bracket (APK 4de88684...): ON#1 14.197253 guest flips/s (507 flips, p50 69.16ms, p95 81.59ms, bql_reacquire 130.94us/s, 26.7-27.0C), OFF 11.353157 guest flips/s (400 flips, p50 86.28ms, p95 100.51ms, bql_reacquire 115.68us/s, 28.2C), ON#2-repeat 14.136043 guest flips/s (503 flips, p50 69.65ms, p95 83.04ms, bql_reacquire 63.06us/s, 29.0C). +24.51% to +25.05% same-APK gain; +3.75% to +4.78% vs Experiment 49 retained; +51.12% to +51.78% vs 9.354035 clean baseline."
+    }
+  ]
+}
+

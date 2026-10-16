@@ -1,0 +1,1071 @@
+--------- beginning of main
+         1792178559.483 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161665297726 queue_us=9 service_us=2703 ok=1 async=1
+         1792178559.544 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161665359401 guest_flips=3471
+         1792178559.567 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161665381950 unique=2631 guest_flips=3471
+         1792178559.570 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161665384959 queue_us=13 service_us=2878 ok=1 async=1
+         1792178559.579 24001 24034 I BoxDroid: WSI frames=30 acquire_us=1022 prepare_us=60247 submit_us=3991 present_us=8174 idle_us=8059
+         1792178559.579 24001 24034 I BoxDroid: FRAME presented=4890 generation=1
+         1792178559.579 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161665393978 queue_us=13 service_us=2925 ok=1 async=1
+         1792178559.640 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161665455178 guest_flips=3472
+         1792178559.656 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161665471501 unique=2632 guest_flips=3472
+         1792178559.661 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161665476414 queue_us=12 service_us=4790 ok=1 async=1
+         1792178559.661 24001 24034 I BoxDroid: PRESENT_QUEUE submitted=4891 completed=4890 failed=0 canceled=0 max_depth=2 blocked_us=41245 idle_us=148176362
+         1792178559.675 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161665489781 queue_us=15 service_us=2728 ok=1 async=1
+         1792178559.707 24001 24050 I BoxDroid: NV_RENDER kind=1 interval_us=1004226 calls=219 total_us=18835 maximum_us=214
+         1792178559.707 24001 24050 I BoxDroid: NV_RENDER kind=2 interval_us=1004226 calls=219 total_us=145813 maximum_us=6052
+         1792178559.707 24001 24050 I BoxDroid: NV_RENDER kind=3 interval_us=1004226 calls=74 total_us=0 maximum_us=0
+         1792178559.707 24001 24050 I BoxDroid: NV_RENDER kind=4 interval_us=1004226 calls=77 total_us=0 maximum_us=0
+         1792178559.707 24001 24050 I BoxDroid: NV_RENDER kind=5 interval_us=1004226 calls=56 total_us=0 maximum_us=0
+         1792178559.707 24001 24050 I BoxDroid: NV_RENDER kind=9 interval_us=1004226 calls=11 total_us=0 maximum_us=0
+         1792178559.724 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161665538924 guest_flips=3473
+         1792178559.737 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161665551692 unique=2633 guest_flips=3473
+         1792178559.740 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161665554867 queue_us=36 service_us=3016 ok=1 async=1
+         1792178559.755 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161665569975 queue_us=43 service_us=2910 ok=1 async=1
+         1792178559.826 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161665641280 guest_flips=3474
+         1792178559.833 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161665647785 unique=2634 guest_flips=3474
+         1792178559.836 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161665651258 queue_us=11 service_us=3342 ok=1 async=1
+         1792178559.852 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161665666576 queue_us=18 service_us=2978 ok=1 async=1
+         1792178559.911 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161665725658 guest_flips=3475
+         1792178559.913 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161665727917 unique=2635 guest_flips=3475
+         1792178559.916 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161665730955 queue_us=44 service_us=2853 ok=1 async=1
+         1792178559.935 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161665750286 queue_us=15 service_us=2855 ok=1 async=1
+         1792178560.008 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161665822731 guest_flips=3476
+         1792178560.025 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161665840250 unique=2636 guest_flips=3476
+         1792178560.029 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161665843659 queue_us=16 service_us=3275 ok=1 async=1
+         1792178560.043 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161665857848 queue_us=12 service_us=2762 ok=1 async=1
+         1792178560.083 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161665898170 guest_flips=3477
+         1792178560.085 24001 24042 I BoxDroid: MAINLOOP elapsed_us=1000026 calls=2905 poll_us=898528 main_lock_us=949 replay_us=933 bql_us=21988 max_bql_us=3671 last_timeout_ns=179835
+         1792178560.089 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161665903737 unique=2637 guest_flips=3477
+         1792178560.092 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161665906771 queue_us=12 service_us=2912 ok=1 async=1
+         1792178560.107 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161665922219 queue_us=25 service_us=2992 ok=1 async=1
+         1792178560.184 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161665999003 guest_flips=3478
+         1792178560.198 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000604 worker=0 jobs=4083 mono=2722 stereo=1361 multipass=0 work_us=43470 lock_wait_us=2146
+         1792178560.198 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000604 worker=1 jobs=3706 mono=3706 stereo=0 multipass=0 work_us=33910 lock_wait_us=1550
+         1792178560.198 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000604 worker=2 jobs=3061 mono=3061 stereo=0 multipass=0 work_us=29872 lock_wait_us=1366
+         1792178560.198 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000604 worker=3 jobs=2722 mono=2722 stereo=0 multipass=0 work_us=27053 lock_wait_us=1197
+         1792178560.198 24001 24049 I BoxDroid: VOICE_PROFILE elapsed_us=1000604 workers=4 background_workers=4 apu_participates=0 frames=1361 jobs=13572 queue_peak=11 worker_queue_peak=3 barrier_us=451674 voice_lock_us=3094 worker_work_us=134305 worker_lock_wait_us=6259 worker_mix_hold_us=5536 worker_wait_us=3845049 worker_wakes=5444
+         1792178560.201 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161666015581 unique=2638 guest_flips=3478
+         1792178560.205 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161666020195 queue_us=59 service_us=4418 ok=1 async=1
+         1792178560.219 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161666034000 queue_us=15 service_us=2890 ok=1 async=1
+         1792178560.234 24001 24049 I BoxDroid: APU_PROFILE elapsed_us=1002458 frames=1353 vp_us=467503 dsp_us=463851 monitor_us=664 ep_batches=169 ep_budget_overruns=67 ep_work_peak_us=15422 ep_budget_us=5333
+         1792178560.243 24001 24044 I BoxDroid: APU_VOICE_WAIT interval_us=1001785 calls=1030 wait_us=24347 maximum_us=3681
+         1792178560.275 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161666089705 guest_flips=3479
+         1792178560.281 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161666096204 unique=2639 guest_flips=3479
+         1792178560.284 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161666099035 queue_us=16 service_us=2690 ok=1 async=1
+         1792178560.299 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161666113953 queue_us=12 service_us=2890 ok=1 async=1
+         1792178560.312 24001 24042 I BoxDroid3: PERF mono_us=161666126581 elapsed_us=1007561 unique=11 frames=22 green=0 guest_flips=11 refresh=63 period_us=1007987 callback_us=49489 scanout_us=25196 bql_reacquire_us=234 conversion_us=9075 presenter_us=2582 vpll=0x3c20d htotal=0x65 vtotal=0xb overflow=0x3e cr25=0x10 sr1=0x1 msr=0xe3 fp_h=679 fp_v=479 pcrtc=0x3cb0000
+         1792178560.312 24001 24042 I BoxDroid: REFRESH_DEADLINE now_ns=161666126685983 next_ns=161666142454779 period_ns=16000000 callbacks=63 missed=0
+         1792178560.386 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161666200934 guest_flips=3480
+         1792178560.394 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161666209528 unique=2640 guest_flips=3480
+         1792178560.398 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161666212634 queue_us=13 service_us=2955 ok=1 async=1
+         1792178560.411 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161666225791 queue_us=10 service_us=2785 ok=1 async=1
+         1792178560.459 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161666274423 guest_flips=3481
+         1792178560.491 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161666305570 unique=2641 guest_flips=3481
+         1792178560.495 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161666310400 queue_us=12 service_us=4707 ok=1 async=1
+         1792178560.509 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161666324245 queue_us=22 service_us=2781 ok=1 async=1
+         1792178560.549 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161666363820 guest_flips=3482
+         1792178560.553 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161666367875 unique=2642 guest_flips=3482
+         1792178560.556 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161666370620 queue_us=45 service_us=2541 ok=1 async=1
+         1792178560.571 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161666385957 queue_us=14 service_us=2778 ok=1 async=1
+         1792178560.649 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161666464309 guest_flips=3483
+         1792178560.665 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161666480522 unique=2643 guest_flips=3483
+         1792178560.669 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161666483716 queue_us=63 service_us=2982 ok=1 async=1
+         1792178560.669 24001 24034 I BoxDroid: PRESENT_QUEUE submitted=4913 completed=4912 failed=0 canceled=0 max_depth=2 blocked_us=41245 idle_us=149115858
+         1792178560.687 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161666501627 queue_us=14 service_us=2943 ok=1 async=1
+         1792178560.715 24001 24050 I BoxDroid: NV_RENDER kind=1 interval_us=1008298 calls=215 total_us=18938 maximum_us=251
+         1792178560.715 24001 24050 I BoxDroid: NV_RENDER kind=2 interval_us=1008298 calls=215 total_us=138684 maximum_us=6071
+         1792178560.715 24001 24050 I BoxDroid: NV_RENDER kind=3 interval_us=1008298 calls=73 total_us=0 maximum_us=0
+         1792178560.715 24001 24050 I BoxDroid: NV_RENDER kind=4 interval_us=1008298 calls=77 total_us=0 maximum_us=0
+         1792178560.715 24001 24050 I BoxDroid: NV_RENDER kind=5 interval_us=1008298 calls=55 total_us=0 maximum_us=0
+         1792178560.715 24001 24050 I BoxDroid: NV_RENDER kind=9 interval_us=1008298 calls=11 total_us=0 maximum_us=0
+         1792178560.734 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161666549506 guest_flips=3484
+         1792178560.746 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161666561522 unique=2644 guest_flips=3484
+         1792178560.750 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161666564627 queue_us=14 service_us=2948 ok=1 async=1
+         1792178560.765 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161666579974 queue_us=21 service_us=2912 ok=1 async=1
+         1792178560.843 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161666657871 guest_flips=3485
+         1792178560.857 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161666671624 unique=2645 guest_flips=3485
+         1792178560.860 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161666675018 queue_us=13 service_us=3260 ok=1 async=1
+         1792178560.876 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161666691314 queue_us=12 service_us=3457 ok=1 async=1
+         1792178560.942 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161666757021 guest_flips=3486
+         1792178560.953 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161666767705 unique=2646 guest_flips=3486
+         1792178560.956 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161666771029 queue_us=16 service_us=3189 ok=1 async=1
+         1792178560.968 24001 24042 I BoxDroid: XBOX_NV2A_FRAME_PRESENT count=4920 guest_extent=640x480 pixel_hash=d008aa6635c6cfaf nonblack_pixels=0
+         1792178560.971 24001 24034 I BoxDroid: WSI frames=30 acquire_us=1303 prepare_us=62220 submit_us=4588 present_us=8528 idle_us=12406
+         1792178560.971 24001 24034 I BoxDroid: FRAME presented=4920 generation=1
+         1792178560.971 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161666785710 queue_us=13 service_us=2700 ok=1 async=1
+         1792178560.996 24001 24029 I BoxDroid_: OVERLAY_SAMPLE fps=10.7 rss_mb=657 cpu_pct=25 online_cpus=8 gpu=19% gpu_raw=19 % unique_frames=2646 presents=4920 sample_us=1402 average_sample_us=1592 max_sample_us=2667
+         1792178561.030 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161666844577 guest_flips=3487
+         1792178561.032 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161666847491 unique=2647 guest_flips=3487
+         1792178561.035 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161666850294 queue_us=10 service_us=2692 ok=1 async=1
+         1792178561.051 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161666866291 queue_us=16 service_us=3201 ok=1 async=1
+         1792178561.086 24001 24042 I BoxDroid: MAINLOOP elapsed_us=1000766 calls=2881 poll_us=873990 main_lock_us=1250 replay_us=893 bql_us=47716 max_bql_us=3773 last_timeout_ns=776902
+         1792178561.108 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161666922878 guest_flips=3488
+         1792178561.112 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161666927522 unique=2648 guest_flips=3488
+         1792178561.115 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161666930389 queue_us=10 service_us=2754 ok=1 async=1
+         1792178561.131 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161666945973 queue_us=38 service_us=2667 ok=1 async=1
+         1792178561.195 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161667009966 guest_flips=3489
+         1792178561.198 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000142 worker=0 jobs=3666 mono=2339 stereo=1327 multipass=0 work_us=40000 lock_wait_us=1390
+         1792178561.198 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000142 worker=1 jobs=2654 mono=2654 stereo=0 multipass=0 work_us=27579 lock_wait_us=1985
+         1792178561.198 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000142 worker=2 jobs=2654 mono=2654 stereo=0 multipass=0 work_us=27731 lock_wait_us=1228
+         1792178561.198 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000142 worker=3 jobs=2607 mono=2607 stereo=0 multipass=0 work_us=26521 lock_wait_us=1346
+         1792178561.198 24001 24049 I BoxDroid: VOICE_PROFILE elapsed_us=1000142 workers=4 background_workers=4 apu_participates=0 frames=1327 jobs=11581 queue_peak=9 worker_queue_peak=3 barrier_us=433890 voice_lock_us=2161 worker_work_us=121831 worker_lock_wait_us=5949 worker_mix_hold_us=5423 worker_wait_us=3856897 worker_wakes=5308
+         1792178561.212 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161667026827 unique=2649 guest_flips=3489
+         1792178561.215 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667030519 queue_us=23 service_us=3530 ok=1 async=1
+         1792178561.227 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667041804 queue_us=13 service_us=2801 ok=1 async=1
+         1792178561.236 24001 24049 I BoxDroid: APU_PROFILE elapsed_us=1001327 frames=1340 vp_us=427690 dsp_us=459543 monitor_us=621 ep_batches=168 ep_budget_overruns=60 ep_work_peak_us=14556 ep_budget_us=5333
+         1792178561.243 24001 24044 I BoxDroid: APU_VOICE_WAIT interval_us=1000000 calls=936 wait_us=37906 maximum_us=3768
+         1792178561.274 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161667088650 guest_flips=3490
+         1792178561.294 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161667109459 unique=2650 guest_flips=3490
+         1792178561.298 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667112921 queue_us=11 service_us=3339 ok=1 async=1
+         1792178561.307 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667121677 queue_us=11 service_us=2667 ok=1 async=1
+         1792178561.319 24001 24042 I BoxDroid3: PERF mono_us=161667134537 elapsed_us=1007956 unique=11 frames=22 green=0 guest_flips=11 refresh=62 period_us=1007992 callback_us=60081 scanout_us=39880 bql_reacquire_us=130 conversion_us=8776 presenter_us=2747 vpll=0x3c20d htotal=0x65 vtotal=0xb overflow=0x3e cr25=0x10 sr1=0x1 msr=0xe3 fp_h=679 fp_v=479 pcrtc=0x3b84000
+         1792178561.320 24001 24042 I BoxDroid: REFRESH_DEADLINE now_ns=161667134577597 next_ns=161667150454779 period_ns=16000000 callbacks=62 missed=1
+         1792178561.360 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161667175106 guest_flips=3491
+         1792178561.368 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161667183510 unique=2651 guest_flips=3491
+         1792178561.371 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667186292 queue_us=14 service_us=2658 ok=1 async=1
+         1792178561.387 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667202480 queue_us=56 service_us=3315 ok=1 async=1
+         1792178561.440 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161667255000 guest_flips=3492
+         1792178561.448 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161667263537 unique=2652 guest_flips=3492
+         1792178561.452 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667266682 queue_us=15 service_us=3011 ok=1 async=1
+         1792178561.467 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667281642 queue_us=15 service_us=2625 ok=1 async=1
+         1792178561.521 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161667335832 guest_flips=3493
+         1792178561.531 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161667345967 unique=2653 guest_flips=3493
+         1792178561.534 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667348753 queue_us=10 service_us=2659 ok=1 async=1
+         1792178561.547 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667361833 queue_us=19 service_us=2768 ok=1 async=1
+         1792178561.605 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161667420530 guest_flips=3494
+         1792178561.608 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161667423451 unique=2654 guest_flips=3494
+         1792178561.611 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667426399 queue_us=10 service_us=2839 ok=1 async=1
+         1792178561.627 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667442414 queue_us=18 service_us=3078 ok=1 async=1
+         1792178561.677 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161667492265 guest_flips=3495
+         1792178561.692 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161667507235 unique=2655 guest_flips=3495
+         1792178561.696 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667510955 queue_us=15 service_us=3431 ok=1 async=1
+         1792178561.696 24001 24034 I BoxDroid: PRESENT_QUEUE submitted=4937 completed=4936 failed=0 canceled=0 max_depth=2 blocked_us=41245 idle_us=150070729
+         1792178561.707 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667521670 queue_us=10 service_us=2650 ok=1 async=1
+         1792178561.715 24001 24050 I BoxDroid: NV_RENDER kind=1 interval_us=1000176 calls=229 total_us=19315 maximum_us=282
+         1792178561.715 24001 24050 I BoxDroid: NV_RENDER kind=2 interval_us=1000176 calls=228 total_us=145550 maximum_us=5940
+         1792178561.715 24001 24050 I BoxDroid: NV_RENDER kind=3 interval_us=1000176 calls=73 total_us=0 maximum_us=0
+         1792178561.715 24001 24050 I BoxDroid: NV_RENDER kind=4 interval_us=1000176 calls=84 total_us=0 maximum_us=0
+         1792178561.715 24001 24050 I BoxDroid: NV_RENDER kind=5 interval_us=1000176 calls=59 total_us=0 maximum_us=0
+         1792178561.715 24001 24050 I BoxDroid: NV_RENDER kind=9 interval_us=1000176 calls=12 total_us=0 maximum_us=0
+         1792178561.767 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161667582100 guest_flips=3496
+         1792178561.768 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161667583506 unique=2656 guest_flips=3496
+         1792178561.771 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667586222 queue_us=31 service_us=2579 ok=1 async=1
+         1792178561.787 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667602306 queue_us=12 service_us=3148 ok=1 async=1
+         1792178561.838 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161667652777 guest_flips=3497
+         1792178561.849 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161667663617 unique=2657 guest_flips=3497
+         1792178561.852 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667667421 queue_us=311 service_us=3364 ok=1 async=1
+         1792178561.867 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667682268 queue_us=12 service_us=2990 ok=1 async=1
+         1792178561.928 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161667742820 guest_flips=3498
+         1792178561.946 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161667761110 unique=2658 guest_flips=3498
+         1792178561.950 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667764874 queue_us=12 service_us=3636 ok=1 async=1
+         1792178561.963 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667777839 queue_us=13 service_us=2813 ok=1 async=1
+         1792178561.996 24001 24029 I BoxDroidAudio: AUDIO_STATS backend=AAudio state=RUNNING rate=48000 channels=2 format=S16LE burst=192 callback_frames=64..192 buffer_frames=384 capacity_frames=1536 queued_frames=384 queued_estimate_ms=16 callbacks=43750 callback_frames_total=7905792 underrun_callbacks=1283 underrun_frames=156480 overrun_blocks=0 dropped_frames=0 offered_frames=6728448 nonzero_frames=6316282 muted_frames=0 focus=1 foreground=1 apu_attached=1 error=0 source_nonzero_frames=6316282 source_peak=13846 ring_peak=13846 consumed_frames=6728064 consumed_nonzero_frames=6315898 consumed_peak=13846
+         1792178562.001 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161667816296 guest_flips=3499
+         1792178562.009 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161667823545 unique=2659 guest_flips=3499
+         1792178562.012 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667826660 queue_us=15 service_us=2981 ok=1 async=1
+         1792178562.029 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667844151 queue_us=14 service_us=3725 ok=1 async=1
+         1792178562.086 24001 24042 I BoxDroid: MAINLOOP elapsed_us=1000003 calls=3070 poll_us=923393 main_lock_us=895 replay_us=792 bql_us=10634 max_bql_us=2186 last_timeout_ns=592628
+         1792178562.109 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161667923577 guest_flips=3500
+         1792178562.122 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161667936581 unique=2660 guest_flips=3500
+         1792178562.126 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667941333 queue_us=65 service_us=4551 ok=1 async=1
+         1792178562.139 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161667953970 queue_us=13 service_us=2859 ok=1 async=1
+         1792178562.187 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161668001683 guest_flips=3501
+         1792178562.198 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000304 worker=0 jobs=2944 mono=1472 stereo=1472 multipass=0 work_us=35440 lock_wait_us=1286
+         1792178562.198 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000304 worker=1 jobs=2619 mono=2619 stereo=0 multipass=0 work_us=27851 lock_wait_us=1457
+         1792178562.198 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000304 worker=2 jobs=2326 mono=2326 stereo=0 multipass=0 work_us=24443 lock_wait_us=1440
+         1792178562.198 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000304 worker=3 jobs=1472 mono=1472 stereo=0 multipass=0 work_us=18798 lock_wait_us=1590
+         1792178562.198 24001 24049 I BoxDroid: VOICE_PROFILE elapsed_us=1000304 workers=4 background_workers=4 apu_participates=0 frames=1472 jobs=9361 queue_peak=7 worker_queue_peak=2 barrier_us=240487 voice_lock_us=2035 worker_work_us=106532 worker_lock_wait_us=5773 worker_mix_hold_us=6040 worker_wait_us=3872735 worker_wakes=5888
+         1792178562.205 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161668019711 unique=2661 guest_flips=3501
+         1792178562.209 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668023858 queue_us=135 service_us=3876 ok=1 async=1
+         1792178562.219 24001 24034 I BoxDroid: WSI frames=30 acquire_us=1078 prepare_us=64932 submit_us=3944 present_us=7785 idle_us=9605
+         1792178562.219 24001 24034 I BoxDroid: FRAME presented=4950 generation=1
+         1792178562.219 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668033947 queue_us=22 service_us=2812 ok=1 async=1
+         1792178562.236 24001 24049 I BoxDroid: APU_PROFILE elapsed_us=1000113 frames=1454 vp_us=260131 dsp_us=490973 monitor_us=689 ep_batches=181 ep_budget_overruns=31 ep_work_peak_us=16378 ep_budget_us=5333
+         1792178562.244 24001 24044 I BoxDroid: APU_VOICE_WAIT interval_us=1000677 calls=988 wait_us=18261 maximum_us=3057
+         1792178562.277 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161668092391 guest_flips=3502
+         1792178562.280 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161668095541 unique=2662 guest_flips=3502
+         1792178562.284 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668098580 queue_us=15 service_us=2906 ok=1 async=1
+         1792178562.299 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668113886 queue_us=12 service_us=2768 ok=1 async=1
+         1792178562.328 24001 24042 I BoxDroid3: PERF mono_us=161668142568 elapsed_us=1008031 unique=12 frames=24 green=0 guest_flips=12 refresh=63 period_us=1008015 callback_us=39204 scanout_us=20949 bql_reacquire_us=102 conversion_us=9718 presenter_us=3371 vpll=0x3c20d htotal=0x65 vtotal=0xb overflow=0x3e cr25=0x10 sr1=0x1 msr=0xe3 fp_h=679 fp_v=479 pcrtc=0x3b84000
+         1792178562.328 24001 24042 I BoxDroid: REFRESH_DEADLINE now_ns=161668142609159 next_ns=161668158454779 period_ns=16000000 callbacks=63 missed=0
+         1792178562.377 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161668191773 guest_flips=3503
+         1792178562.396 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161668210908 unique=2663 guest_flips=3503
+         1792178562.400 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668214904 queue_us=17 service_us=3723 ok=1 async=1
+         1792178562.412 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668226612 queue_us=14 service_us=3208 ok=1 async=1
+         1792178562.461 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161668276472 guest_flips=3504
+         1792178562.473 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161668287725 unique=2664 guest_flips=3504
+         1792178562.476 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668290858 queue_us=18 service_us=2989 ok=1 async=1
+         1792178562.492 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668307284 queue_us=31 service_us=3927 ok=1 async=1
+         1792178562.564 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161668378709 guest_flips=3505
+         1792178562.569 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161668383586 unique=2665 guest_flips=3505
+         1792178562.572 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668386745 queue_us=14 service_us=3032 ok=1 async=1
+         1792178562.591 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668406325 queue_us=19 service_us=3311 ok=1 async=1
+         1792178562.655 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161668470026 guest_flips=3506
+         1792178562.665 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161668479786 unique=2666 guest_flips=3506
+         1792178562.668 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668482831 queue_us=13 service_us=2904 ok=1 async=1
+         1792178562.684 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668498720 queue_us=12 service_us=3461 ok=1 async=1
+         1792178562.726 24001 24050 I BoxDroid: NV_RENDER kind=1 interval_us=1010381 calls=213 total_us=17772 maximum_us=264
+         1792178562.726 24001 24050 I BoxDroid: NV_RENDER kind=2 interval_us=1010381 calls=214 total_us=142671 maximum_us=6036
+         1792178562.726 24001 24050 I BoxDroid: NV_RENDER kind=3 interval_us=1010381 calls=70 total_us=0 maximum_us=0
+         1792178562.726 24001 24050 I BoxDroid: NV_RENDER kind=4 interval_us=1010381 calls=77 total_us=0 maximum_us=0
+         1792178562.726 24001 24050 I BoxDroid: NV_RENDER kind=5 interval_us=1010381 calls=56 total_us=0 maximum_us=0
+         1792178562.726 24001 24050 I BoxDroid: NV_RENDER kind=9 interval_us=1010381 calls=11 total_us=0 maximum_us=0
+         1792178562.743 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161668558339 guest_flips=3507
+         1792178562.745 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161668559555 unique=2667 guest_flips=3507
+         1792178562.747 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668562364 queue_us=33 service_us=2675 ok=1 async=1
+         1792178562.747 24001 24034 I BoxDroid: PRESENT_QUEUE submitted=4961 completed=4960 failed=0 canceled=0 max_depth=2 blocked_us=41245 idle_us=151044272
+         1792178562.764 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668579337 queue_us=11 service_us=4298 ok=1 async=1
+         1792178562.821 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161668636451 guest_flips=3508
+         1792178562.825 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161668639602 unique=2668 guest_flips=3508
+         1792178562.827 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668642476 queue_us=13 service_us=2760 ok=1 async=1
+         1792178562.843 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668657709 queue_us=14 service_us=2690 ok=1 async=1
+         1792178562.907 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161668722532 guest_flips=3509
+         1792178562.921 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161668735551 unique=2669 guest_flips=3509
+         1792178562.924 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668738860 queue_us=10 service_us=3188 ok=1 async=1
+         1792178562.939 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668754452 queue_us=11 service_us=3435 ok=1 async=1
+         1792178562.987 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161668802129 guest_flips=3510
+         1792178563.002 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161668817354 unique=2670 guest_flips=3510
+         1792178563.007 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668821718 queue_us=11 service_us=4233 ok=1 async=1
+         1792178563.018 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668833461 queue_us=10 service_us=2447 ok=1 async=1
+         1792178563.075 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161668890300 guest_flips=3511
+         1792178563.080 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161668895493 unique=2671 guest_flips=3511
+         1792178563.083 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668898355 queue_us=13 service_us=2733 ok=1 async=1
+         1792178563.086 24001 24042 I BoxDroid: MAINLOOP elapsed_us=1000008 calls=2991 poll_us=909646 main_lock_us=1006 replay_us=862 bql_us=24210 max_bql_us=2709 last_timeout_ns=0
+         1792178563.099 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668913641 queue_us=11 service_us=2610 ok=1 async=1
+         1792178563.158 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161668973140 guest_flips=3512
+         1792178563.160 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161668975474 unique=2672 guest_flips=3512
+         1792178563.163 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668978147 queue_us=66 service_us=2504 ok=1 async=1
+         1792178563.179 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161668994088 queue_us=13 service_us=3002 ok=1 async=1
+         1792178563.198 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000120 worker=0 jobs=2778 mono=1389 stereo=1389 multipass=0 work_us=33187 lock_wait_us=1220
+         1792178563.198 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000120 worker=1 jobs=2778 mono=2778 stereo=0 multipass=0 work_us=29700 lock_wait_us=4592
+         1792178563.198 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000120 worker=2 jobs=2445 mono=2445 stereo=0 multipass=0 work_us=24989 lock_wait_us=1574
+         1792178563.198 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000120 worker=3 jobs=1823 mono=1823 stereo=0 multipass=0 work_us=20886 lock_wait_us=1189
+         1792178563.198 24001 24049 I BoxDroid: VOICE_PROFILE elapsed_us=1000120 workers=4 background_workers=4 apu_participates=0 frames=1389 jobs=9824 queue_peak=8 worker_queue_peak=2 barrier_us=342230 voice_lock_us=1888 worker_work_us=108762 worker_lock_wait_us=8575 worker_mix_hold_us=5866 worker_wait_us=3866760 worker_wakes=5556
+         1792178563.236 24001 24049 I BoxDroid: APU_PROFILE elapsed_us=1000349 frames=1408 vp_us=333501 dsp_us=477450 monitor_us=632 ep_batches=176 ep_budget_overruns=42 ep_work_peak_us=16126 ep_budget_us=5333
+         1792178563.237 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161669051803 guest_flips=3513
+         1792178563.241 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161669055548 unique=2673 guest_flips=3513
+         1792178563.243 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161669058237 queue_us=40 service_us=2521 ok=1 async=1
+         1792178563.245 24001 24044 I BoxDroid: APU_VOICE_WAIT interval_us=1001496 calls=1052 wait_us=19678 maximum_us=2779
+         1792178563.259 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161669073628 queue_us=19 service_us=2564 ok=1 async=1
+         1792178563.323 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161669138415 guest_flips=3514
+         1792178563.338 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161669152711 unique=2674 guest_flips=3514
+         1792178563.338 24001 24042 I BoxDroid3: PERF mono_us=161669152849 elapsed_us=1010281 unique=12 frames=23 green=0 guest_flips=12 refresh=63 period_us=1007985 callback_us=36214 scanout_us=12987 bql_reacquire_us=90 conversion_us=9853 presenter_us=2800 vpll=0x3c20d htotal=0x65 vtotal=0xb overflow=0x3e cr25=0x10 sr1=0x1 msr=0xe3 fp_h=679 fp_v=479 pcrtc=0x3b84000
+         1792178563.338 24001 24042 I BoxDroid: REFRESH_DEADLINE now_ns=161669152870304 next_ns=161669166454779 period_ns=16000000 callbacks=63 missed=0
+         1792178563.342 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161669156724 queue_us=13 service_us=3880 ok=1 async=1
+         1792178563.355 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161669169757 queue_us=43 service_us=2669 ok=1 async=1
+         1792178563.402 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161669216751 guest_flips=3515
+         1792178563.421 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161669236379 unique=2675 guest_flips=3515
+         1792178563.425 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161669240228 queue_us=44 service_us=3683 ok=1 async=1
+         1792178563.434 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161669249534 queue_us=11 service_us=2534 ok=1 async=1
+         1792178563.483 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161669297861 guest_flips=3516
+         1792178563.498 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161669312839 unique=2676 guest_flips=3516
+         1792178563.502 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161669316684 queue_us=13 service_us=3699 ok=1 async=1
+         1792178563.515 24001 24034 I BoxDroid: WSI frames=30 acquire_us=1220 prepare_us=62403 submit_us=3792 present_us=8323 idle_us=12743
+         1792178563.515 24001 24034 I BoxDroid: FRAME presented=4980 generation=1
+         1792178563.515 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161669329898 queue_us=10 service_us=2750 ok=1 async=1
+         1792178563.561 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161669375743 guest_flips=3517
+         1792178563.580 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161669395395 unique=2677 guest_flips=3517
+         1792178563.584 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161669399402 queue_us=13 service_us=3873 ok=1 async=1
+         1792178563.595 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161669409942 queue_us=23 service_us=2845 ok=1 async=1
+         1792178563.643 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161669457876 guest_flips=3518
+         1792178563.657 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161669472383 unique=2678 guest_flips=3518
+         1792178563.661 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161669476466 queue_us=13 service_us=3953 ok=1 async=1
+         1792178563.674 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161669489462 queue_us=11 service_us=2464 ok=1 async=1
+         1792178563.726 24001 24050 I BoxDroid: NV_RENDER kind=1 interval_us=1000257 calls=240 total_us=19573 maximum_us=367
+         1792178563.726 24001 24050 I BoxDroid: NV_RENDER kind=2 interval_us=1000257 calls=240 total_us=149370 maximum_us=5991
+         1792178563.726 24001 24050 I BoxDroid: NV_RENDER kind=3 interval_us=1000257 calls=75 total_us=0 maximum_us=0
+         1792178563.726 24001 24050 I BoxDroid: NV_RENDER kind=4 interval_us=1000257 calls=91 total_us=0 maximum_us=0
+         1792178563.726 24001 24050 I BoxDroid: NV_RENDER kind=5 interval_us=1000257 calls=62 total_us=0 maximum_us=0
+         1792178563.726 24001 24050 I BoxDroid: NV_RENDER kind=9 interval_us=1000257 calls=12 total_us=0 maximum_us=0
+         1792178563.727 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161669541986 guest_flips=3519
+         1792178563.737 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161669551567 unique=2679 guest_flips=3519
+         1792178563.740 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161669554648 queue_us=13 service_us=2951 ok=1 async=1
+         1792178563.760 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161669575477 queue_us=4382 service_us=3608 ok=1 async=1
+         1792178563.760 24001 24034 I BoxDroid: PRESENT_QUEUE submitted=4986 completed=4985 failed=0 canceled=0 max_depth=2 blocked_us=41245 idle_us=151978457
+         1792178563.829 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161669644325 guest_flips=3520
+         1792178563.833 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161669647703 unique=2680 guest_flips=3520
+         1792178563.836 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161669650543 queue_us=20 service_us=2709 ok=1 async=1
+         1792178563.851 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161669666289 queue_us=11 service_us=3092 ok=1 async=1
+         1792178563.917 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161669731803 guest_flips=3521
+         1792178563.932 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161669747262 unique=2681 guest_flips=3521
+         1792178563.938 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161669753007 queue_us=81 service_us=5540 ok=1 async=1
+         1792178563.947 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161669762399 queue_us=57 service_us=3260 ok=1 async=1
+         1792178564.003 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161669818410 guest_flips=3522
+         1792178564.009 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161669823627 unique=2682 guest_flips=3522
+         1792178564.012 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161669826681 queue_us=14 service_us=2921 ok=1 async=1
+         1792178564.027 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161669841807 queue_us=12 service_us=2770 ok=1 async=1
+         1792178564.086 24001 24042 I BoxDroid: MAINLOOP elapsed_us=1000000 calls=3046 poll_us=915426 main_lock_us=1007 replay_us=909 bql_us=19246 max_bql_us=2753 last_timeout_ns=0
+         1792178564.098 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161669913516 guest_flips=3523
+         1792178564.105 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161669919632 unique=2683 guest_flips=3523
+         1792178564.108 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161669922925 queue_us=56 service_us=2783 ok=1 async=1
+         1792178564.123 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161669937926 queue_us=22 service_us=2833 ok=1 async=1
+         1792178564.194 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161670008615 guest_flips=3524
+         1792178564.199 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000455 worker=0 jobs=3942 mono=2566 stereo=1376 multipass=0 work_us=41348 lock_wait_us=1312
+         1792178564.199 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000455 worker=1 jobs=3344 mono=3344 stereo=0 multipass=0 work_us=31735 lock_wait_us=1283
+         1792178564.199 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000455 worker=2 jobs=2768 mono=2768 stereo=0 multipass=0 work_us=27349 lock_wait_us=1699
+         1792178564.199 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000455 worker=3 jobs=2752 mono=2752 stereo=0 multipass=0 work_us=26756 lock_wait_us=1347
+         1792178564.199 24001 24049 I BoxDroid: VOICE_PROFILE elapsed_us=1000455 workers=4 background_workers=4 apu_participates=0 frames=1376 jobs=12806 queue_peak=11 worker_queue_peak=3 barrier_us=342898 voice_lock_us=1778 worker_work_us=127188 worker_lock_wait_us=5641 worker_mix_hold_us=5718 worker_wait_us=3847450 worker_wakes=5504
+         1792178564.201 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161670015647 unique=2684 guest_flips=3524
+         1792178564.204 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670018701 queue_us=53 service_us=2878 ok=1 async=1
+         1792178564.220 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670035424 queue_us=13 service_us=4267 ok=1 async=1
+         1792178564.237 24001 24049 I BoxDroid: APU_PROFILE elapsed_us=1000359 frames=1363 vp_us=362562 dsp_us=467386 monitor_us=660 ep_batches=171 ep_budget_overruns=48 ep_work_peak_us=13573 ep_budget_us=5333
+         1792178564.246 24001 24044 I BoxDroid: APU_VOICE_WAIT interval_us=1000870 calls=1110 wait_us=28097 maximum_us=3804
+         1792178564.292 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161670107458 guest_flips=3525
+         1792178564.297 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161670111663 unique=2685 guest_flips=3525
+         1792178564.300 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670115066 queue_us=48 service_us=3226 ok=1 async=1
+         1792178564.316 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670131026 queue_us=19 service_us=3557 ok=1 async=1
+         1792178564.344 24001 24042 I BoxDroid3: PERF mono_us=161670158713 elapsed_us=1005864 unique=11 frames=23 green=0 guest_flips=11 refresh=63 period_us=1008161 callback_us=40784 scanout_us=22333 bql_reacquire_us=219 conversion_us=9401 presenter_us=3139 vpll=0x3c20d htotal=0x65 vtotal=0xb overflow=0x3e cr25=0x10 sr1=0x1 msr=0xe3 fp_h=679 fp_v=479 pcrtc=0x3cb0000
+         1792178564.344 24001 24042 I BoxDroid: REFRESH_DEADLINE now_ns=161670158745929 next_ns=161670174454779 period_ns=16000000 callbacks=63 missed=0
+         1792178564.377 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161670191664 guest_flips=3526
+         1792178564.392 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161670207496 unique=2686 guest_flips=3526
+         1792178564.396 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670211379 queue_us=181 service_us=3549 ok=1 async=1
+         1792178564.411 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670226387 queue_us=11 service_us=3359 ok=1 async=1
+         1792178564.463 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161670277556 guest_flips=3527
+         1792178564.473 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161670287585 unique=2687 guest_flips=3527
+         1792178564.476 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670291243 queue_us=195 service_us=3329 ok=1 async=1
+         1792178564.491 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670305643 queue_us=25 service_us=2607 ok=1 async=1
+         1792178564.541 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161670356439 guest_flips=3528
+         1792178564.554 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161670369413 unique=2688 guest_flips=3528
+         1792178564.559 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670373567 queue_us=12 service_us=4016 ok=1 async=1
+         1792178564.571 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670385602 queue_us=11 service_us=2597 ok=1 async=1
+         1792178564.624 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161670439067 guest_flips=3529
+         1792178564.632 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161670447519 unique=2689 guest_flips=3529
+         1792178564.635 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670450394 queue_us=13 service_us=2753 ok=1 async=1
+         1792178564.651 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670465749 queue_us=11 service_us=2645 ok=1 async=1
+         1792178564.701 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161670515778 guest_flips=3530
+         1792178564.714 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161670528950 unique=2690 guest_flips=3530
+         1792178564.718 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670533301 queue_us=11 service_us=4219 ok=1 async=1
+         1792178564.726 24001 24050 I BoxDroid: NV_RENDER kind=1 interval_us=1000149 calls=216 total_us=19474 maximum_us=936
+         1792178564.726 24001 24050 I BoxDroid: NV_RENDER kind=2 interval_us=1000149 calls=216 total_us=142782 maximum_us=6025
+         1792178564.726 24001 24050 I BoxDroid: NV_RENDER kind=3 interval_us=1000149 calls=69 total_us=0 maximum_us=0
+         1792178564.726 24001 24050 I BoxDroid: NV_RENDER kind=4 interval_us=1000149 calls=77 total_us=0 maximum_us=0
+         1792178564.726 24001 24050 I BoxDroid: NV_RENDER kind=5 interval_us=1000149 calls=57 total_us=0 maximum_us=0
+         1792178564.726 24001 24050 I BoxDroid: NV_RENDER kind=9 interval_us=1000149 calls=12 total_us=0 maximum_us=0
+         1792178564.731 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670545945 queue_us=14 service_us=2800 ok=1 async=1
+         1792178564.780 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161670594986 guest_flips=3531
+         1792178564.792 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161670607450 unique=2691 guest_flips=3531
+         1792178564.795 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670610280 queue_us=11 service_us=2706 ok=1 async=1
+         1792178564.795 24001 24034 I BoxDroid: PRESENT_QUEUE submitted=5009 completed=5008 failed=0 canceled=0 max_depth=2 blocked_us=41245 idle_us=152938064
+         1792178564.812 24001 24034 I BoxDroid: WSI frames=30 acquire_us=1072 prepare_us=64839 submit_us=3981 present_us=8101 idle_us=14619
+         1792178564.812 24001 24034 I BoxDroid: FRAME presented=5010 generation=1
+         1792178564.812 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670626625 queue_us=14 service_us=3400 ok=1 async=1
+         1792178564.862 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161670677019 guest_flips=3532
+         1792178564.876 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161670690917 unique=2692 guest_flips=3532
+         1792178564.880 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670694621 queue_us=13 service_us=3567 ok=1 async=1
+         1792178564.891 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670706157 queue_us=52 service_us=3087 ok=1 async=1
+         1792178564.943 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161670758118 guest_flips=3533
+         1792178564.954 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161670768553 unique=2693 guest_flips=3533
+         1792178564.957 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670772370 queue_us=12 service_us=3684 ok=1 async=1
+         1792178564.971 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670785678 queue_us=11 service_us=2611 ok=1 async=1
+         1792178564.996 24001 24029 I BoxDroid_: OVERLAY_SAMPLE fps=11.9 rss_mb=656 cpu_pct=26 online_cpus=8 gpu=20% gpu_raw=20 % unique_frames=2693 presents=5014 sample_us=1377 average_sample_us=1589 max_sample_us=2667
+         1792178565.032 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161670846764 guest_flips=3534
+         1792178565.051 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161670865850 unique=2694 guest_flips=3534
+         1792178565.054 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670868681 queue_us=12 service_us=2701 ok=1 async=1
+         1792178565.067 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670881701 queue_us=11 service_us=2702 ok=1 async=1
+         1792178565.086 24001 24042 I BoxDroid: MAINLOOP elapsed_us=1000010 calls=3034 poll_us=916712 main_lock_us=872 replay_us=920 bql_us=22284 max_bql_us=4004 last_timeout_ns=0
+         1792178565.108 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161670923043 guest_flips=3535
+         1792178565.112 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161670927536 unique=2695 guest_flips=3535
+         1792178565.115 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670930436 queue_us=15 service_us=2773 ok=1 async=1
+         1792178565.132 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161670946892 queue_us=11 service_us=3862 ok=1 async=1
+         1792178565.191 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161671006334 guest_flips=3536
+         1792178565.193 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161671007674 unique=2696 guest_flips=3536
+         1792178565.195 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161671010375 queue_us=18 service_us=2580 ok=1 async=1
+         1792178565.199 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000068 worker=0 jobs=4413 mono=2942 stereo=1471 multipass=0 work_us=44077 lock_wait_us=1959
+         1792178565.199 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000068 worker=1 jobs=3328 mono=3328 stereo=0 multipass=0 work_us=31818 lock_wait_us=1534
+         1792178565.199 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000068 worker=2 jobs=3302 mono=3302 stereo=0 multipass=0 work_us=30156 lock_wait_us=1835
+         1792178565.199 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000068 worker=3 jobs=2942 mono=2942 stereo=0 multipass=0 work_us=27514 lock_wait_us=1333
+         1792178565.199 24001 24049 I BoxDroid: VOICE_PROFILE elapsed_us=1000068 workers=4 background_workers=4 apu_participates=0 frames=1471 jobs=13985 queue_peak=11 worker_queue_peak=3 barrier_us=255886 voice_lock_us=1662 worker_work_us=133565 worker_lock_wait_us=6661 worker_mix_hold_us=6011 worker_wait_us=3849633 worker_wakes=5884
+         1792178565.212 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161671027038 queue_us=12 service_us=3944 ok=1 async=1
+         1792178565.237 24001 24049 I BoxDroid: APU_PROFILE elapsed_us=1000335 frames=1485 vp_us=254018 dsp_us=502092 monitor_us=654 ep_batches=185 ep_budget_overruns=25 ep_work_peak_us=10911 ep_budget_us=5333
+         1792178565.247 24001 24044 I BoxDroid: APU_VOICE_WAIT interval_us=1000957 calls=986 wait_us=11186 maximum_us=2876
+         1792178565.269 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161671083764 guest_flips=3537
+         1792178565.272 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161671087540 unique=2697 guest_flips=3537
+         1792178565.275 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161671090334 queue_us=12 service_us=2670 ok=1 async=1
+         1792178565.292 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161671106557 queue_us=53 service_us=3489 ok=1 async=1
+         1792178565.349 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161671163909 guest_flips=3538
+         1792178565.352 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161671167503 unique=2698 guest_flips=3538
+         1792178565.353 24001 24042 I BoxDroid3: PERF mono_us=161671167620 elapsed_us=1008907 unique=13 frames=25 green=0 guest_flips=13 refresh=63 period_us=1007837 callback_us=35869 scanout_us=18831 bql_reacquire_us=127 conversion_us=9564 presenter_us=2700 vpll=0x3c20d htotal=0x65 vtotal=0xb overflow=0x3e cr25=0x10 sr1=0x1 msr=0xe3 fp_h=679 fp_v=479 pcrtc=0x3b84000
+         1792178565.353 24001 24042 I BoxDroid: REFRESH_DEADLINE now_ns=161671167652647 next_ns=161671182454779 period_ns=16000000 callbacks=63 missed=0
+         1792178565.355 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161671170264 queue_us=11 service_us=2646 ok=1 async=1
+         1792178565.371 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161671186433 queue_us=43 service_us=3266 ok=1 async=1
+         1792178565.428 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161671242685 guest_flips=3539
+         1792178565.433 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161671248467 unique=2699 guest_flips=3539
+         1792178565.436 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161671251393 queue_us=12 service_us=2807 ok=1 async=1
+         1792178565.451 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161671265769 queue_us=15 service_us=2712 ok=1 async=1
+         1792178565.533 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161671347824 guest_flips=3540
+         1792178565.545 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161671359773 unique=2700 guest_flips=3540
+         1792178565.548 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161671362923 queue_us=63 service_us=2964 ok=1 async=1
+         1792178565.563 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161671378101 queue_us=14 service_us=3066 ok=1 async=1
+         1792178565.635 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161671450044 guest_flips=3541
+         1792178565.641 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161671455668 unique=2701 guest_flips=3541
+         1792178565.644 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161671458708 queue_us=16 service_us=2899 ok=1 async=1
+         1792178565.659 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161671473939 queue_us=17 service_us=2809 ok=1 async=1
+         1792178565.719 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161671533950 guest_flips=3542
+         1792178565.721 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161671535572 unique=2702 guest_flips=3542
+         1792178565.724 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161671538723 queue_us=11 service_us=3028 ok=1 async=1
+         1792178565.733 24001 24050 I BoxDroid: NV_RENDER kind=1 interval_us=1006913 calls=226 total_us=18853 maximum_us=464
+         1792178565.733 24001 24050 I BoxDroid: NV_RENDER kind=2 interval_us=1006913 calls=226 total_us=141154 maximum_us=6013
+         1792178565.733 24001 24050 I BoxDroid: NV_RENDER kind=3 interval_us=1006913 calls=72 total_us=0 maximum_us=0
+         1792178565.733 24001 24050 I BoxDroid: NV_RENDER kind=4 interval_us=1006913 calls=84 total_us=0 maximum_us=0
+         1792178565.733 24001 24050 I BoxDroid: NV_RENDER kind=5 interval_us=1006913 calls=59 total_us=0 maximum_us=0
+         1792178565.733 24001 24050 I BoxDroid: NV_RENDER kind=9 interval_us=1006913 calls=12 total_us=0 maximum_us=0
+         1792178565.739 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161671554051 queue_us=14 service_us=2870 ok=1 async=1
+         1792178565.831 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161671645767 guest_flips=3543
+         1792178565.833 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161671647933 unique=2703 guest_flips=3543
+         1792178565.836 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161671650971 queue_us=16 service_us=2893 ok=1 async=1
+         1792178565.836 24001 24034 I BoxDroid: PRESENT_QUEUE submitted=5033 completed=5032 failed=0 canceled=0 max_depth=2 blocked_us=41245 idle_us=153904846
+         1792178565.852 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161671666693 queue_us=33 service_us=3252 ok=1 async=1
+         1792178565.910 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161671724876 guest_flips=3544
+         1792178565.913 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161671727711 unique=2704 guest_flips=3544
+         1792178565.916 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161671730658 queue_us=12 service_us=2822 ok=1 async=1
+         1792178565.931 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161671746413 queue_us=18 service_us=3331 ok=1 async=1
+         1792178566.002 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161671817108 guest_flips=3545
+         1792178566.009 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161671823580 unique=2705 guest_flips=3545
+         1792178566.012 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161671826646 queue_us=11 service_us=2951 ok=1 async=1
+         1792178566.029 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161671843913 queue_us=813 service_us=3830 ok=1 async=1
+         1792178566.086 24001 24042 I BoxDroid: MAINLOOP elapsed_us=1000183 calls=3039 poll_us=916134 main_lock_us=951 replay_us=890 bql_us=32156 max_bql_us=4552 last_timeout_ns=187546
+         1792178566.089 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161671904430 guest_flips=3546
+         1792178566.105 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161671920521 unique=2706 guest_flips=3546
+         1792178566.109 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161671924305 queue_us=62 service_us=3585 ok=1 async=1
+         1792178566.120 24001 24042 I BoxDroid: XBOX_NV2A_FRAME_PRESENT count=5040 guest_extent=640x480 pixel_hash=3e3bc324426426cf nonblack_pixels=0
+         1792178566.123 24001 24034 I BoxDroid: WSI frames=30 acquire_us=1082 prepare_us=64155 submit_us=3971 present_us=8223 idle_us=10354
+         1792178566.123 24001 24034 I BoxDroid: FRAME presented=5040 generation=1
+         1792178566.123 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161671937763 queue_us=14 service_us=2754 ok=1 async=1
+         1792178566.176 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161671991271 guest_flips=3547
+         1792178566.184 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161671999538 unique=2707 guest_flips=3547
+         1792178566.187 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672002387 queue_us=14 service_us=2729 ok=1 async=1
+         1792178566.201 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1002185 worker=0 jobs=2768 mono=1420 stereo=1348 multipass=0 work_us=33776 lock_wait_us=1291
+         1792178566.201 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1002185 worker=1 jobs=2616 mono=2616 stereo=0 multipass=0 work_us=27654 lock_wait_us=1545
+         1792178566.201 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1002185 worker=2 jobs=2540 mono=2540 stereo=0 multipass=0 work_us=26698 lock_wait_us=1307
+         1792178566.201 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1002185 worker=3 jobs=1696 mono=1696 stereo=0 multipass=0 work_us=20277 lock_wait_us=1042
+         1792178566.201 24001 24049 I BoxDroid: VOICE_PROFILE elapsed_us=1002185 workers=4 background_workers=4 apu_participates=0 frames=1348 jobs=9620 queue_peak=9 worker_queue_peak=3 barrier_us=394885 voice_lock_us=1476 worker_work_us=108405 worker_lock_wait_us=5185 worker_mix_hold_us=5566 worker_wait_us=3879161 worker_wakes=5392
+         1792178566.203 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672017888 queue_us=17 service_us=2588 ok=1 async=1
+         1792178566.238 24001 24049 I BoxDroid: APU_PROFILE elapsed_us=1001566 frames=1346 vp_us=397921 dsp_us=464019 monitor_us=640 ep_batches=169 ep_budget_overruns=57 ep_work_peak_us=14940 ep_budget_us=5333
+         1792178566.248 24001 24044 I BoxDroid: APU_VOICE_WAIT interval_us=1001070 calls=956 wait_us=31941 maximum_us=3550
+         1792178566.278 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161672093433 guest_flips=3548
+         1792178566.280 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161672095520 unique=2708 guest_flips=3548
+         1792178566.283 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672098494 queue_us=23 service_us=2847 ok=1 async=1
+         1792178566.299 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672114488 queue_us=11 service_us=3295 ok=1 async=1
+         1792178566.360 24001 24042 I BoxDroid3: PERF mono_us=161672174538 elapsed_us=1006918 unique=10 frames=21 green=0 guest_flips=10 refresh=63 period_us=1008000 callback_us=25935 scanout_us=9510 bql_reacquire_us=106 conversion_us=8780 presenter_us=2603 vpll=0x3c20d htotal=0x65 vtotal=0xb overflow=0x3e cr25=0x10 sr1=0x1 msr=0xe3 fp_h=679 fp_v=479 pcrtc=0x3b84000
+         1792178566.360 24001 24042 I BoxDroid: REFRESH_DEADLINE now_ns=161672174576970 next_ns=161672190454779 period_ns=16000000 callbacks=63 missed=0
+         1792178566.367 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161672182338 guest_flips=3549
+         1792178566.376 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161672191536 unique=2709 guest_flips=3549
+         1792178566.379 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672194297 queue_us=12 service_us=2590 ok=1 async=1
+         1792178566.396 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672211025 queue_us=47 service_us=3910 ok=1 async=1
+         1792178566.448 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161672263003 guest_flips=3550
+         1792178566.457 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161672271642 unique=2710 guest_flips=3550
+         1792178566.460 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672274608 queue_us=11 service_us=2847 ok=1 async=1
+         1792178566.475 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672289591 queue_us=15 service_us=2583 ok=1 async=1
+         1792178566.525 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161672340239 guest_flips=3551
+         1792178566.539 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161672353861 unique=2711 guest_flips=3551
+         1792178566.542 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672356620 queue_us=11 service_us=2639 ok=1 async=1
+         1792178566.555 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672369598 queue_us=10 service_us=2589 ok=1 async=1
+         1792178566.612 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161672426908 guest_flips=3552
+         1792178566.616 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161672431472 unique=2712 guest_flips=3552
+         1792178566.619 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672434328 queue_us=13 service_us=2742 ok=1 async=1
+         1792178566.635 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672450492 queue_us=17 service_us=3354 ok=1 async=1
+         1792178566.691 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161672505622 guest_flips=3553
+         1792178566.696 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161672511527 unique=2713 guest_flips=3553
+         1792178566.700 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672514861 queue_us=16 service_us=3207 ok=1 async=1
+         1792178566.715 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672529782 queue_us=14 service_us=2772 ok=1 async=1
+         1792178566.756 24001 24050 I BoxDroid: NV_RENDER kind=1 interval_us=1022720 calls=218 total_us=19903 maximum_us=1706
+         1792178566.756 24001 24050 I BoxDroid: NV_RENDER kind=2 interval_us=1022720 calls=218 total_us=135734 maximum_us=5898
+         1792178566.756 24001 24050 I BoxDroid: NV_RENDER kind=3 interval_us=1022720 calls=73 total_us=0 maximum_us=0
+         1792178566.756 24001 24050 I BoxDroid: NV_RENDER kind=4 interval_us=1022720 calls=77 total_us=0 maximum_us=0
+         1792178566.756 24001 24050 I BoxDroid: NV_RENDER kind=5 interval_us=1022720 calls=57 total_us=0 maximum_us=0
+         1792178566.756 24001 24050 I BoxDroid: NV_RENDER kind=9 interval_us=1022720 calls=11 total_us=0 maximum_us=0
+         1792178566.778 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161672592545 guest_flips=3554
+         1792178566.797 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161672611746 unique=2714 guest_flips=3554
+         1792178566.800 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672614682 queue_us=11 service_us=2805 ok=1 async=1
+         1792178566.811 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672626207 queue_us=9 service_us=3189 ok=1 async=1
+         1792178566.850 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161672664743 guest_flips=3555
+         1792178566.856 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161672671511 unique=2715 guest_flips=3555
+         1792178566.859 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672674390 queue_us=12 service_us=2764 ok=1 async=1
+         1792178566.859 24001 24034 I BoxDroid: PRESENT_QUEUE submitted=5057 completed=5056 failed=0 canceled=0 max_depth=2 blocked_us=41245 idle_us=154855513
+         1792178566.875 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672690090 queue_us=49 service_us=2738 ok=1 async=1
+         1792178566.941 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161672756267 guest_flips=3556
+         1792178566.952 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161672767519 unique=2716 guest_flips=3556
+         1792178566.956 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672771229 queue_us=15 service_us=3425 ok=1 async=1
+         1792178566.970 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672785518 queue_us=10 service_us=2507 ok=1 async=1
+         1792178567.014 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161672828735 guest_flips=3557
+         1792178567.017 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161672831601 unique=2717 guest_flips=3557
+         1792178567.019 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672834296 queue_us=18 service_us=2578 ok=1 async=1
+         1792178567.035 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672850488 queue_us=14 service_us=3291 ok=1 async=1
+         1792178567.086 24001 24042 I BoxDroid: MAINLOOP elapsed_us=1000004 calls=3124 poll_us=935892 main_lock_us=827 replay_us=1000 bql_us=7255 max_bql_us=1292 last_timeout_ns=184057
+         1792178567.100 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161672914656 guest_flips=3558
+         1792178567.117 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161672932197 unique=2718 guest_flips=3558
+         1792178567.122 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672936588 queue_us=16 service_us=4265 ok=1 async=1
+         1792178567.134 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161672949203 queue_us=16 service_us=6007 ok=1 async=1
+         1792178567.190 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161673005156 guest_flips=3559
+         1792178567.193 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161673007628 unique=2719 guest_flips=3559
+         1792178567.196 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161673011276 queue_us=18 service_us=3512 ok=1 async=1
+         1792178567.201 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000021 worker=0 jobs=2954 mono=1477 stereo=1477 multipass=0 work_us=34833 lock_wait_us=1297
+         1792178567.201 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000021 worker=1 jobs=2700 mono=2700 stereo=0 multipass=0 work_us=27408 lock_wait_us=1676
+         1792178567.201 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000021 worker=2 jobs=2099 mono=2099 stereo=0 multipass=0 work_us=22567 lock_wait_us=2129
+         1792178567.201 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000021 worker=3 jobs=1498 mono=1498 stereo=0 multipass=0 work_us=18113 lock_wait_us=2094
+         1792178567.201 24001 24049 I BoxDroid: VOICE_PROFILE elapsed_us=1000021 workers=4 background_workers=4 apu_participates=0 frames=1477 jobs=9251 queue_peak=8 worker_queue_peak=2 barrier_us=208105 voice_lock_us=1585 worker_work_us=102921 worker_lock_wait_us=7196 worker_mix_hold_us=6004 worker_wait_us=3873836 worker_wakes=5908
+         1792178567.217 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161673031624 queue_us=16 service_us=8510 ok=1 async=1
+         1792178567.239 24001 24049 I BoxDroid: APU_PROFILE elapsed_us=1000382 frames=1467 vp_us=229715 dsp_us=494663 monitor_us=651 ep_batches=183 ep_budget_overruns=26 ep_work_peak_us=10785 ep_budget_us=5333
+         1792178567.250 24001 24044 I BoxDroid: APU_VOICE_WAIT interval_us=1002087 calls=1100 wait_us=11215 maximum_us=2618
+         1792178567.276 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161673090940 guest_flips=3560
+         1792178567.290 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161673105291 unique=2720 guest_flips=3560
+         1792178567.293 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161673108368 queue_us=12 service_us=2945 ok=1 async=1
+         1792178567.307 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161673122073 queue_us=10 service_us=3058 ok=1 async=1
+         1792178567.368 24001 24042 I BoxDroid3: PERF mono_us=161673182560 elapsed_us=1008022 unique=12 frames=24 green=0 guest_flips=12 refresh=63 period_us=1008008 callback_us=38515 scanout_us=21168 bql_reacquire_us=95 conversion_us=9647 presenter_us=2758 vpll=0x3c20d htotal=0x65 vtotal=0xb overflow=0x3e cr25=0x10 sr1=0x1 msr=0xe3 fp_h=679 fp_v=479 pcrtc=0x3b84000
+         1792178567.368 24001 24042 I BoxDroid: REFRESH_DEADLINE now_ns=161673182599105 next_ns=161673198454779 period_ns=16000000 callbacks=63 missed=0
+         1792178567.385 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161673200166 guest_flips=3561
+         1792178567.401 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161673215551 unique=2721 guest_flips=3561
+         1792178567.404 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161673218749 queue_us=12 service_us=3066 ok=1 async=1
+         1792178567.419 24001 24034 I BoxDroid: WSI frames=30 acquire_us=1025 prepare_us=63114 submit_us=4030 present_us=8824 idle_us=17009
+         1792178567.419 24001 24034 I BoxDroid: FRAME presented=5070 generation=1
+         1792178567.419 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161673233963 queue_us=12 service_us=2938 ok=1 async=1
+         1792178567.471 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161673285719 guest_flips=3562
+         1792178567.483 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161673298429 unique=2722 guest_flips=3562
+         1792178567.488 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161673302599 queue_us=128 service_us=3899 ok=1 async=1
+         1792178567.503 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161673318255 queue_us=28 service_us=2959 ok=1 async=1
+         1792178567.568 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161673383226 guest_flips=3563
+         1792178567.581 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161673395737 unique=2723 guest_flips=3563
+         1792178567.585 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161673399813 queue_us=14 service_us=3928 ok=1 async=1
+         1792178567.599 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161673413985 queue_us=15 service_us=2915 ok=1 async=1
+         1792178567.654 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161673469143 guest_flips=3564
+         1792178567.658 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161673472838 unique=2724 guest_flips=3564
+         1792178567.661 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161673475824 queue_us=13 service_us=2863 ok=1 async=1
+         1792178567.675 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161673489990 queue_us=18 service_us=2857 ok=1 async=1
+         1792178567.758 24001 24050 I BoxDroid: NV_RENDER kind=1 interval_us=1002426 calls=223 total_us=19276 maximum_us=259
+         1792178567.758 24001 24050 I BoxDroid: NV_RENDER kind=2 interval_us=1002426 calls=223 total_us=145054 maximum_us=6056
+         1792178567.758 24001 24050 I BoxDroid: NV_RENDER kind=3 interval_us=1002426 calls=71 total_us=0 maximum_us=0
+         1792178567.758 24001 24050 I BoxDroid: NV_RENDER kind=4 interval_us=1002426 calls=84 total_us=0 maximum_us=0
+         1792178567.758 24001 24050 I BoxDroid: NV_RENDER kind=5 interval_us=1002426 calls=57 total_us=0 maximum_us=0
+         1792178567.758 24001 24050 I BoxDroid: NV_RENDER kind=9 interval_us=1002426 calls=11 total_us=0 maximum_us=0
+         1792178567.759 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161673574317 guest_flips=3565
+         1792178567.769 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161673583667 unique=2725 guest_flips=3565
+         1792178567.772 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161673586765 queue_us=25 service_us=2955 ok=1 async=1
+         1792178567.788 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161673602544 queue_us=12 service_us=3165 ok=1 async=1
+         1792178567.843 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161673657925 guest_flips=3566
+         1792178567.848 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161673663532 unique=2726 guest_flips=3566
+         1792178567.851 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161673666394 queue_us=12 service_us=2746 ok=1 async=1
+         1792178567.868 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161673682615 queue_us=12 service_us=3502 ok=1 async=1
+         1792178567.868 24001 24034 I BoxDroid: PRESENT_QUEUE submitted=5080 completed=5079 failed=0 canceled=0 max_depth=2 blocked_us=41245 idle_us=155782206
+         1792178567.930 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161673745280 guest_flips=3567
+         1792178567.945 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161673760065 unique=2727 guest_flips=3567
+         1792178567.949 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161673764218 queue_us=31 service_us=4000 ok=1 async=1
+         1792178567.964 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161673778608 queue_us=13 service_us=3594 ok=1 async=1
+         1792178568.008 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161673822811 guest_flips=3568
+         1792178568.031 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161673846478 unique=2728 guest_flips=3568
+         1792178568.034 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161673849289 queue_us=11 service_us=2697 ok=1 async=1
+         1792178568.045 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161673859817 queue_us=10 service_us=4813 ok=1 async=1
+         1792178568.086 24001 24042 I BoxDroid: MAINLOOP elapsed_us=1000000 calls=2931 poll_us=907581 main_lock_us=944 replay_us=867 bql_us=21603 max_bql_us=3505 last_timeout_ns=191036
+         1792178568.090 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161673904976 guest_flips=3569
+         1792178568.105 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161673919545 unique=2729 guest_flips=3569
+         1792178568.107 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161673922504 queue_us=14 service_us=2834 ok=1 async=1
+         1792178568.123 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161673938460 queue_us=18 service_us=3360 ok=1 async=1
+         1792178568.178 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161673993336 guest_flips=3570
+         1792178568.185 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161673999635 unique=2730 guest_flips=3570
+         1792178568.187 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674002441 queue_us=11 service_us=2697 ok=1 async=1
+         1792178568.201 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000649 worker=0 jobs=3568 mono=2180 stereo=1388 multipass=0 work_us=38537 lock_wait_us=1460
+         1792178568.202 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000649 worker=1 jobs=2939 mono=2939 stereo=0 multipass=0 work_us=29181 lock_wait_us=1359
+         1792178568.202 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000649 worker=2 jobs=2776 mono=2776 stereo=0 multipass=0 work_us=27693 lock_wait_us=1326
+         1792178568.202 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000649 worker=3 jobs=2776 mono=2776 stereo=0 multipass=0 work_us=27377 lock_wait_us=1269
+         1792178568.202 24001 24049 I BoxDroid: VOICE_PROFILE elapsed_us=1000649 workers=4 background_workers=4 apu_participates=0 frames=1388 jobs=12059 queue_peak=10 worker_queue_peak=3 barrier_us=366099 voice_lock_us=2036 worker_work_us=122788 worker_lock_wait_us=5414 worker_mix_hold_us=5671 worker_wait_us=3858542 worker_wakes=5552
+         1792178568.203 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674017791 queue_us=11 service_us=2758 ok=1 async=1
+         1792178568.239 24001 24049 I BoxDroid: APU_PROFILE elapsed_us=1000398 frames=1399 vp_us=358040 dsp_us=476745 monitor_us=654 ep_batches=175 ep_budget_overruns=45 ep_work_peak_us=15121 ep_budget_us=5333
+         1792178568.251 24001 24044 I BoxDroid: APU_VOICE_WAIT interval_us=1000194 calls=1040 wait_us=22674 maximum_us=3515
+         1792178568.256 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161674070781 guest_flips=3571
+         1792178568.267 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161674082129 unique=2731 guest_flips=3571
+         1792178568.270 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674084952 queue_us=12 service_us=2694 ok=1 async=1
+         1792178568.283 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674097555 queue_us=10 service_us=2552 ok=1 async=1
+         1792178568.345 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161674159732 guest_flips=3572
+         1792178568.363 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161674177694 unique=2732 guest_flips=3572
+         1792178568.366 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674180658 queue_us=12 service_us=2832 ok=1 async=1
+         1792178568.376 24001 24042 I BoxDroid3: PERF mono_us=161674191014 elapsed_us=1008454 unique=12 frames=24 green=0 guest_flips=12 refresh=63 period_us=1007995 callback_us=44661 scanout_us=23651 bql_reacquire_us=164 conversion_us=9506 presenter_us=2657 vpll=0x3c20d htotal=0x65 vtotal=0xb overflow=0x3e cr25=0x10 sr1=0x1 msr=0xe3 fp_h=679 fp_v=479 pcrtc=0x3b84000
+         1792178568.376 24001 24042 I BoxDroid: REFRESH_DEADLINE now_ns=161674191066865 next_ns=161674206454779 period_ns=16000000 callbacks=63 missed=0
+         1792178568.379 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674194060 queue_us=13 service_us=3047 ok=1 async=1
+         1792178568.416 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161674231040 guest_flips=3573
+         1792178568.424 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161674239518 unique=2733 guest_flips=3573
+         1792178568.427 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674242355 queue_us=11 service_us=2723 ok=1 async=1
+         1792178568.443 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674258139 queue_us=11 service_us=2812 ok=1 async=1
+         1792178568.506 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161674321406 guest_flips=3574
+         1792178568.523 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161674338041 unique=2734 guest_flips=3574
+         1792178568.527 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674341741 queue_us=15 service_us=3426 ok=1 async=1
+         1792178568.539 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674353608 queue_us=13 service_us=2593 ok=1 async=1
+         1792178568.585 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161674399778 guest_flips=3575
+         1792178568.608 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161674422977 unique=2735 guest_flips=3575
+         1792178568.611 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674425899 queue_us=10 service_us=2803 ok=1 async=1
+         1792178568.618 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674433485 queue_us=11 service_us=2492 ok=1 async=1
+         1792178568.669 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161674484054 guest_flips=3576
+         1792178568.684 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161674499269 unique=2736 guest_flips=3576
+         1792178568.688 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674502946 queue_us=15 service_us=3525 ok=1 async=1
+         1792178568.699 24001 24034 I BoxDroid: WSI frames=30 acquire_us=1217 prepare_us=65271 submit_us=4007 present_us=8459 idle_us=8932
+         1792178568.699 24001 24034 I BoxDroid: FRAME presented=5100 generation=1
+         1792178568.699 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674513679 queue_us=12 service_us=2669 ok=1 async=1
+         1792178568.746 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161674560721 guest_flips=3577
+         1792178568.761 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161674575546 unique=2737 guest_flips=3577
+         1792178568.761 24001 24050 I BoxDroid: NV_RENDER kind=1 interval_us=1002541 calls=236 total_us=19633 maximum_us=278
+         1792178568.761 24001 24050 I BoxDroid: NV_RENDER kind=2 interval_us=1002541 calls=236 total_us=142909 maximum_us=6020
+         1792178568.761 24001 24050 I BoxDroid: NV_RENDER kind=3 interval_us=1002541 calls=77 total_us=0 maximum_us=0
+         1792178568.761 24001 24050 I BoxDroid: NV_RENDER kind=4 interval_us=1002541 calls=84 total_us=0 maximum_us=0
+         1792178568.761 24001 24050 I BoxDroid: NV_RENDER kind=5 interval_us=1002541 calls=62 total_us=0 maximum_us=0
+         1792178568.761 24001 24050 I BoxDroid: NV_RENDER kind=9 interval_us=1002541 calls=13 total_us=0 maximum_us=0
+         1792178568.764 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674579138 queue_us=13 service_us=3463 ok=1 async=1
+         1792178568.779 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674593873 queue_us=12 service_us=2863 ok=1 async=1
+         1792178568.833 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161674647719 guest_flips=3578
+         1792178568.840 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161674655494 unique=2738 guest_flips=3578
+         1792178568.843 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674658153 queue_us=13 service_us=2537 ok=1 async=1
+         1792178568.864 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674678828 queue_us=4305 service_us=3100 ok=1 async=1
+         1792178568.921 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161674736340 guest_flips=3579
+         1792178568.937 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161674751735 unique=2739 guest_flips=3579
+         1792178568.940 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674754859 queue_us=30 service_us=2938 ok=1 async=1
+         1792178568.940 24001 24034 I BoxDroid: PRESENT_QUEUE submitted=5105 completed=5104 failed=0 canceled=0 max_depth=2 blocked_us=41245 idle_us=156777718
+         1792178568.955 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674770123 queue_us=12 service_us=3013 ok=1 async=1
+         1792178568.996 24001 24029 I BoxDroid_: OVERLAY_SAMPLE fps=11.7 rss_mb=654 cpu_pct=25 online_cpus=8 gpu=21% gpu_raw=21 % unique_frames=2739 presents=5106 sample_us=1419 average_sample_us=1586 max_sample_us=2667
+         1792178569.024 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161674838945 guest_flips=3580
+         1792178569.033 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161674847726 unique=2740 guest_flips=3580
+         1792178569.036 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674850706 queue_us=13 service_us=2849 ok=1 async=1
+         1792178569.051 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674866033 queue_us=13 service_us=2913 ok=1 async=1
+         1792178569.086 24001 24042 I BoxDroid: MAINLOOP elapsed_us=1000000 calls=3030 poll_us=907652 main_lock_us=926 replay_us=787 bql_us=22337 max_bql_us=2833 last_timeout_ns=173693
+         1792178569.136 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161674950763 guest_flips=3581
+         1792178569.145 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161674959820 unique=2741 guest_flips=3581
+         1792178569.148 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674963005 queue_us=14 service_us=3051 ok=1 async=1
+         1792178569.163 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161674978191 queue_us=13 service_us=3079 ok=1 async=1
+         1792178569.203 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1001070 worker=0 jobs=4167 mono=2778 stereo=1389 multipass=0 work_us=45185 lock_wait_us=1292
+         1792178569.203 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1001070 worker=1 jobs=3583 mono=3583 stereo=0 multipass=0 work_us=34927 lock_wait_us=1409
+         1792178569.203 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1001070 worker=2 jobs=3102 mono=3102 stereo=0 multipass=0 work_us=28644 lock_wait_us=1637
+         1792178569.203 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1001070 worker=3 jobs=2778 mono=2778 stereo=0 multipass=0 work_us=26134 lock_wait_us=1992
+         1792178569.203 24001 24049 I BoxDroid: VOICE_PROFILE elapsed_us=1001070 workers=4 background_workers=4 apu_participates=0 frames=1389 jobs=13630 queue_peak=11 worker_queue_peak=3 barrier_us=317627 voice_lock_us=4365 worker_work_us=134890 worker_lock_wait_us=6330 worker_mix_hold_us=5669 worker_wait_us=3829704 worker_wakes=5556
+         1792178569.225 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161675039551 guest_flips=3582
+         1792178569.239 24001 24049 I BoxDroid: APU_PROFILE elapsed_us=1000050 frames=1392 vp_us=329838 dsp_us=471153 monitor_us=661 ep_batches=174 ep_budget_overruns=40 ep_work_peak_us=16634 ep_budget_us=5333
+         1792178569.241 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161675055877 unique=2742 guest_flips=3582
+         1792178569.244 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161675058969 queue_us=86 service_us=2887 ok=1 async=1
+         1792178569.252 24001 24044 I BoxDroid: APU_VOICE_WAIT interval_us=1001920 calls=1002 wait_us=33153 maximum_us=3602
+         1792178569.259 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161675074360 queue_us=20 service_us=2625 ok=1 async=1
+         1792178569.329 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161675144260 guest_flips=3583
+         1792178569.337 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161675151627 unique=2743 guest_flips=3583
+         1792178569.340 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161675154710 queue_us=13 service_us=2953 ok=1 async=1
+         1792178569.356 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161675170606 queue_us=16 service_us=3239 ok=1 async=1
+         1792178569.384 24001 24042 I BoxDroid3: PERF mono_us=161675198551 elapsed_us=1007537 unique=11 frames=22 green=0 guest_flips=11 refresh=63 period_us=1008001 callback_us=41622 scanout_us=21758 bql_reacquire_us=86 conversion_us=9392 presenter_us=2721 vpll=0x3c20d htotal=0x65 vtotal=0xb overflow=0x3e cr25=0x10 sr1=0x1 msr=0xe3 fp_h=679 fp_v=479 pcrtc=0x3cb0000
+         1792178569.384 24001 24042 I BoxDroid: REFRESH_DEADLINE now_ns=161675198588583 next_ns=161675214454779 period_ns=16000000 callbacks=63 missed=0
+         1792178569.419 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161675233989 guest_flips=3584
+         1792178569.437 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161675252112 unique=2744 guest_flips=3584
+         1792178569.441 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161675255781 queue_us=20 service_us=3500 ok=1 async=1
+         1792178569.451 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161675265896 queue_us=11 service_us=2800 ok=1 async=1
+         1792178569.519 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161675333813 guest_flips=3585
+         1792178569.529 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161675343648 unique=2745 guest_flips=3585
+         1792178569.531 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161675346492 queue_us=11 service_us=2727 ok=1 async=1
+         1792178569.547 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161675361814 queue_us=12 service_us=2772 ok=1 async=1
+         1792178569.594 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161675408814 guest_flips=3586
+         1792178569.608 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161675423483 unique=2746 guest_flips=3586
+         1792178569.612 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161675427257 queue_us=14 service_us=3644 ok=1 async=1
+         1792178569.627 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161675441660 queue_us=10 service_us=2658 ok=1 async=1
+         1792178569.679 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161675493723 guest_flips=3587
+         1792178569.689 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161675503568 unique=2747 guest_flips=3587
+         1792178569.691 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161675506400 queue_us=10 service_us=2718 ok=1 async=1
+         1792178569.707 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161675522158 queue_us=14 service_us=2731 ok=1 async=1
+         1792178569.758 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161675573215 guest_flips=3588
+         1792178569.768 24001 24050 I BoxDroid: NV_RENDER kind=1 interval_us=1006793 calls=208 total_us=17795 maximum_us=222
+         1792178569.768 24001 24050 I BoxDroid: NV_RENDER kind=2 interval_us=1006793 calls=208 total_us=137220 maximum_us=6649
+         1792178569.768 24001 24050 I BoxDroid: NV_RENDER kind=3 interval_us=1006793 calls=66 total_us=0 maximum_us=0
+         1792178569.768 24001 24050 I BoxDroid: NV_RENDER kind=4 interval_us=1006793 calls=77 total_us=0 maximum_us=0
+         1792178569.768 24001 24050 I BoxDroid: NV_RENDER kind=5 interval_us=1006793 calls=54 total_us=0 maximum_us=0
+         1792178569.768 24001 24050 I BoxDroid: NV_RENDER kind=9 interval_us=1006793 calls=11 total_us=0 maximum_us=0
+         1792178569.772 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161675587168 unique=2748 guest_flips=3588
+         1792178569.776 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161675590906 queue_us=13 service_us=3590 ok=1 async=1
+         1792178569.787 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161675601584 queue_us=11 service_us=2585 ok=1 async=1
+         1792178569.839 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161675653667 guest_flips=3589
+         1792178569.848 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161675663535 unique=2749 guest_flips=3589
+         1792178569.851 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161675666308 queue_us=12 service_us=2650 ok=1 async=1
+         1792178569.866 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161675681513 queue_us=12 service_us=2517 ok=1 async=1
+         1792178569.925 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161675740331 guest_flips=3590
+         1792178569.928 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161675743463 unique=2750 guest_flips=3590
+         1792178569.931 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161675746274 queue_us=13 service_us=2702 ok=1 async=1
+         1792178569.948 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161675763003 queue_us=13 service_us=3931 ok=1 async=1
+         1792178569.948 24001 24034 I BoxDroid: PRESENT_QUEUE submitted=5128 completed=5127 failed=0 canceled=0 max_depth=2 blocked_us=41245 idle_us=157716941
+         1792178570.006 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161675821064 guest_flips=3591
+         1792178570.008 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161675823537 unique=2751 guest_flips=3591
+         1792178570.011 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161675826491 queue_us=12 service_us=2843 ok=1 async=1
+         1792178570.028 24001 24034 I BoxDroid: WSI frames=30 acquire_us=1100 prepare_us=62182 submit_us=4094 present_us=7804 idle_us=9700
+         1792178570.028 24001 24034 I BoxDroid: FRAME presented=5130 generation=1
+         1792178570.028 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161675842764 queue_us=13 service_us=3350 ok=1 async=1
+         1792178570.087 24001 24042 I BoxDroid: MAINLOOP elapsed_us=1000778 calls=3034 poll_us=907673 main_lock_us=1147 replay_us=841 bql_us=27956 max_bql_us=3591 last_timeout_ns=768748
+         1792178570.093 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161675907612 guest_flips=3592
+         1792178570.107 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161675921632 unique=2752 guest_flips=3592
+         1792178570.110 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161675925357 queue_us=13 service_us=3581 ok=1 async=1
+         1792178570.123 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161675937899 queue_us=12 service_us=2848 ok=1 async=1
+         1792178570.167 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161675981630 guest_flips=3593
+         1792178570.169 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161675983763 unique=2753 guest_flips=3593
+         1792178570.172 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161675986651 queue_us=11 service_us=2778 ok=1 async=1
+         1792178570.188 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161676003238 queue_us=15 service_us=4187 ok=1 async=1
+         1792178570.203 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000173 worker=0 jobs=3469 mono=2012 stereo=1457 multipass=0 work_us=39819 lock_wait_us=1483
+         1792178570.203 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000173 worker=1 jobs=2914 mono=2914 stereo=0 multipass=0 work_us=29129 lock_wait_us=1699
+         1792178570.203 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000173 worker=2 jobs=2914 mono=2914 stereo=0 multipass=0 work_us=28813 lock_wait_us=2289
+         1792178570.203 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000173 worker=3 jobs=2285 mono=2285 stereo=0 multipass=0 work_us=23485 lock_wait_us=1162
+         1792178570.203 24001 24049 I BoxDroid: VOICE_PROFILE elapsed_us=1000173 workers=4 background_workers=4 apu_participates=0 frames=1457 jobs=11582 queue_peak=9 worker_queue_peak=3 barrier_us=285958 voice_lock_us=1560 worker_work_us=121246 worker_lock_wait_us=6633 worker_mix_hold_us=6391 worker_wait_us=3872962 worker_wakes=5828
+         1792178570.239 24001 24049 I BoxDroid: APU_PROFILE elapsed_us=1000230 frames=1453 vp_us=288798 dsp_us=493238 monitor_us=685 ep_batches=182 ep_budget_overruns=35 ep_work_peak_us=15969 ep_budget_us=5333
+         1792178570.254 24001 24044 I BoxDroid: APU_VOICE_WAIT interval_us=1001817 calls=984 wait_us=18320 maximum_us=3446
+         1792178570.258 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161676072556 guest_flips=3594
+         1792178570.264 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161676079527 unique=2754 guest_flips=3594
+         1792178570.267 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161676082479 queue_us=15 service_us=2808 ok=1 async=1
+         1792178570.284 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161676098583 queue_us=16 service_us=3481 ok=1 async=1
+         1792178570.335 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161676150322 guest_flips=3595
+         1792178570.345 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161676159576 unique=2755 guest_flips=3595
+         1792178570.347 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161676162521 queue_us=11 service_us=2826 ok=1 async=1
+         1792178570.364 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161676178970 queue_us=11 service_us=3929 ok=1 async=1
+         1792178570.392 24001 24042 I BoxDroid3: PERF mono_us=161676206549 elapsed_us=1007998 unique=12 frames=24 green=0 guest_flips=12 refresh=63 period_us=1007996 callback_us=45352 scanout_us=17916 bql_reacquire_us=85 conversion_us=10597 presenter_us=8008 vpll=0x3c20d htotal=0x65 vtotal=0xb overflow=0x3e cr25=0x10 sr1=0x1 msr=0xe3 fp_h=679 fp_v=479 pcrtc=0x3cb0000
+         1792178570.392 24001 24042 I BoxDroid: REFRESH_DEADLINE now_ns=161676206586812 next_ns=161676222454779 period_ns=16000000 callbacks=63 missed=0
+         1792178570.421 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161676235963 guest_flips=3596
+         1792178570.424 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161676239505 unique=2756 guest_flips=3596
+         1792178570.427 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161676242204 queue_us=64 service_us=2526 ok=1 async=1
+         1792178570.443 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161676258389 queue_us=14 service_us=3130 ok=1 async=1
+         1792178570.498 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161676312694 guest_flips=3597
+         1792178570.505 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161676320300 unique=2757 guest_flips=3597
+         1792178570.508 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161676323014 queue_us=12 service_us=2600 ok=1 async=1
+         1792178570.523 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161676338300 queue_us=13 service_us=2970 ok=1 async=1
+         1792178570.590 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161676404977 guest_flips=3598
+         1792178570.601 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161676415666 unique=2758 guest_flips=3598
+         1792178570.604 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161676418609 queue_us=11 service_us=2821 ok=1 async=1
+         1792178570.619 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161676434197 queue_us=21 service_us=2764 ok=1 async=1
+         1792178570.681 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161676495798 guest_flips=3599
+         1792178570.708 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161676523528 unique=2759 guest_flips=3599
+         1792178570.712 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161676526644 queue_us=13 service_us=2986 ok=1 async=1
+         1792178570.715 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161676530489 queue_us=33 service_us=3157 ok=1 async=1
+         1792178570.768 24001 24050 I BoxDroid: NV_RENDER kind=1 interval_us=1000108 calls=225 total_us=18469 maximum_us=188
+         1792178570.768 24001 24050 I BoxDroid: NV_RENDER kind=2 interval_us=1000108 calls=225 total_us=142542 maximum_us=6039
+         1792178570.768 24001 24050 I BoxDroid: NV_RENDER kind=3 interval_us=1000108 calls=76 total_us=0 maximum_us=0
+         1792178570.768 24001 24050 I BoxDroid: NV_RENDER kind=4 interval_us=1000108 calls=79 total_us=0 maximum_us=0
+         1792178570.768 24001 24050 I BoxDroid: NV_RENDER kind=5 interval_us=1000108 calls=59 total_us=0 maximum_us=0
+         1792178570.768 24001 24050 I BoxDroid: NV_RENDER kind=9 interval_us=1000108 calls=11 total_us=0 maximum_us=0
+         1792178570.772 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161676586857 guest_flips=3600
+         1792178570.777 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161676591786 unique=2760 guest_flips=3600
+         1792178570.780 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161676595043 queue_us=36 service_us=3064 ok=1 async=1
+         1792178570.795 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161676609822 queue_us=11 service_us=2765 ok=1 async=1
+         1792178570.865 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161676680255 guest_flips=3601
+         1792178570.873 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161676687666 unique=2761 guest_flips=3601
+         1792178570.876 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161676690842 queue_us=15 service_us=3044 ok=1 async=1
+         1792178570.891 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161676706223 queue_us=12 service_us=2886 ok=1 async=1
+         1792178570.960 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161676775080 guest_flips=3602
+         1792178570.972 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161676786950 unique=2762 guest_flips=3602
+         1792178570.976 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161676790726 queue_us=14 service_us=3637 ok=1 async=1
+         1792178570.976 24001 24034 I BoxDroid: PRESENT_QUEUE submitted=5151 completed=5150 failed=0 canceled=0 max_depth=2 blocked_us=41245 idle_us=158672859
+         1792178570.987 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161676801860 queue_us=13 service_us=2800 ok=1 async=1
+         1792178571.068 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161676882767 guest_flips=3603
+         1792178571.081 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161676895549 unique=2763 guest_flips=3603
+         1792178571.085 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161676899656 queue_us=66 service_us=3899 ok=1 async=1
+         1792178571.087 24001 24042 I BoxDroid: MAINLOOP elapsed_us=1000011 calls=2997 poll_us=902897 main_lock_us=974 replay_us=854 bql_us=20869 max_bql_us=2744 last_timeout_ns=669318
+         1792178571.099 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161676913837 queue_us=12 service_us=2767 ok=1 async=1
+         1792178571.143 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161676958237 guest_flips=3604
+         1792178571.145 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161676959678 unique=2764 guest_flips=3604
+         1792178571.148 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161676962779 queue_us=13 service_us=2981 ok=1 async=1
+         1792178571.163 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161676978263 queue_us=12 service_us=3087 ok=1 async=1
+         1792178571.203 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000009 worker=0 jobs=2814 mono=1407 stereo=1407 multipass=0 work_us=34182 lock_wait_us=1512
+         1792178571.203 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000009 worker=1 jobs=2420 mono=2420 stereo=0 multipass=0 work_us=25967 lock_wait_us=2019
+         1792178571.203 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000009 worker=2 jobs=1783 mono=1783 stereo=0 multipass=0 work_us=22089 lock_wait_us=1681
+         1792178571.203 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000009 worker=3 jobs=1407 mono=1407 stereo=0 multipass=0 work_us=18683 lock_wait_us=1445
+         1792178571.203 24001 24049 I BoxDroid: VOICE_PROFILE elapsed_us=1000009 workers=4 background_workers=4 apu_participates=0 frames=1407 jobs=8424 queue_peak=7 worker_queue_peak=2 barrier_us=358261 voice_lock_us=2194 worker_work_us=100921 worker_lock_wait_us=6657 worker_mix_hold_us=5851 worker_wait_us=3875742 worker_wakes=5628
+         1792178571.240 24001 24049 I BoxDroid: APU_PROFILE elapsed_us=1000043 frames=1405 vp_us=369434 dsp_us=479346 monitor_us=673 ep_batches=175 ep_budget_overruns=50 ep_work_peak_us=14166 ep_budget_us=5333
+         1792178571.248 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161677062687 guest_flips=3605
+         1792178571.259 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161677074231 unique=2765 guest_flips=3605
+         1792178571.263 24001 24044 I BoxDroid: APU_VOICE_WAIT interval_us=1008495 calls=1026 wait_us=27884 maximum_us=2829
+         1792178571.263 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677077984 queue_us=13 service_us=3469 ok=1 async=1
+         1792178571.275 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677089642 queue_us=14 service_us=2598 ok=1 async=1
+         1792178571.319 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161677133755 guest_flips=3606
+         1792178571.320 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161677135514 unique=2766 guest_flips=3606
+         1792178571.323 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677138287 queue_us=22 service_us=2648 ok=1 async=1
+         1792178571.336 24001 24042 I BoxDroid: XBOX_NV2A_FRAME_PRESENT count=5160 guest_extent=640x480 pixel_hash=23be09734340446f nonblack_pixels=0
+         1792178571.340 24001 24034 I BoxDroid: WSI frames=30 acquire_us=1136 prepare_us=63182 submit_us=3972 present_us=8459 idle_us=12230
+         1792178571.340 24001 24034 I BoxDroid: FRAME presented=5160 generation=1
+         1792178571.340 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677155379 queue_us=15 service_us=4303 ok=1 async=1
+         1792178571.400 24001 24042 I BoxDroid3: PERF mono_us=161677214543 elapsed_us=1007994 unique=11 frames=22 green=0 guest_flips=11 refresh=63 period_us=1008003 callback_us=46524 scanout_us=26682 bql_reacquire_us=136 conversion_us=9527 presenter_us=2739 vpll=0x3c20d htotal=0x65 vtotal=0xb overflow=0x3e cr25=0x10 sr1=0x1 msr=0xe3 fp_h=679 fp_v=479 pcrtc=0x3b84000
+         1792178571.400 24001 24042 I BoxDroid: REFRESH_DEADLINE now_ns=161677214588530 next_ns=161677230454779 period_ns=16000000 callbacks=63 missed=0
+         1792178571.409 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161677224345 guest_flips=3607
+         1792178571.420 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161677234897 unique=2767 guest_flips=3607
+         1792178571.424 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677238654 queue_us=56 service_us=3533 ok=1 async=1
+         1792178571.435 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677250271 queue_us=14 service_us=3004 ok=1 async=1
+         1792178571.481 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161677295697 guest_flips=3608
+         1792178571.497 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161677312505 unique=2768 guest_flips=3608
+         1792178571.500 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677315373 queue_us=14 service_us=2742 ok=1 async=1
+         1792178571.515 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677329618 queue_us=10 service_us=2610 ok=1 async=1
+         1792178571.568 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161677382669 guest_flips=3609
+         1792178571.576 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161677391413 unique=2769 guest_flips=3609
+         1792178571.579 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677394226 queue_us=12 service_us=2688 ok=1 async=1
+         1792178571.595 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677410338 queue_us=18 service_us=2846 ok=1 async=1
+         1792178571.645 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161677460500 guest_flips=3610
+         1792178571.657 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161677471559 unique=2770 guest_flips=3610
+         1792178571.660 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677474561 queue_us=11 service_us=2872 ok=1 async=1
+         1792178571.675 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677490219 queue_us=14 service_us=2887 ok=1 async=1
+         1792178571.722 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161677536957 guest_flips=3611
+         1792178571.738 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161677552864 unique=2771 guest_flips=3611
+         1792178571.742 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677556770 queue_us=13 service_us=3770 ok=1 async=1
+         1792178571.755 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677569653 queue_us=11 service_us=2634 ok=1 async=1
+         1792178571.772 24001 24050 I BoxDroid: NV_RENDER kind=1 interval_us=1004550 calls=225 total_us=19870 maximum_us=1194
+         1792178571.772 24001 24050 I BoxDroid: NV_RENDER kind=2 interval_us=1004550 calls=225 total_us=141197 maximum_us=5941
+         1792178571.772 24001 24050 I BoxDroid: NV_RENDER kind=3 interval_us=1004550 calls=74 total_us=0 maximum_us=0
+         1792178571.772 24001 24050 I BoxDroid: NV_RENDER kind=4 interval_us=1004550 calls=82 total_us=0 maximum_us=0
+         1792178571.772 24001 24050 I BoxDroid: NV_RENDER kind=5 interval_us=1004550 calls=57 total_us=0 maximum_us=0
+         1792178571.772 24001 24050 I BoxDroid: NV_RENDER kind=9 interval_us=1004550 calls=12 total_us=0 maximum_us=0
+         1792178571.813 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161677628020 guest_flips=3612
+         1792178571.816 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161677631484 unique=2772 guest_flips=3612
+         1792178571.819 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677634191 queue_us=14 service_us=2591 ok=1 async=1
+         1792178571.835 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677650045 queue_us=18 service_us=2577 ok=1 async=1
+         1792178571.888 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161677702684 guest_flips=3613
+         1792178571.897 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161677711568 unique=2773 guest_flips=3613
+         1792178571.899 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677714454 queue_us=22 service_us=2756 ok=1 async=1
+         1792178571.915 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677730402 queue_us=16 service_us=3326 ok=1 async=1
+         1792178571.976 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161677791312 guest_flips=3614
+         1792178571.993 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161677807675 unique=2774 guest_flips=3614
+         1792178571.996 24001 24029 I BoxDroidAudio: AUDIO_STATS backend=AAudio state=RUNNING rate=48000 channels=2 format=S16LE burst=192 callback_frames=64..192 buffer_frames=384 capacity_frames=1536 queued_frames=448 queued_estimate_ms=17 callbacks=46406 callback_frames_total=8385792 underrun_callbacks=1512 underrun_frames=183168 overrun_blocks=0 dropped_frames=0 offered_frames=7181824 nonzero_frames=6769658 muted_frames=0 focus=1 foreground=1 apu_attached=1 error=0 source_nonzero_frames=6769658 source_peak=13846 ring_peak=13846 consumed_frames=7181376 consumed_nonzero_frames=6769210 consumed_peak=13846
+         1792178571.997 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677811683 queue_us=10 service_us=3879 ok=1 async=1
+         1792178571.997 24001 24034 I BoxDroid: PRESENT_QUEUE submitted=5175 completed=5174 failed=0 canceled=0 max_depth=2 blocked_us=41245 idle_us=159619748
+         1792178572.011 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677825910 queue_us=14 service_us=2855 ok=1 async=1
+         1792178572.060 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161677875274 guest_flips=3615
+         1792178572.072 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161677887515 unique=2775 guest_flips=3615
+         1792178572.076 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677891489 queue_us=130 service_us=3680 ok=1 async=1
+         1792178572.087 24001 24042 I BoxDroid: MAINLOOP elapsed_us=1000002 calls=3077 poll_us=924135 main_lock_us=984 replay_us=863 bql_us=11825 max_bql_us=2555 last_timeout_ns=0
+         1792178572.091 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677905689 queue_us=14 service_us=2627 ok=1 async=1
+         1792178572.143 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161677957971 guest_flips=3616
+         1792178572.156 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161677971299 unique=2776 guest_flips=3616
+         1792178572.160 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677974959 queue_us=68 service_us=3433 ok=1 async=1
+         1792178572.171 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161677986031 queue_us=43 service_us=2818 ok=1 async=1
+         1792178572.203 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000236 worker=0 jobs=3342 mono=1842 stereo=1500 multipass=0 work_us=37398 lock_wait_us=1313
+         1792178572.203 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000236 worker=1 jobs=3000 mono=3000 stereo=0 multipass=0 work_us=29429 lock_wait_us=1749
+         1792178572.203 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000236 worker=2 jobs=3000 mono=3000 stereo=0 multipass=0 work_us=27453 lock_wait_us=1236
+         1792178572.203 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000236 worker=3 jobs=2471 mono=2471 stereo=0 multipass=0 work_us=24585 lock_wait_us=1622
+         1792178572.203 24001 24049 I BoxDroid: VOICE_PROFILE elapsed_us=1000236 workers=4 background_workers=4 apu_participates=0 frames=1500 jobs=11813 queue_peak=9 worker_queue_peak=3 barrier_us=175278 voice_lock_us=1630 worker_work_us=118865 worker_lock_wait_us=5920 worker_mix_hold_us=5993 worker_wait_us=3860339 worker_wakes=6000
+         1792178572.217 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161678031610 guest_flips=3617
+         1792178572.232 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161678047468 unique=2777 guest_flips=3617
+         1792178572.236 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161678051113 queue_us=15 service_us=3519 ok=1 async=1
+         1792178572.240 24001 24049 I BoxDroid: APU_PROFILE elapsed_us=1000377 frames=1500 vp_us=179305 dsp_us=503961 monitor_us=665 ep_batches=188 ep_budget_overruns=9 ep_work_peak_us=6964 ep_budget_us=5333
+         1792178572.251 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161678065639 queue_us=11 service_us=2589 ok=1 async=1
+         1792178572.263 24001 24044 I BoxDroid: APU_VOICE_WAIT interval_us=1000403 calls=1080 wait_us=5358 maximum_us=1741
+         1792178572.316 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161678131076 guest_flips=3618
+         1792178572.331 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161678145826 unique=2778 guest_flips=3618
+         1792178572.334 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161678148837 queue_us=13 service_us=2872 ok=1 async=1
+         1792178572.347 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161678162211 queue_us=13 service_us=3163 ok=1 async=1
+         1792178572.408 24001 24042 I BoxDroid3: PERF mono_us=161678222570 elapsed_us=1008027 unique=12 frames=24 green=0 guest_flips=12 refresh=63 period_us=1008000 callback_us=43081 scanout_us=18939 bql_reacquire_us=121 conversion_us=10223 presenter_us=8547 vpll=0x3c20d htotal=0x65 vtotal=0xb overflow=0x3e cr25=0x10 sr1=0x1 msr=0xe3 fp_h=679 fp_v=479 pcrtc=0x3b84000
+         1792178572.408 24001 24042 I BoxDroid: REFRESH_DEADLINE now_ns=161678222611551 next_ns=161678238454779 period_ns=16000000 callbacks=63 missed=0
+         1792178572.408 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161678222911 guest_flips=3619
+         1792178572.426 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161678241386 unique=2779 guest_flips=3619
+         1792178572.430 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161678245086 queue_us=17 service_us=3554 ok=1 async=1
+         1792178572.443 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161678257930 queue_us=13 service_us=2850 ok=1 async=1
+         1792178572.491 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161678306037 guest_flips=3620
+         1792178572.505 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161678320151 unique=2780 guest_flips=3620
+         1792178572.508 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161678323409 queue_us=41 service_us=3081 ok=1 async=1
+         1792178572.523 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161678337811 queue_us=11 service_us=2769 ok=1 async=1
+         1792178572.596 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161678411088 guest_flips=3621
+         1792178572.601 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161678415702 unique=2781 guest_flips=3621
+         1792178572.604 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161678418764 queue_us=14 service_us=2936 ok=1 async=1
+         1792178572.620 24001 24034 I BoxDroid: WSI frames=30 acquire_us=1246 prepare_us=63897 submit_us=3714 present_us=8661 idle_us=8609
+         1792178572.620 24001 24034 I BoxDroid: FRAME presented=5190 generation=1
+         1792178572.620 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161678434665 queue_us=15 service_us=3315 ok=1 async=1
+         1792178572.688 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161678502624 guest_flips=3622
+         1792178572.697 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161678511669 unique=2782 guest_flips=3622
+         1792178572.700 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161678514770 queue_us=13 service_us=2966 ok=1 async=1
+         1792178572.717 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161678532463 queue_us=14 service_us=3182 ok=1 async=1
+         1792178572.773 24001 24050 I BoxDroid: NV_RENDER kind=1 interval_us=1000787 calls=217 total_us=18885 maximum_us=229
+         1792178572.773 24001 24050 I BoxDroid: NV_RENDER kind=2 interval_us=1000787 calls=217 total_us=145295 maximum_us=5927
+         1792178572.773 24001 24050 I BoxDroid: NV_RENDER kind=3 interval_us=1000787 calls=72 total_us=0 maximum_us=0
+         1792178572.773 24001 24050 I BoxDroid: NV_RENDER kind=4 interval_us=1000787 calls=77 total_us=0 maximum_us=0
+         1792178572.773 24001 24050 I BoxDroid: NV_RENDER kind=5 interval_us=1000787 calls=56 total_us=0 maximum_us=0
+         1792178572.773 24001 24050 I BoxDroid: NV_RENDER kind=9 interval_us=1000787 calls=11 total_us=0 maximum_us=0
+         1792178572.787 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161678602094 guest_flips=3623
+         1792178572.794 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161678608758 unique=2783 guest_flips=3623
+         1792178572.796 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161678611510 queue_us=32 service_us=2600 ok=1 async=1
+         1792178572.811 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161678626275 queue_us=26 service_us=3172 ok=1 async=1
+         1792178572.884 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161678699458 guest_flips=3624
+         1792178572.889 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161678703593 unique=2784 guest_flips=3624
+         1792178572.892 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161678706626 queue_us=13 service_us=2912 ok=1 async=1
+         1792178572.908 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161678722648 queue_us=12 service_us=3522 ok=1 async=1
+         1792178572.973 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161678788360 guest_flips=3625
+         1792178572.987 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161678801849 unique=2785 guest_flips=3625
+         1792178572.991 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161678805555 queue_us=16 service_us=3536 ok=1 async=1
+         1792178572.996 24001 24029 I BoxDroid_: OVERLAY_SAMPLE fps=11.6 rss_mb=654 cpu_pct=25 online_cpus=8 gpu=20% gpu_raw=20 % unique_frames=2785 presents=5197 sample_us=1426 average_sample_us=1583 max_sample_us=2667
+         1792178573.004 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161678818789 queue_us=23 service_us=3741 ok=1 async=1
+         1792178573.004 24001 24034 I BoxDroid: PRESENT_QUEUE submitted=5198 completed=5197 failed=0 canceled=0 max_depth=2 blocked_us=41245 idle_us=160554114
+         1792178573.047 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161678862308 guest_flips=3626
+         1792178573.049 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161678863702 unique=2786 guest_flips=3626
+         1792178573.051 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161678866432 queue_us=38 service_us=2586 ok=1 async=1
+         1792178573.068 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161678882630 queue_us=10 service_us=3589 ok=1 async=1
+         1792178573.087 24001 24042 I BoxDroid: MAINLOOP elapsed_us=1000031 calls=2983 poll_us=901903 main_lock_us=951 replay_us=862 bql_us=34972 max_bql_us=3145 last_timeout_ns=0
+         1792178573.137 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161678952365 guest_flips=3627
+         1792178573.154 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161678968590 unique=2787 guest_flips=3627
+         1792178573.158 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161678972683 queue_us=13 service_us=3953 ok=1 async=1
+         1792178573.163 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161678977683 queue_us=10 service_us=2606 ok=1 async=1
+         1792178573.204 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000849 worker=0 jobs=4053 mono=2702 stereo=1351 multipass=0 work_us=41829 lock_wait_us=1457
+         1792178573.204 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000849 worker=1 jobs=3653 mono=3653 stereo=0 multipass=0 work_us=34134 lock_wait_us=1440
+         1792178573.204 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000849 worker=2 jobs=3031 mono=3031 stereo=0 multipass=0 work_us=28935 lock_wait_us=1423
+         1792178573.204 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000849 worker=3 jobs=2702 mono=2702 stereo=0 multipass=0 work_us=27075 lock_wait_us=983
+         1792178573.204 24001 24049 I BoxDroid: VOICE_PROFILE elapsed_us=1000849 workers=4 background_workers=4 apu_participates=0 frames=1351 jobs=13439 queue_peak=11 worker_queue_peak=3 barrier_us=390310 voice_lock_us=4851 worker_work_us=131973 worker_lock_wait_us=5303 worker_mix_hold_us=5527 worker_wait_us=3847176 worker_wakes=5404
+         1792178573.207 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161679021543 guest_flips=3628
+         1792178573.208 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161679023512 unique=2788 guest_flips=3628
+         1792178573.211 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679026193 queue_us=16 service_us=2562 ok=1 async=1
+         1792178573.228 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679043124 queue_us=12 service_us=3869 ok=1 async=1
+         1792178573.240 24001 24049 I BoxDroid: APU_PROFILE elapsed_us=1000180 frames=1354 vp_us=407769 dsp_us=464641 monitor_us=693 ep_batches=169 ep_budget_overruns=54 ep_work_peak_us=14851 ep_budget_us=5333
+         1792178573.264 24001 24044 I BoxDroid: APU_VOICE_WAIT interval_us=1001019 calls=1048 wait_us=36975 maximum_us=3233
+         1792178573.285 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161679099682 guest_flips=3629
+         1792178573.289 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161679103573 unique=2789 guest_flips=3629
+         1792178573.291 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679106224 queue_us=15 service_us=2525 ok=1 async=1
+         1792178573.307 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679121666 queue_us=22 service_us=2631 ok=1 async=1
+         1792178573.374 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161679189449 guest_flips=3630
+         1792178573.385 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161679199574 unique=2790 guest_flips=3630
+         1792178573.388 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679202786 queue_us=11 service_us=3095 ok=1 async=1
+         1792178573.403 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679218214 queue_us=13 service_us=2900 ok=1 async=1
+         1792178573.416 24001 24042 I BoxDroid3: PERF mono_us=161679230544 elapsed_us=1007974 unique=12 frames=24 green=0 guest_flips=12 refresh=63 period_us=1008005 callback_us=41194 scanout_us=22645 bql_reacquire_us=141 conversion_us=10249 presenter_us=3148 vpll=0x3c20d htotal=0x65 vtotal=0xb overflow=0x3e cr25=0x10 sr1=0x1 msr=0xe3 fp_h=679 fp_v=479 pcrtc=0x3b84000
+         1792178573.416 24001 24042 I BoxDroid: REFRESH_DEADLINE now_ns=161679230586550 next_ns=161679246454779 period_ns=16000000 callbacks=63 missed=0
+         1792178573.450 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161679265474 guest_flips=3631
+         1792178573.464 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161679279529 unique=2791 guest_flips=3631
+         1792178573.469 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679283758 queue_us=12 service_us=4098 ok=1 async=1
+         1792178573.483 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679297632 queue_us=11 service_us=2643 ok=1 async=1
+         1792178573.541 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161679356438 guest_flips=3632
+         1792178573.545 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161679359554 unique=2792 guest_flips=3632
+         1792178573.547 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679362312 queue_us=13 service_us=2643 ok=1 async=1
+         1792178573.563 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679378203 queue_us=14 service_us=2985 ok=1 async=1
+         1792178573.624 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161679438906 guest_flips=3633
+         1792178573.643 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161679458395 unique=2793 guest_flips=3633
+         1792178573.647 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679461843 queue_us=12 service_us=3317 ok=1 async=1
+         1792178573.659 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679473680 queue_us=11 service_us=2702 ok=1 async=1
+         1792178573.709 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161679523822 guest_flips=3634
+         1792178573.721 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161679535992 unique=2794 guest_flips=3634
+         1792178573.724 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679539507 queue_us=73 service_us=3311 ok=1 async=1
+         1792178573.739 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679553777 queue_us=12 service_us=2724 ok=1 async=1
+         1792178573.774 24001 24050 I BoxDroid: NV_RENDER kind=1 interval_us=1000460 calls=236 total_us=19001 maximum_us=235
+         1792178573.774 24001 24050 I BoxDroid: NV_RENDER kind=2 interval_us=1000460 calls=236 total_us=150149 maximum_us=6556
+         1792178573.774 24001 24050 I BoxDroid: NV_RENDER kind=3 interval_us=1000460 calls=78 total_us=0 maximum_us=0
+         1792178573.774 24001 24050 I BoxDroid: NV_RENDER kind=4 interval_us=1000460 calls=85 total_us=0 maximum_us=0
+         1792178573.774 24001 24050 I BoxDroid: NV_RENDER kind=5 interval_us=1000460 calls=61 total_us=0 maximum_us=0
+         1792178573.774 24001 24050 I BoxDroid: NV_RENDER kind=9 interval_us=1000460 calls=12 total_us=0 maximum_us=0
+         1792178573.782 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161679597113 guest_flips=3635
+         1792178573.784 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161679599504 unique=2795 guest_flips=3635
+         1792178573.787 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679602336 queue_us=17 service_us=2715 ok=1 async=1
+         1792178573.804 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679618538 queue_us=12 service_us=3518 ok=1 async=1
+         1792178573.871 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161679685852 guest_flips=3636
+         1792178573.882 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161679697065 unique=2796 guest_flips=3636
+         1792178573.886 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679700947 queue_us=16 service_us=3704 ok=1 async=1
+         1792178573.898 24001 24034 I BoxDroid: WSI frames=30 acquire_us=1204 prepare_us=63514 submit_us=3692 present_us=9208 idle_us=11029
+         1792178573.899 24001 24034 I BoxDroid: FRAME presented=5220 generation=1
+         1792178573.899 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679713569 queue_us=12 service_us=2547 ok=1 async=1
+         1792178573.942 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161679756905 guest_flips=3637
+         1792178573.945 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161679759647 unique=2797 guest_flips=3637
+         1792178573.947 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679762484 queue_us=10 service_us=2730 ok=1 async=1
+         1792178573.964 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679778565 queue_us=11 service_us=3490 ok=1 async=1
+         1792178574.041 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161679856476 guest_flips=3638
+         1792178574.067 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161679881623 unique=2798 guest_flips=3638
+         1792178574.070 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679885119 queue_us=19 service_us=3326 ok=1 async=1
+         1792178574.070 24001 24034 I BoxDroid: PRESENT_QUEUE submitted=5223 completed=5222 failed=0 canceled=0 max_depth=2 blocked_us=41245 idle_us=161542797
+         1792178574.075 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679890427 queue_us=11 service_us=2975 ok=1 async=1
+         1792178574.087 24001 24042 I BoxDroid: MAINLOOP elapsed_us=1000182 calls=3047 poll_us=922121 main_lock_us=924 replay_us=1433 bql_us=8872 max_bql_us=2527 last_timeout_ns=190361
+         1792178574.123 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161679937839 guest_flips=3639
+         1792178574.138 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161679952661 unique=2799 guest_flips=3639
+         1792178574.141 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679955789 queue_us=73 service_us=2927 ok=1 async=1
+         1792178574.155 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161679970545 queue_us=21 service_us=3399 ok=1 async=1
+         1792178574.204 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000597 worker=0 jobs=3959 mono=2495 stereo=1464 multipass=0 work_us=42153 lock_wait_us=1416
+         1792178574.204 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000597 worker=1 jobs=2928 mono=2928 stereo=0 multipass=0 work_us=30198 lock_wait_us=1634
+         1792178574.204 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000597 worker=2 jobs=2928 mono=2928 stereo=0 multipass=0 work_us=27986 lock_wait_us=1511
+         1792178574.204 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000597 worker=3 jobs=2780 mono=2780 stereo=0 multipass=0 work_us=26733 lock_wait_us=1385
+         1792178574.204 24001 24049 I BoxDroid: VOICE_PROFILE elapsed_us=1000597 workers=4 background_workers=4 apu_participates=0 frames=1464 jobs=12595 queue_peak=9 worker_queue_peak=3 barrier_us=266763 voice_lock_us=1642 worker_work_us=127070 worker_lock_wait_us=5946 worker_mix_hold_us=5950 worker_wait_us=3843529 worker_wakes=5856
+         1792178574.218 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161680032800 guest_flips=3640
+         1792178574.236 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161680051165 unique=2800 guest_flips=3640
+         1792178574.240 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161680055486 queue_us=65 service_us=4124 ok=1 async=1
+         1792178574.241 24001 24049 I BoxDroid: APU_PROFILE elapsed_us=1000517 frames=1458 vp_us=273447 dsp_us=492255 monitor_us=699 ep_batches=182 ep_budget_overruns=29 ep_work_peak_us=13358 ep_budget_us=5333
+         1792178574.251 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161680065953 queue_us=10 service_us=2916 ok=1 async=1
+         1792178574.267 24001 24044 I BoxDroid: APU_VOICE_WAIT interval_us=1002778 calls=980 wait_us=17096 maximum_us=3362
+         1792178574.323 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161680137794 guest_flips=3641
+         1792178574.329 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161680143624 unique=2801 guest_flips=3641
+         1792178574.332 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161680146603 queue_us=12 service_us=2864 ok=1 async=1
+         1792178574.347 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161680162073 queue_us=17 service_us=2869 ok=1 async=1
+         1792178574.410 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161680225518 guest_flips=3642
+         1792178574.426 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161680241322 unique=2802 guest_flips=3642
+         1792178574.426 24001 24042 I BoxDroid3: PERF mono_us=161680241484 elapsed_us=1010940 unique=12 frames=23 green=0 guest_flips=12 refresh=63 period_us=1008035 callback_us=44109 scanout_us=24478 bql_reacquire_us=125 conversion_us=10187 presenter_us=2697 vpll=0x3c20d htotal=0x65 vtotal=0xb overflow=0x3e cr25=0x10 sr1=0x1 msr=0xe3 fp_h=679 fp_v=479 pcrtc=0x3b84000
+         1792178574.426 24001 24042 I BoxDroid: REFRESH_DEADLINE now_ns=161680241505404 next_ns=161680254454779 period_ns=16000000 callbacks=63 missed=0
+         1792178574.430 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161680245454 queue_us=14 service_us=3978 ok=1 async=1
+         1792178574.443 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161680257866 queue_us=15 service_us=2732 ok=1 async=1
+         1792178574.508 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161680322733 guest_flips=3643
+         1792178574.523 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161680338472 unique=2803 guest_flips=3643
+         1792178574.527 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161680341618 queue_us=19 service_us=2999 ok=1 async=1
+         1792178574.540 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161680355151 queue_us=21 service_us=4078 ok=1 async=1
+         1792178574.593 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161680407547 guest_flips=3644
+         1792178574.601 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161680415825 unique=2804 guest_flips=3644
+         1792178574.604 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161680418937 queue_us=28 service_us=2959 ok=1 async=1
+         1792178574.620 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161680434752 queue_us=10 service_us=3463 ok=1 async=1
+         1792178574.685 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161680499942 guest_flips=3645
+         1792178574.700 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161680515226 unique=2805 guest_flips=3645
+         1792178574.704 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161680519022 queue_us=13 service_us=3528 ok=1 async=1
+         1792178574.715 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161680529791 queue_us=29 service_us=2699 ok=1 async=1
+         1792178574.759 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161680574344 guest_flips=3646
+         1792178574.761 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161680575777 unique=2806 guest_flips=3646
+         1792178574.763 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161680578493 queue_us=12 service_us=2605 ok=1 async=1
+         1792178574.775 24001 24050 I BoxDroid: NV_RENDER kind=1 interval_us=1001840 calls=218 total_us=18969 maximum_us=265
+         1792178574.775 24001 24050 I BoxDroid: NV_RENDER kind=2 interval_us=1001840 calls=218 total_us=142075 maximum_us=5922
+         1792178574.775 24001 24050 I BoxDroid: NV_RENDER kind=3 interval_us=1001840 calls=66 total_us=0 maximum_us=0
+         1792178574.775 24001 24050 I BoxDroid: NV_RENDER kind=4 interval_us=1001840 calls=83 total_us=0 maximum_us=0
+         1792178574.775 24001 24050 I BoxDroid: NV_RENDER kind=5 interval_us=1001840 calls=58 total_us=0 maximum_us=0
+         1792178574.775 24001 24050 I BoxDroid: NV_RENDER kind=9 interval_us=1001840 calls=12 total_us=0 maximum_us=0
+         1792178574.780 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161680594685 queue_us=15 service_us=3567 ok=1 async=1
+         1792178574.848 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161680663014 guest_flips=3647
+         1792178574.856 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161680671541 unique=2807 guest_flips=3647
+         1792178574.859 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161680674366 queue_us=15 service_us=2703 ok=1 async=1
+         1792178574.875 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161680690534 queue_us=13 service_us=3462 ok=1 async=1
+         1792178574.928 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161680742765 guest_flips=3648
+         1792178574.937 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161680751548 unique=2808 guest_flips=3648
+         1792178574.939 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161680754349 queue_us=11 service_us=2683 ok=1 async=1
+         1792178574.955 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161680769868 queue_us=14 service_us=2700 ok=1 async=1
+         1792178575.007 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161680821846 guest_flips=3649
+         1792178575.017 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161680831546 unique=2809 guest_flips=3649
+         1792178575.019 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161680834279 queue_us=13 service_us=2576 ok=1 async=1
+         1792178575.035 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161680849842 queue_us=11 service_us=2724 ok=1 async=1
+         1792178575.087 24001 24042 I BoxDroid: MAINLOOP elapsed_us=1000003 calls=3031 poll_us=914106 main_lock_us=925 replay_us=881 bql_us=19547 max_bql_us=2821 last_timeout_ns=151143
+         1792178575.100 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161680915042 guest_flips=3650
+         1792178575.116 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161680930741 unique=2810 guest_flips=3650
+         1792178575.120 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161680934590 queue_us=20 service_us=3640 ok=1 async=1
+         1792178575.120 24001 24034 I BoxDroid: PRESENT_QUEUE submitted=5247 completed=5246 failed=0 canceled=0 max_depth=2 blocked_us=41245 idle_us=162516284
+         1792178575.131 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161680945719 queue_us=10 service_us=2637 ok=1 async=1
+         1792178575.176 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161680991489 guest_flips=3651
+         1792178575.192 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161681007480 unique=2811 guest_flips=3651
+         1792178575.196 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161681011328 queue_us=120 service_us=3574 ok=1 async=1
+         1792178575.205 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000333 worker=0 jobs=2872 mono=1436 stereo=1436 multipass=0 work_us=37945 lock_wait_us=1412
+         1792178575.205 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000333 worker=1 jobs=2525 mono=2525 stereo=0 multipass=0 work_us=26954 lock_wait_us=1713
+         1792178575.205 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000333 worker=2 jobs=2178 mono=2178 stereo=0 multipass=0 work_us=24543 lock_wait_us=1733
+         1792178575.205 24001 24049 I BoxDroid: VOICE_WORKER_PROFILE elapsed_us=1000333 worker=3 jobs=1436 mono=1436 stereo=0 multipass=0 work_us=18379 lock_wait_us=1897
+         1792178575.205 24001 24049 I BoxDroid: VOICE_PROFILE elapsed_us=1000333 workers=4 background_workers=4 apu_participates=0 frames=1436 jobs=9011 queue_peak=7 worker_queue_peak=2 barrier_us=317645 voice_lock_us=1483 worker_work_us=107821 worker_lock_wait_us=6755 worker_mix_hold_us=5924 worker_wait_us=3882486 worker_wakes=5744
+         1792178575.211 24001 24034 I BoxDroid: WSI frames=30 acquire_us=1152 prepare_us=65953 submit_us=3942 present_us=8280 idle_us=8805
+         1792178575.211 24001 24034 I BoxDroid: FRAME presented=5250 generation=1
+         1792178575.211 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161681025720 queue_us=26 service_us=2683 ok=1 async=1
+         1792178575.241 24001 24049 I BoxDroid: APU_PROFILE elapsed_us=1000363 frames=1436 vp_us=317186 dsp_us=485627 monitor_us=699 ep_batches=180 ep_budget_overruns=44 ep_work_peak_us=16619 ep_budget_us=5333
+         1792178575.265 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161681080131 guest_flips=3652
+         1792178575.267 24001 24044 I BoxDroid: APU_VOICE_WAIT interval_us=1000342 calls=1002 wait_us=12922 maximum_us=2059
+         1792178575.273 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161681087658 unique=2812 guest_flips=3652
+         1792178575.276 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161681090649 queue_us=11 service_us=2874 ok=1 async=1
+         1792178575.292 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161681106555 queue_us=13 service_us=3454 ok=1 async=1
+         1792178575.359 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161681174248 guest_flips=3653
+         1792178575.369 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161681183607 unique=2813 guest_flips=3653
+         1792178575.373 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161681188517 queue_us=11 service_us=4780 ok=1 async=1
+         1792178575.388 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161681202633 queue_us=11 service_us=3528 ok=1 async=1
+         1792178575.432 24001 24042 I BoxDroid3: PERF mono_us=161681246540 elapsed_us=1005056 unique=11 frames=23 green=0 guest_flips=11 refresh=63 period_us=1007954 callback_us=36699 scanout_us=17695 bql_reacquire_us=136 conversion_us=9246 presenter_us=3796 vpll=0x3c20d htotal=0x65 vtotal=0xb overflow=0x3e cr25=0x10 sr1=0x1 msr=0xe3 fp_h=679 fp_v=479 pcrtc=0x3cb0000
+         1792178575.432 24001 24042 I BoxDroid: REFRESH_DEADLINE now_ns=161681246576446 next_ns=161681262454779 period_ns=16000000 callbacks=63 missed=0
+         1792178575.457 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161681271789 guest_flips=3654
+         1792178575.465 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161681279648 unique=2814 guest_flips=3654
+         1792178575.468 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161681282633 queue_us=17 service_us=2826 ok=1 async=1
+         1792178575.484 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161681298666 queue_us=26 service_us=3330 ok=1 async=1
+         1792178575.544 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161681359499 guest_flips=3655
+         1792178575.560 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161681375520 unique=2815 guest_flips=3655
+         1792178575.565 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161681379948 queue_us=63 service_us=4240 ok=1 async=1
+         1792178575.579 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161681394223 queue_us=58 service_us=3139 ok=1 async=1
+         1792178575.643 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161681457720 guest_flips=3656
+         1792178575.658 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161681473414 unique=2816 guest_flips=3656
+         1792178575.662 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161681477329 queue_us=21 service_us=3763 ok=1 async=1
+         1792178575.675 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161681489825 queue_us=15 service_us=2736 ok=1 async=1
+         1792178575.732 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161681547039 guest_flips=3657
+         1792178575.737 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161681551984 unique=2817 guest_flips=3657
+         1792178575.742 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161681556930 queue_us=16 service_us=4788 ok=1 async=1
+         1792178575.755 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161681569873 queue_us=16 service_us=2686 ok=1 async=1
+         1792178575.791 24001 24050 I BoxDroid: NV_RENDER kind=1 interval_us=1015214 calls=222 total_us=19415 maximum_us=318
+         1792178575.791 24001 24050 I BoxDroid: NV_RENDER kind=2 interval_us=1015214 calls=222 total_us=139226 maximum_us=6684
+         1792178575.791 24001 24050 I BoxDroid: NV_RENDER kind=3 interval_us=1015214 calls=78 total_us=0 maximum_us=0
+         1792178575.791 24001 24050 I BoxDroid: NV_RENDER kind=4 interval_us=1015214 calls=77 total_us=0 maximum_us=0
+         1792178575.791 24001 24050 I BoxDroid: NV_RENDER kind=5 interval_us=1015214 calls=56 total_us=0 maximum_us=0
+         1792178575.791 24001 24050 I BoxDroid: NV_RENDER kind=9 interval_us=1015214 calls=11 total_us=0 maximum_us=0
+         1792178575.813 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161681628076 guest_flips=3658
+         1792178575.820 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161681634971 unique=2818 guest_flips=3658
+         1792178575.823 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161681637866 queue_us=14 service_us=2747 ok=1 async=1
+         1792178575.835 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161681649828 queue_us=11 service_us=2782 ok=1 async=1
+         1792178575.909 24001 24050 I BoxDroid3: GUEST_FLIP mono_us=161681723853 guest_flips=3659
+         1792178575.913 24001 24042 I BoxDroid3: GUEST_FRAME mono_us=161681727678 unique=2819 guest_flips=3659
+         1792178575.916 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161681730758 queue_us=12 service_us=2946 ok=1 async=1
+         1792178575.933 24001 24034 I BoxDroid: PRESENT_FRAME mono_us=161681747589 queue_us=43 service_us=4396 ok=1 async=1

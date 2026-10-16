@@ -1,0 +1,86 @@
+ninja: Entering directory `/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64'
+[1/47] Generating qemu-version.h with a custom command (wrapped by meson to capture output)
+[2/45] Generating xemu-version-macro.h with a custom command (wrapped by meson to capture output)
+[3/45] Compiling C object libsystem.a.p/tcg_region.c.o
+[4/45] Compiling C object libsystem.a.p/tcg_tcg-common.c.o
+[5/45] Compiling C object libsystem.a.p/tcg_optimize.c.o
+[6/45] Compiling C object libsystem.a.p/system_physmem.c.o
+[7/45] Compiling C object libsystem.a.p/tcg_tcg-op.c.o
+[8/45] Compiling C object libsystem.a.p/tcg_tcg-op-ldst.c.o
+[9/45] Compiling C object libsystem.a.p/tcg_tcg.c.o
+[10/45] Compiling C object libsystem.a.p/tcg_tcg-op-gvec.c.o
+[11/45] Compiling C object libsystem.a.p/tcg_tcg-op-fp.c.o
+[12/45] Compiling C object libsystem.a.p/tcg_tcg-op-vec.c.o
+[13/45] Compiling C object libsystem.a.p/accel_tcg_cpu-exec.c.o
+[14/45] Compiling C object libsystem.a.p/accel_tcg_cpu-exec-common.c.o
+[15/45] Compiling C object libsystem.a.p/accel_tcg_tcg-runtime.c.o
+[16/45] Compiling C object libsystem.a.p/accel_tcg_tb-maint.c.o
+[17/45] Compiling C object libsystem.a.p/accel_tcg_tcg-all.c.o
+[18/45] Compiling C object libsystem.a.p/accel_tcg_tcg-runtime-gvec.c.o
+[19/45] Compiling C object libsystem.a.p/accel_tcg_tcg-stats.c.o
+[20/45] Compiling C object libsystem.a.p/accel_tcg_translate-all.c.o
+../source/xemu/accel/tcg/translate-all.c:24:10: warning: no previous prototype for function 'boxdroid_tcg_memory_mode' [-Wmissing-prototypes]
+   24 | unsigned boxdroid_tcg_memory_mode(void)
+      |          ^
+../source/xemu/accel/tcg/translate-all.c:24:1: note: declare 'static' if the function is not intended to be used outside of this translation unit
+   24 | unsigned boxdroid_tcg_memory_mode(void)
+      | ^
+      | static 
+../source/xemu/accel/tcg/translate-all.c:65:6: warning: no previous prototype for function 'boxdroid_order_audit' [-Wmissing-prototypes]
+   65 | void boxdroid_order_audit(TranslationBlock *tb, bool executed)
+      |      ^
+../source/xemu/accel/tcg/translate-all.c:65:1: note: declare 'static' if the function is not intended to be used outside of this translation unit
+   65 | void boxdroid_order_audit(TranslationBlock *tb, bool executed)
+      | ^
+      | static 
+2 warnings generated.
+[21/45] Compiling C object libsystem.a.p/accel_tcg_translator.c.o
+[22/45] Compiling C object libsystem.a.p/accel_tcg_monitor.c.o
+[23/45] Compiling C object libsystem.a.p/accel_tcg_watchpoint.c.o
+[24/45] Compiling C object libsystem.a.p/accel_tcg_tcg-accel-ops.c.o
+[25/45] Compiling C object libsystem.a.p/accel_tcg_cputlb.c.o
+[26/45] Compiling C object libqemu-i386-softmmu.a.p/target_i386_tcg_system_smm_helper.c.o
+[27/45] Compiling C object libqemu-i386-softmmu.a.p/target_i386_tcg_system_bpt_helper.c.o
+[28/45] Compiling C object libqemu-i386-softmmu.a.p/target_i386_tcg_system_misc_helper.c.o
+[29/45] Compiling C object libqemu-i386-softmmu.a.p/target_i386_tcg_system_seg_helper.c.o
+[30/45] Compiling C object libqemu-i386-softmmu.a.p/target_i386_tcg_system_svm_helper.c.o
+[31/45] Compiling C object libqemu-i386-softmmu.a.p/target_i386_tcg_bpt_helper.c.o
+[32/45] Compiling C object libqemu-i386-softmmu.a.p/target_i386_helper.c.o
+[33/45] Compiling C object libqemu-i386-softmmu.a.p/target_i386_tcg_cc_helper.c.o
+[34/45] Compiling C object libqemu-i386-softmmu.a.p/target_i386_cpu.c.o
+../source/xemu/target/i386/cpu.c:7205:23: warning: 'strtok' is deprecated: strtok() is not thread-safe; use strtok_r() instead [-Wdeprecated-declarations]
+ 7205 |     for (featurestr = strtok(features, ",");
+      |                       ^
+/Users/maverick/Library/Android/sdk/ndk/30.0.16248370/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/string.h:125:20: note: 'strtok' has been explicitly marked deprecated here
+  125 |     __attribute__((__deprecated__("strtok() is not thread-safe; use strtok_r() instead")));
+      |                    ^
+../source/xemu/target/i386/cpu.c:7207:23: warning: 'strtok' is deprecated: strtok() is not thread-safe; use strtok_r() instead [-Wdeprecated-declarations]
+ 7207 |          featurestr = strtok(NULL, ",")) {
+      |                       ^
+/Users/maverick/Library/Android/sdk/ndk/30.0.16248370/toolchains/llvm/prebuilt/darwin-x86_64/bin/../sysroot/usr/include/string.h:125:20: note: 'strtok' has been explicitly marked deprecated here
+  125 |     __attribute__((__deprecated__("strtok() is not thread-safe; use strtok_r() instead")));
+      |                    ^
+2 warnings generated.
+[35/45] Compiling C object libqemu-i386-softmmu.a.p/target_i386_tcg_excp_helper.c.o
+[36/45] Compiling C object libqemu-i386-softmmu.a.p/target_i386_tcg_int_helper.c.o
+[37/45] Compiling C object libqemu-i386-softmmu.a.p/target_i386_tcg_mem_helper.c.o
+[38/45] Compiling C object libqemu-i386-softmmu.a.p/target_i386_tcg_misc_helper.c.o
+[39/45] Compiling C object libqemu-i386-softmmu.a.p/target_i386_tcg_mpx_helper.c.o
+[40/45] Compiling C object libqemu-i386-softmmu.a.p/target_i386_tcg_tcg-cpu.c.o
+[41/45] Compiling C object libqemu-i386-softmmu.a.p/target_i386_tcg_seg_helper.c.o
+[42/45] Compiling C object libqemu-i386-softmmu.a.p/xemu-version.c.o
+[43/45] Compiling C object libqemu-i386-softmmu.a.p/target_i386_tcg_translate.c.o
+FAILED: [code=1] libqemu-i386-softmmu.a.p/target_i386_tcg_translate.c.o 
+/Users/maverick/Library/Android/sdk/ndk/30.0.16248370/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android33-clang -Ilibqemu-i386-softmmu.a.p -I. -I../source/xemu -Itarget/i386 -I../source/xemu/target/i386 -Isubprojects/genconfig -I../source/xemu/subprojects/genconfig -Isubprojects/volk -I../source/xemu/subprojects/volk -I/Users/maverick/Library/Android/sdk/ndk/30.0.16248370/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/include -Isubprojects/glslang -I../source/xemu/subprojects/glslang -Isubprojects/glslang/__CMake_build/include -I../source/xemu/subprojects/glslang/__CMake_build/include -I../source/xemu/subprojects/VulkanMemoryAllocator/include -Isubprojects/VulkanMemoryAllocator -I../source/xemu/subprojects/VulkanMemoryAllocator -Isubprojects/SPIRV-Reflect -I../source/xemu/subprojects/SPIRV-Reflect -I../source/xemu/subprojects/nv2a_vsh_cpu/src -Isubprojects/nv2a_vsh_cpu -I../source/xemu/subprojects/nv2a_vsh_cpu -I/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/dsp56300/crates/emu-ffi/include -Iqapi -Itrace -Iui -Iui/shader -Idata -I/Users/maverick/Documents/BoxDroid/BoxDroid/native/android/vcpkg_installed/arm64-android-api33/lib/pkgconfig/../../include/pixman-1 -I/Users/maverick/Documents/BoxDroid/BoxDroid/native/android/vcpkg_installed/arm64-android-api33/lib/pkgconfig/../../include -I/Users/maverick/Documents/BoxDroid/BoxDroid/native/android/vcpkg_installed/arm64-android-api33/lib/pkgconfig/../../include/slirp -I/Users/maverick/Documents/BoxDroid/BoxDroid/native/android/vcpkg_installed/arm64-android-api33/lib/pkgconfig/../../include/glib-2.0 -I/Users/maverick/Documents/BoxDroid/BoxDroid/native/android/vcpkg_installed/arm64-android-api33/lib/pkgconfig/../../lib/glib-2.0/include -flto=thin -fdiagnostics-color=auto -Wall -Winvalid-pch -std=gnu11 -O3 -g -DXBOX=1 -DBOXDROID_XBOX_RUNTIME=1 -DBOXDROID_INPUT=1 -Wempty-body -Wendif-labels -Wexpansion-to-defined -Wformat-security -Wformat-y2k -Wignored-qualifiers -Winit-self -Wmissing-format-attribute -Wmissing-prototypes -Wnested-externs -Wold-style-definition -Wredundant-decls -Wstrict-prototypes -Wtype-limits -Wwrite-strings -Wno-gnu-variable-sized-type-not-at-end -Wno-initializer-overrides -Wno-missing-include-dirs -Wno-psabi -Wno-shift-negative-value -Wno-string-plus-int -Wno-tautological-type-limit-compare -Wno-typedef-redefinition -Wthread-safety -iquote . -iquote /Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu -iquote /Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include -iquote /Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/host/include/aarch64 -iquote /Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/host/include/generic -iquote /Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/tcg/aarch64 -pthread -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fno-common -fwrapv -ftrivial-auto-var-init=zero -fzero-call-used-regs=used-gpr -DBOXDROID_RUNTIME=1 -DBOXDROID_AUDIO=1 -fPIC -DVK_NO_PROTOTYPES -DCURL_STATICLIB -DPCRE2_STATIC -DCOMPILING_PER_TARGET '-DCONFIG_TARGET="i386-softmmu-config-target.h"' '-DCONFIG_DEVICES="i386-softmmu-config-devices.h"' -MD -MQ libqemu-i386-softmmu.a.p/target_i386_tcg_translate.c.o -MF libqemu-i386-softmmu.a.p/target_i386_tcg_translate.c.o.d -o libqemu-i386-softmmu.a.p/target_i386_tcg_translate.c.o -c ../source/xemu/target/i386/tcg/translate.c
+../source/xemu/target/i386/tcg/translate.c:204:13: error: call to undeclared function 'tcg_call_info'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+  204 |         if (tcg_call_info(op) == allowed[i]) {
+      |             ^
+../source/xemu/target/i386/tcg/translate.c:204:31: warning: comparison between pointer and integer ('int' and 'const TCGHelperInfo *' (aka 'const struct TCGHelperInfo *')) [-Wpointer-integer-compare]
+  204 |         if (tcg_call_info(op) == allowed[i]) {
+      |             ~~~~~~~~~~~~~~~~~ ^  ~~~~~~~~~~
+../source/xemu/target/i386/tcg/translate.c:238:25: error: no member named 'type' in 'struct TCGOp'
+  238 |             switch (op->type) {
+      |                     ~~  ^
+1 warning and 2 errors generated.
+[44/45] Compiling C object libqemu-i386-softmmu.a.p/target_i386_tcg_fpu_helper.c.o
+ninja: build stopped: subcommand failed.
