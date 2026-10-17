@@ -1,0 +1,540 @@
+# Experiment46C adaptive withdrawal for unaligned and persistent-slow accesses; exact generic fallback and standard QEMU invalidation; unaccepted
+
+diff --git a/accel/tcg/cpu-exec.c b/accel/tcg/cpu-exec.c
+index c42207e728..2487e59aa4 100644
+--- a/accel/tcg/cpu-exec.c
++++ b/accel/tcg/cpu-exec.c
+@@ -31,6 +31,8 @@
+ #include "exec/page-protection.h"
+ #include "exec/mmap-lock.h"
+ #include "exec/translation-block.h"
++#include "exec/tlb-flags.h"
++#include "exec/memopidx.h"
+ #include "tcg/tcg.h"
+ #include "qemu/atomic.h"
+ #include "qemu/target-info.h"
+@@ -513,6 +515,87 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
+     return tb->tc.ptr;
+ }
+ 
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++uint64_t boxdroid_tlb_ir_retries;
++G_NORETURN void boxdroid_tlb_ir_retry(uintptr_t retaddr);
++G_NORETURN void boxdroid_tlb_ir_retry(uintptr_t retaddr)
++{
++    CPUState *cpu = current_cpu;
++    ++boxdroid_tlb_ir_retries;
++    /* No guest access has happened in this instruction. Prior instructions
++     * have canonical state. Restore this instruction's PC/lazy flags and
++     * execute it once with the existing memory lowering. */
++    cpu->cflags_next_tb = curr_cflags(cpu) | CF_BOX_TLB_GENERIC;
++    bool restored = cpu_restore_state(cpu, retaddr);
++    g_assert(restored);
++    cpu_loop_exit_noexc(cpu);
++}
++#endif
++
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++uint64_t boxdroid_tlb_ir_link_hits, boxdroid_tlb_ir_withdrawals;
++/* Hash collisions only disable extra speculative translations; they cannot
++ * enable an unsafe path. This state is owned by the single Xbox vCPU. */
++static uint8_t boxdroid_tlb_ir_disabled[65536];
++bool boxdroid_tlb_ir_pc_disabled(uint64_t pc);
++bool boxdroid_tlb_ir_pc_disabled(uint64_t pc)
++{
++    return boxdroid_tlb_ir_disabled[((pc >> 1) ^ (pc >> 17)) & 65535];
++}
++
++static const void *boxdroid_tlb_ir_lookup(uintptr_t retaddr,
++                                         TranslationBlock *withdraw)
++{
++    CPUState *cpu = current_cpu;
++    ++boxdroid_tlb_ir_retries;
++    bool restored = cpu_restore_state(cpu, retaddr);
++    g_assert(restored);
++    cpu->neg.can_do_io = true;
++    if (withdraw && !(tb_cflags(withdraw) & CF_INVALID)) {
++        boxdroid_tlb_ir_disabled[((withdraw->pc >> 1) ^
++                                 (withdraw->pc >> 17)) & 65535] = 1;
++        mmap_lock();
++        tb_phys_invalidate(withdraw, -1);
++        mmap_unlock();
++        ++boxdroid_tlb_ir_withdrawals;
++    }
++    TCGTBCPUState state = cpu->cc->tcg_ops->get_tb_cpu_state(cpu);
++    state.cflags = curr_cflags(cpu) | CF_BOX_TLB_GENERIC;
++    if (check_for_breakpoints(cpu, state.pc, &state.cflags)) {
++        cpu_loop_exit(cpu);
++    }
++    mmap_lock();
++    TranslationBlock *tb = tb_lookup(cpu, state);
++    mmap_unlock();
++    if (!tb) {
++        /* Translation/code-cache allocation must happen outside a live JIT. */
++        cpu->cflags_next_tb = state.cflags;
++        cpu_loop_exit_noexc(cpu);
++    }
++    ++boxdroid_tlb_ir_link_hits;
++    return tb->tc.ptr;
++}
++
++const void *boxdroid_tlb_ir_link(uintptr_t retaddr);
++const void *boxdroid_tlb_ir_link(uintptr_t retaddr)
++{
++    return boxdroid_tlb_ir_lookup(retaddr, NULL);
++}
++
++const void *boxdroid_tlb_ir_adapt(uintptr_t retaddr, uint32_t addr,
++                                 MemOpIdx oi, uint32_t tag);
++const void *boxdroid_tlb_ir_adapt(uintptr_t retaddr, uint32_t addr,
++                                 MemOpIdx oi, uint32_t tag)
++{
++    unsigned align = (1U << (get_memop(oi) & MO_SIZE)) - 1;
++    bool unsuitable = (addr & align) ||
++        (tag != UINT32_MAX && (tag & TLB_FORCE_SLOW) &&
++         (tag & TARGET_PAGE_MASK) == (addr & TARGET_PAGE_MASK));
++    TranslationBlock *withdraw = unsuitable ? tcg_tb_lookup(retaddr) : NULL;
++    return boxdroid_tlb_ir_lookup(retaddr, withdraw);
++}
++#endif
++
+ /* Return the current PC from CPU, which may be cached in TB. */
+ static vaddr log_pc(CPUState *cpu, const TranslationBlock *tb)
+ {
+diff --git a/accel/tcg/translate-all.c b/accel/tcg/translate-all.c
+index b7fb75bebf..c1a1622d67 100644
+--- a/accel/tcg/translate-all.c
++++ b/accel/tcg/translate-all.c
+@@ -473,6 +473,13 @@ TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
+                         !strcmp(prop, "1");
+     }
+     tcg_ctx->boxdroid_fp_local_requested = fp_local_mode;
++    static int tlb_ir_mode = -1;
++    if (tlb_ir_mode < 0) {
++        char prop[PROP_VALUE_MAX] = { 0 };
++        __system_property_get("debug.boxdroid.tlb_ir", prop);
++        tlb_ir_mode = !strcmp(prop, "3") ? 3 : !strcmp(prop, "2") ? 2 : !strcmp(prop, "1") ? 1 : 0;
++    }
++    tcg_ctx->boxdroid_tlb_ir = tlb_ir_mode;
+     static int fp_preserve_mode = -1;
+     if (fp_preserve_mode < 0) {
+         char prop[PROP_VALUE_MAX] = {0};
+diff --git a/include/exec/translation-block.h b/include/exec/translation-block.h
+index 433fa3bc28..f619be72b7 100644
+--- a/include/exec/translation-block.h
++++ b/include/exec/translation-block.h
+@@ -81,6 +81,7 @@ struct TranslationBlock {
+ #define CF_NOIRQ         0x00010000 /* Generate an uninterruptible TB */
+ #define CF_PCREL         0x00020000 /* Opcodes in TB are PC-relative */
+ #define CF_BP_PAGE       0x00040000 /* Breakpoint present in code page */
++#define CF_BOX_TLB_GENERIC 0x00080000 /* Exact one-shot memory retry. */
+ #define CF_CLUSTER_MASK  0xff000000 /* Top 8 bits are cluster ID */
+ #define CF_CLUSTER_SHIFT 24
+ 
+diff --git a/include/tcg/tcg-opc.h b/include/tcg/tcg-opc.h
+index 031834305e..42ffff9d7d 100644
+--- a/include/tcg/tcg-opc.h
++++ b/include/tcg/tcg-opc.h
+@@ -37,6 +37,11 @@ DEF(br, 0, 0, 1, TCG_OPF_BB_END | TCG_OPF_NOT_PRESENT)
+ DEF(brcond, 0, 2, 2, TCG_OPF_BB_END | TCG_OPF_COND_BRANCH | TCG_OPF_INT)
+ 
+ DEF(mb, 0, 0, 1, TCG_OPF_NOT_PRESENT)
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++DEF(box_tlb_desc, 2, 1, 1, TCG_OPF_INT)
++DEF(box_tlb_ld, 1, 3, 1, TCG_OPF_INT | TCG_OPF_SIDE_EFFECTS)
++DEF(box_tlb_st, 0, 4, 1, TCG_OPF_INT | TCG_OPF_SIDE_EFFECTS)
++#endif
+ 
+ DEF(mov, 1, 1, 0, TCG_OPF_INT | TCG_OPF_NOT_PRESENT)
+ 
+diff --git a/include/tcg/tcg.h b/include/tcg/tcg.h
+index bc95069775..72f9437204 100644
+--- a/include/tcg/tcg.h
++++ b/include/tcg/tcg.h
+@@ -437,6 +437,11 @@ struct TCGContext {
+     QSIMPLEQ_HEAD(, TCGLabelQemuLdst) ldst_labels;
+     struct TCGLabelPoolData *pool_labels;
+ 
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    unsigned boxdroid_tlb_ir;
++    bool boxdroid_tlb_inputs;
++    TCGReg boxdroid_tlb_mask_reg, boxdroid_tlb_table_reg;
++#endif
+     TCGLabel *exitreq_label;
+ 
+ #ifdef CONFIG_PLUGIN
+diff --git a/tcg/aarch64/tcg-target-con-set.h b/tcg/aarch64/tcg-target-con-set.h
+index d0622e65fb..5de4126c61 100644
+--- a/tcg/aarch64/tcg-target-con-set.h
++++ b/tcg/aarch64/tcg-target-con-set.h
+@@ -34,5 +34,7 @@ C_O1_I2(w, w, wN)
+ C_O1_I2(w, w, wO)
+ C_O1_I2(w, w, wZ)
+ C_O1_I3(w, w, w, w)
++C_O1_I3(r, r, r, r)
++C_O0_I4(rz, r, r, r)
+ C_O1_I4(r, r, rC, rz, rz)
+ C_O2_I1(r, r, r)
+diff --git a/tcg/aarch64/tcg-target.c.inc b/tcg/aarch64/tcg-target.c.inc
+index 18bb7e770a..3cb8a1f170 100644
+--- a/tcg/aarch64/tcg-target.c.inc
++++ b/tcg/aarch64/tcg-target.c.inc
+@@ -1829,8 +1829,47 @@ static const TCGLdstHelperParam ldst_helper_param = {
+     .ntmp = 1, .tmp = { TCG_REG_TMP0 }
+ };
+ 
++#if defined(BOXDROID_XBOX_RUNTIME)
++extern G_NORETURN void boxdroid_tlb_ir_retry(uintptr_t retaddr);
++extern const void *boxdroid_tlb_ir_link(uintptr_t retaddr);
++extern const void *boxdroid_tlb_ir_adapt(uintptr_t retaddr, uint32_t addr,
++                                       MemOpIdx oi, uint32_t tag);
++static bool boxdroid_out_tlb_retry(TCGContext *s, TCGLabelQemuLdst *lb)
++{
++    if (!reloc_pc19(lb->label_ptr[0], tcg_splitwx_to_rx(s->code_ptr))) {
++        return false;
++    }
++    if (lb->boxdroid_tlb_adapt) {
++        /* Preserve input values before assigning the C argument registers. */
++        tcg_out_mov(s, TCG_TYPE_I32, TCG_REG_TMP2, lb->addr_reg);
++        tcg_out_mov(s, TCG_TYPE_I32, TCG_REG_X3, TCG_REG_TMP0);
++        tcg_out_mov(s, TCG_TYPE_I32, TCG_REG_X1, TCG_REG_TMP2);
++        tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_X2, lb->oi);
++    }
++    tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_X0, (uintptr_t)lb->raddr);
++    if (lb->boxdroid_tlb_link) {
++        const void *target = lb->boxdroid_tlb_adapt ?
++            (const void *)boxdroid_tlb_ir_adapt : (const void *)boxdroid_tlb_ir_link;
++        tcg_out_call_int(s, target);
++        /* Bridge ordinary C reads before re-entering the acquired-read region.
++         * X16 supplies the same BTI jump class as existing indirect chaining. */
++        tcg_out_mb(s, TCG_MO_LD_LD | TCG_MO_LD_ST);
++        tcg_out_mov(s, TCG_TYPE_I64, TCG_REG_TMP0, TCG_REG_X0);
++        tcg_out_insn(s, 3207, BR, TCG_REG_TMP0);
++    } else {
++        tcg_out_call_int(s, (const tcg_insn_unit *)(uintptr_t)boxdroid_tlb_ir_retry);
++    }
++    return true;
++}
++#endif
++
+ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
+ {
++#if defined(BOXDROID_XBOX_RUNTIME)
++    if (lb->boxdroid_tlb_retry) {
++        return boxdroid_out_tlb_retry(s, lb);
++    }
++#endif
+     MemOp opc = get_memop(lb->oi);
+ 
+     if (!reloc_pc19(lb->label_ptr[0], tcg_splitwx_to_rx(s->code_ptr))) {
+@@ -1851,6 +1890,11 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
+ 
+ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
+ {
++#if defined(BOXDROID_XBOX_RUNTIME)
++    if (lb->boxdroid_tlb_retry) {
++        return boxdroid_out_tlb_retry(s, lb);
++    }
++#endif
+     MemOp opc = get_memop(lb->oi);
+ 
+     if (!reloc_pc19(lb->label_ptr[0], tcg_splitwx_to_rx(s->code_ptr))) {
+@@ -1908,20 +1952,30 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
+         ldst->is_ld = is_ld;
+         ldst->oi = oi;
+         ldst->addr_reg = addr_reg;
++#if defined(BOXDROID_XBOX_RUNTIME)
++        ldst->boxdroid_tlb_retry = s->boxdroid_tlb_inputs;
++        ldst->boxdroid_tlb_link = s->boxdroid_tlb_ir >= 2;
++        ldst->boxdroid_tlb_adapt = s->boxdroid_tlb_ir == 3;
++#endif
+ 
+         /* Load CPUTLBDescFast.{mask,table} into {tmp0,tmp1}. */
+         QEMU_BUILD_BUG_ON(offsetof(CPUTLBDescFast, mask) != 0);
+         QEMU_BUILD_BUG_ON(offsetof(CPUTLBDescFast, table) != 8);
+-        tcg_out_insn(s, 3314, LDP, TCG_REG_TMP0, TCG_REG_TMP1, TCG_AREG0,
+-                     tlb_mask_table_ofs(s, mem_index), 1, 0);
+-
+-        /* Extract the TLB index from the address into X0.  */
++        TCGReg mask_reg = TCG_REG_TMP0, table_reg = TCG_REG_TMP1;
++#if defined(BOXDROID_XBOX_RUNTIME)
++        if (s->boxdroid_tlb_inputs) {
++            mask_reg = s->boxdroid_tlb_mask_reg;
++            table_reg = s->boxdroid_tlb_table_reg;
++        } else
++#endif
++        {
++            tcg_out_insn(s, 3314, LDP, TCG_REG_TMP0, TCG_REG_TMP1, TCG_AREG0,
++                         tlb_mask_table_ofs(s, mem_index), 1, 0);
++        }
+         tcg_out_insn(s, 3502S, AND_LSR, TCG_TYPE_I64,
+-                     TCG_REG_TMP0, TCG_REG_TMP0, addr_reg,
++                     TCG_REG_TMP0, mask_reg, addr_reg,
+                      TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
+-
+-        /* Add the tlb_table pointer, forming the CPUTLBEntry address. */
+-        tcg_out_insn(s, 3502, ADD, 1, TCG_REG_TMP1, TCG_REG_TMP1, TCG_REG_TMP0);
++        tcg_out_insn(s, 3502, ADD, 1, TCG_REG_TMP1, table_reg, TCG_REG_TMP0);
+ 
+         /* Load the tlb comparator into TMP0, and the fast path addend. */
+         QEMU_BUILD_BUG_ON(HOST_BIG_ENDIAN);
+diff --git a/tcg/optimize.c b/tcg/optimize.c
+index f69702b26e..9e12200703 100644
+--- a/tcg/optimize.c
++++ b/tcg/optimize.c
+@@ -3273,12 +3273,18 @@ void tcg_optimize(TCGContext *s)
+         case INDEX_op_orc_vec:
+             done = fold_orc(&ctx, op);
+             break;
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++        case INDEX_op_box_tlb_ld:
++#endif
+         case INDEX_op_qemu_ld:
+             done = fold_qemu_ld_1reg(&ctx, op);
+             break;
+         case INDEX_op_qemu_ld2:
+             done = fold_qemu_ld_2reg(&ctx, op);
+             break;
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++        case INDEX_op_box_tlb_st:
++#endif
+         case INDEX_op_qemu_st:
+         case INDEX_op_qemu_st2:
+             done = fold_qemu_st(&ctx, op);
+diff --git a/tcg/tcg.c b/tcg/tcg.c
+index fae8cd809c..aefa3e7038 100644
+--- a/tcg/tcg.c
++++ b/tcg/tcg.c
+@@ -100,6 +100,11 @@ typedef struct QEMU_PACKED {
+ struct TCGLabelQemuLdst {
+     bool is_ld;             /* qemu_ld: true, qemu_st: false */
+     MemOpIdx oi;
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    bool boxdroid_tlb_retry;
++    bool boxdroid_tlb_link;
++    bool boxdroid_tlb_adapt;
++#endif
+     TCGType type;           /* result type of a load */
+     TCGReg addr_reg;        /* reg index for guest virtual addr */
+     TCGReg datalo_reg;      /* reg index for low word to be loaded or stored */
+@@ -655,6 +660,11 @@ __attribute__((unused))
+ static TCGLabelQemuLdst *new_ldst_label(TCGContext *s)
+ {
+     TCGLabelQemuLdst *l = tcg_malloc(sizeof(*l));
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    l->boxdroid_tlb_retry = false;
++    l->boxdroid_tlb_link = false;
++    l->boxdroid_tlb_adapt = false;
++#endif
+ 
+     memset(l, 0, sizeof(*l));
+     QSIMPLEQ_INSERT_TAIL(&s->ldst_labels, l, next);
+@@ -1183,7 +1193,17 @@ static const TCGOutOpLoad outop_ld = {
+ #define OUTOP(O, T, V)  [O] = _Generic(V, T: &V.base)
+ 
+ /* Register allocation descriptions for every TCGOpcode. */
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++static const TCGOutOp outop_box_tlb_desc = { .static_constraint = C_O2_I1(r, r, r) };
++static const TCGOutOp outop_box_tlb_ld = { .static_constraint = C_O1_I3(r, r, r, r) };
++static const TCGOutOp outop_box_tlb_st = { .static_constraint = C_O0_I4(rz, r, r, r) };
++#endif
+ static const TCGOutOp * const all_outop[NB_OPS] = {
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    [INDEX_op_box_tlb_desc] = &outop_box_tlb_desc,
++    [INDEX_op_box_tlb_ld] = &outop_box_tlb_ld,
++    [INDEX_op_box_tlb_st] = &outop_box_tlb_st,
++#endif
+     OUTOP(INDEX_op_add, TCGOutOpBinary, outop_add),
+     OUTOP(INDEX_op_addci, TCGOutOpAddSubCarry, outop_addci),
+     OUTOP(INDEX_op_addcio, TCGOutOpBinary, outop_addcio),
+@@ -2508,6 +2528,11 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
+     case INDEX_op_goto_ptr:
+         return true;
+ 
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    case INDEX_op_box_tlb_desc:
++    case INDEX_op_box_tlb_ld:
++    case INDEX_op_box_tlb_st:
++#endif
+     case INDEX_op_qemu_ld:
+     case INDEX_op_qemu_st:
+         tcg_debug_assert(type <= TCG_TYPE_REG);
+@@ -5951,6 +5976,24 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
+         }
+         break;
+ 
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    case INDEX_op_box_tlb_desc:
++        tcg_out_insn(s, 3314, LDP, new_args[0], new_args[1], new_args[2],
++                     (intptr_t)new_args[3], 1, 0);
++        break;
++    case INDEX_op_box_tlb_ld:
++    case INDEX_op_box_tlb_st:
++        s->boxdroid_tlb_inputs = true;
++        s->boxdroid_tlb_mask_reg = new_args[2];
++        s->boxdroid_tlb_table_reg = new_args[3];
++        if (op->opc == INDEX_op_box_tlb_ld) {
++            tgen_qemu_ld(s, type, new_args[0], new_args[1], new_args[4]);
++        } else {
++            tgen_qemu_st(s, type, new_args[0], new_args[1], new_args[4]);
++        }
++        s->boxdroid_tlb_inputs = false;
++        break;
++#endif
+     case INDEX_op_qemu_ld:
+     case INDEX_op_qemu_st:
+         {
+@@ -6977,6 +7020,142 @@ static void tcg_out_st_helper_args(TCGContext *s, const TCGLabelQemuLdst *ldst,
+     tcg_out_helper_load_common_args(s, ldst, parm, info, next_arg);
+ }
+ 
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++uint64_t boxdroid_tlb_ir_selected, boxdroid_tlb_ir_groups;
++
++static bool boxdroid_guest_mem(TCGOpcode op)
++{
++    return op == INDEX_op_qemu_ld || op == INDEX_op_qemu_st ||
++           op == INDEX_op_qemu_ld2 || op == INDEX_op_qemu_st2;
++}
++
++static bool boxdroid_tlb_boundary(const TCGOp *op)
++{
++    return op->opc == INDEX_op_call || op->opc == INDEX_op_st ||
++        op->opc == INDEX_op_st8 || op->opc == INDEX_op_st16 ||
++        op->opc == INDEX_op_st32 || op->opc == INDEX_op_st_vec ||
++        (tcg_op_defs[op->opc].flags & TCG_OPF_BB_END);
++}
++
++static void boxdroid_tlb_group(TCGContext *s, TCGOp **ops, unsigned count,
++                               unsigned mmu)
++{
++    if (count < 2) {
++        return;
++    }
++    TCGv_i64 mask = tcg_temp_new_i64(), table = tcg_temp_new_i64();
++    TCGOp *desc = tcg_op_insert_before(s, ops[0], INDEX_op_box_tlb_desc,
++                                      TCG_TYPE_I64, 4);
++    desc->args[0] = tcgv_i64_arg(mask);
++    desc->args[1] = tcgv_i64_arg(table);
++    desc->args[2] = temp_arg(&s->temps[0]);
++    /* ENV is the fixed register global, not necessarily temp zero. */
++    for (unsigned i = 0; i < s->nb_globals; i++) {
++        if (s->temps[i].kind == TEMP_FIXED && s->temps[i].reg == TCG_AREG0) {
++            desc->args[2] = temp_arg(&s->temps[i]);
++            break;
++        }
++    }
++    desc->args[3] = tlb_mask_table_ofs(s, mmu);
++    for (unsigned i = 0; i < count; i++) {
++        TCGOp *old = ops[i];
++        TCGOp *op = tcg_op_insert_before(s, old,
++            old->opc == INDEX_op_qemu_ld ? INDEX_op_box_tlb_ld : INDEX_op_box_tlb_st,
++            TCGOP_TYPE(old), 5);
++        op->args[0] = old->args[0];
++        op->args[1] = old->args[1];
++        op->args[2] = tcgv_i64_arg(mask);
++        op->args[3] = tcgv_i64_arg(table);
++        op->args[4] = old->args[2];
++        tcg_op_remove(s, old);
++    }
++    boxdroid_tlb_ir_selected += count;
++    boxdroid_tlb_ir_groups++;
++}
++
++extern bool boxdroid_tlb_ir_pc_disabled(uint64_t pc);
++static void boxdroid_lower_tlb_ir(TCGContext *s)
++{
++    if (s->boxdroid_tlb_ir == 3 &&
++        boxdroid_tlb_ir_pc_disabled(s->gen_tb->pc)) {
++        return;
++    }
++    if (!s->boxdroid_tlb_ir || s->addr_type != TCG_TYPE_I32 ||
++        !tcg_use_softmmu || s->guest_mo != (TCG_MO_ALL & ~TCG_MO_ST_LD) ||
++        (tb_cflags(s->gen_tb) & (CF_BOX_TLB_GENERIC | CF_PARALLEL |
++          CF_USE_ICOUNT | CF_NO_GOTO_PTR | CF_SINGLE_STEP | CF_PCREL))) {
++        return;
++    }
++#ifdef CONFIG_PLUGIN
++    return;
++#endif
++    unsigned capacity = s->nb_ops;
++    TCGOp **eligible = tcg_malloc(sizeof(*eligible) * capacity);
++    unsigned ne = 0;
++    TCGOp *op = QTAILQ_FIRST(&s->ops);
++    /* A retry is allowed only before the sole guest access of an instruction,
++     * with no preceding helper, host store, branch, or global output. Thus
++     * neither guest-visible effects nor partial instruction work are replayed.
++     * Complex/multi-access instructions remain entirely on the original path. */
++    while (op) {
++        if (op->opc != INDEX_op_insn_start) {
++            op = QTAILQ_NEXT(op, link);
++            continue;
++        }
++        TCGOp *end = QTAILQ_NEXT(op, link), *mem = NULL;
++        bool clean = true, safe = false;
++        unsigned accesses = 0;
++        for (; end && end->opc != INDEX_op_insn_start;
++             end = QTAILQ_NEXT(end, link)) {
++            const TCGOpDef *def = &tcg_op_defs[end->opc];
++            if (boxdroid_guest_mem(end->opc)) {
++                accesses++;
++                if (end->opc == INDEX_op_qemu_ld || end->opc == INDEX_op_qemu_st) {
++                    mem = end;
++                    safe = clean && TCGOP_TYPE(end) <= TCG_TYPE_I64 &&
++                        (get_memop(end->args[2]) & MO_SIZE) <= MO_64;
++                }
++            }
++            if (boxdroid_tlb_boundary(end)) {
++                clean = false;
++            }
++            for (unsigned i = 0; i < def->nb_oargs; i++) {
++                if (arg_temp(end->args[i])->kind == TEMP_GLOBAL) {
++                    clean = false;
++                }
++            }
++        }
++        if (accesses == 1 && mem && safe) {
++            eligible[ne++] = mem;
++        }
++        op = end;
++    }
++    TCGOp **group = tcg_malloc(sizeof(*group) * ne);
++    unsigned count = 0, mmu = 0, next = 0;
++    /* Capture all groups before modifying their IR nodes. */
++    TCGOp **all = tcg_malloc(sizeof(*all) * capacity);
++    unsigned nall = 0;
++    QTAILQ_FOREACH(op, &s->ops, link) { all[nall++] = op; }
++    for (unsigned i = 0; i < nall; i++) {
++        op = all[i];
++        if (next < ne && eligible[next] == op) {
++            unsigned index = get_mmuidx(op->args[2]);
++            if (count && mmu != index) {
++                boxdroid_tlb_group(s, group, count, mmu);
++                count = 0;
++            }
++            mmu = index;
++            group[count++] = op;
++            next++;
++        } else if (boxdroid_guest_mem(op->opc) || boxdroid_tlb_boundary(op)) {
++            boxdroid_tlb_group(s, group, count, mmu);
++            count = 0;
++        }
++    }
++    boxdroid_tlb_group(s, group, count, mmu);
++}
++#endif
++
+ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
+ {
+     int i, num_insns;
+@@ -7013,6 +7192,10 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
+     /* Do not reuse any EBB that may be allocated within the TB. */
+     tcg_temp_ebb_reset_freed(s);
+ 
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    s->boxdroid_tlb_inputs = false;
++    boxdroid_lower_tlb_ir(s);
++#endif
+     tcg_optimize(s);
+ 
+     reachable_code_pass(s);

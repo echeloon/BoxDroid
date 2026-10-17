@@ -1,0 +1,173 @@
+# Experiment33 exact masked-sticky PC53 arithmetic leaf paths, six private helpers, preserve-most generated-code ABI, outlined original conservative semantics. No change to memory/clobber contracts or compiler hardening. Default disabled pending actual validation and device performance.
+
+diff --git a/target/i386/helper.h b/target/i386/helper.h
+index 661bea82d9..a28a599dcd 100644
+--- a/target/i386/helper.h
++++ b/target/i386/helper.h
+@@ -238,16 +238,6 @@ DEF_HELPER_FLAGS_2(pext, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+ /* MMX/SSE */
+ 
+ #if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
+-/* Explicit floating-point operands: no GPR/CC/TOP global dependency. */
+-#define BOXDROID_FP_HELPER(name) \
+-    DEF_HELPER_FLAGS_3(boxdroid_##name, TCG_CALL_NO_RWG | TCG_CALL_NO_GUEST_MEMORY, void, env, ptr, ptr)
+-BOXDROID_FP_HELPER(fadd)
+-BOXDROID_FP_HELPER(fmul)
+-BOXDROID_FP_HELPER(fsub)
+-BOXDROID_FP_HELPER(fsubr)
+-BOXDROID_FP_HELPER(fdiv)
+-BOXDROID_FP_HELPER(fdivr)
+-#undef BOXDROID_FP_HELPER
+ #if defined(__clang__)
+ #define BOXDROID_FP_ABI_FLAGS TCG_CALL_PRESERVE_MOST
+ #ifdef IN_HELPER_PROTO
+@@ -257,6 +247,16 @@ BOXDROID_FP_HELPER(fdivr)
+ #else
+ #define BOXDROID_FP_ABI_FLAGS 0
+ #endif
++/* Explicit floating-point operands: no GPR/CC/TOP global dependency. */
++#define BOXDROID_FP_HELPER(name) \
++    DEF_HELPER_FLAGS_3(boxdroid_##name, TCG_CALL_NO_RWG | TCG_CALL_NO_GUEST_MEMORY | BOXDROID_FP_ABI_FLAGS, void, env, ptr, ptr)
++BOXDROID_FP_HELPER(fadd)
++BOXDROID_FP_HELPER(fmul)
++BOXDROID_FP_HELPER(fsub)
++BOXDROID_FP_HELPER(fsubr)
++BOXDROID_FP_HELPER(fdiv)
++BOXDROID_FP_HELPER(fdivr)
++#undef BOXDROID_FP_HELPER
+ DEF_HELPER_FLAGS_3(boxdroid_fmul53, TCG_CALL_NO_RWG | TCG_CALL_NO_GUEST_MEMORY | BOXDROID_FP_ABI_FLAGS, void, env, ptr, ptr)
+ DEF_HELPER_FLAGS_3(boxdroid_f32_load, TCG_CALL_NO_RWG | TCG_CALL_NO_GUEST_MEMORY | BOXDROID_FP_ABI_FLAGS, void, env, ptr, i32)
+ DEF_HELPER_FLAGS_2(boxdroid_f32_store, TCG_CALL_NO_RWG | TCG_CALL_NO_GUEST_MEMORY | BOXDROID_FP_ABI_FLAGS, i32, env, ptr)
+diff --git a/target/i386/tcg/fpu_helper.c b/target/i386/tcg/fpu_helper.c
+index 0274370bbf..37eb2cf0cb 100644
+--- a/target/i386/tcg/fpu_helper.c
++++ b/target/i386/tcg/fpu_helper.c
+@@ -436,6 +436,8 @@ static void fpu_set_exception(CPUX86State *env, int mask)
+ #if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
+ #include <sys/system_properties.h>
+ bool boxdroid_f32_round_requested;
++bool boxdroid_arith_leaf_requested;
++uint64_t boxdroid_arith_leaf_hits[6];
+ uint64_t boxdroid_f32_round_fast_hits;
+ extern bool boxdroid_inline_lookup_observe;
+ #endif
+@@ -447,6 +449,9 @@ void cpu_init_fp_statuses(CPUX86State *env)
+     boxdroid_f32_round_requested =
+         __system_property_get("debug.boxdroid.f32_round", round_prop) &&
+         !strcmp(round_prop, "1");
++    boxdroid_arith_leaf_requested =
++        __system_property_get("debug.boxdroid.arith_leaf", round_prop) &&
++        !strcmp(round_prop, "1");
+ #endif
+     /*
+      * Initialise the non-runtime-varying fields of the various
+@@ -1079,21 +1084,100 @@ void helper_fadd_ST0_FT0(CPUX86State *env)
+ #if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
+ /* Only FP operands/status are touched. TOP is resolved by the translator,
+  * so unrelated live TCG globals need not be spilled or invalidated. */
+-#define BOXDROID_FP_BINARY(name, expression) \
+-    void helper_boxdroid_##name(CPUX86State *env, void *destination, void *source) \
++#ifdef __clang__
++#define BOXDROID_ARITH_ABI __attribute__((preserve_most))
++#else
++#define BOXDROID_ARITH_ABI
++#endif
++/* Same normal PC=53/RN domain as 0033. Only inexact can arise, and both
++ * architectural precision flags are already sticky and masked. Keeping the
++ * existing status words therefore has exactly the original merge effect.
++ * No source operand is modified until all eligibility checks have passed. */
++static inline QEMU_ALWAYS_INLINE bool
++boxdroid_arith_leaf(CPUX86State *env, void *destination, void *source,
++                    unsigned operation)
++{
++    if (!boxdroid_arith_leaf_requested) {
++        return false;
++    }
++    float_status *status = &env->fp_status;
++    floatx80 a = *(floatx80 *)destination, b = *(floatx80 *)source;
++    unsigned ea = a.high & 0x7fff, eb = b.high & 0x7fff;
++    if (status->floatx80_rounding_precision != floatx80_precision_d ||
++        status->float_rounding_mode != float_round_nearest_even ||
++        (env->fpuc & FPUC_EM) != FPUC_EM || !(env->fpus & FPUS_PE) ||
++        !(status->float_exception_flags & float_flag_inexact) ||
++        ea - 15933 > 900 || eb - 15933 > 900 ||
++        !((a.low & b.low) >> 63) || ((a.low | b.low) & 0x7ff) ||
++        status->boxdroid_fast_fpu_state != 1 ||
++        !(status->boxdroid_fast_fpu_checks & 0xffff)) {
++        return false;
++    }
++    uint64_t control;
++    asm volatile("mrs %0, fpcr" : "=r"(control));
++    /* Ignore only FZ/DN: all operands/results are finite normal or exact
++     * cancellation zero. Reject non-nearest rounding, traps and unknown bits. */
++    if (control & ~(UINT64_C(3) << 24)) {
++        return false;
++    }
++    union { uint64_t bits; double value; } x, y, result;
++    x.bits = ((uint64_t)(a.high & 0x8000) << 48) |
++             ((uint64_t)(ea - 15360) << 52) |
++             ((a.low >> 11) & UINT64_C(0xfffffffffffff));
++    y.bits = ((uint64_t)(b.high & 0x8000) << 48) |
++             ((uint64_t)(eb - 15360) << 52) |
++             ((b.low >> 11) & UINT64_C(0xfffffffffffff));
++    switch (operation) {
++    case 0: asm volatile("fadd %d0, %d1, %d2" : "=w"(result.value)
++                        : "w"(x.value), "w"(y.value)); break;
++    case 1: asm volatile("fmul %d0, %d1, %d2" : "=w"(result.value)
++                        : "w"(x.value), "w"(y.value)); break;
++    case 2: asm volatile("fsub %d0, %d1, %d2" : "=w"(result.value)
++                        : "w"(x.value), "w"(y.value)); break;
++    case 3: asm volatile("fsub %d0, %d1, %d2" : "=w"(result.value)
++                        : "w"(y.value), "w"(x.value)); break;
++    case 4: asm volatile("fdiv %d0, %d1, %d2" : "=w"(result.value)
++                        : "w"(x.value), "w"(y.value)); break;
++    case 5: asm volatile("fdiv %d0, %d1, %d2" : "=w"(result.value)
++                        : "w"(y.value), "w"(x.value)); break;
++    default: g_assert_not_reached();
++    }
++    unsigned exponent = (result.bits >> 52) & 0x7ff;
++    uint64_t *words = destination;
++    words[0] = exponent ? (UINT64_C(1) << 63) | (result.bits << 11) : 0;
++    words[1] = ((result.bits >> 48) & 0x8000) |
++               (exponent ? exponent + 15360 : 0);
++    ++status->boxdroid_fast_fpu_checks;
++    if (boxdroid_inline_lookup_observe) {
++        qatomic_set(&boxdroid_arith_leaf_hits[operation],
++                    qatomic_read(&boxdroid_arith_leaf_hits[operation]) + 1);
++    }
++    return true;
++}
++#define BOXDROID_FP_BINARY(name, operation, expression) \
++    static __attribute__((noinline)) BOXDROID_ARITH_ABI \
++    void boxdroid_##name##_conservative(CPUX86State *env, void *destination, \
++                                        void *source) \
+     { \
+         floatx80 *d = destination, *v = source; \
+         int old_flags = save_arithmetic_exception_flags(env); \
+         *d = (expression); \
+         merge_exception_flags(env, old_flags); \
+-    }
+-BOXDROID_FP_BINARY(fadd, floatx80_add(*d, *v, &env->fp_status))
+-BOXDROID_FP_BINARY(fmul, floatx80_mul(*d, *v, &env->fp_status))
+-BOXDROID_FP_BINARY(fsub, floatx80_sub(*d, *v, &env->fp_status))
+-BOXDROID_FP_BINARY(fsubr, floatx80_sub(*v, *d, &env->fp_status))
+-BOXDROID_FP_BINARY(fdiv, floatx80_div(*d, *v, &env->fp_status))
+-BOXDROID_FP_BINARY(fdivr, floatx80_div(*v, *d, &env->fp_status))
++    } \
++    void helper_boxdroid_##name(CPUX86State *env, void *destination, void *source) \
++    { \
++        if (!boxdroid_arith_leaf(env, destination, source, operation)) { \
++            boxdroid_##name##_conservative(env, destination, source); \
++        } \
++    }
++BOXDROID_FP_BINARY(fadd, 0, floatx80_add(*d, *v, &env->fp_status))
++BOXDROID_FP_BINARY(fmul, 1, floatx80_mul(*d, *v, &env->fp_status))
++BOXDROID_FP_BINARY(fsub, 2, floatx80_sub(*d, *v, &env->fp_status))
++BOXDROID_FP_BINARY(fsubr, 3, floatx80_sub(*v, *d, &env->fp_status))
++BOXDROID_FP_BINARY(fdiv, 4, floatx80_div(*d, *v, &env->fp_status))
++BOXDROID_FP_BINARY(fdivr, 5, floatx80_div(*v, *d, &env->fp_status))
+ #undef BOXDROID_FP_BINARY
++#undef BOXDROID_ARITH_ABI
+ 
+ extern bool boxdroid_inline_lookup_observe;
+ extern uint64_t boxdroid_inline_fmul_requests, boxdroid_inline_fmul_hits;

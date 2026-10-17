@@ -1,0 +1,431 @@
+# Experiment43b guarded TOP plus six exact CPU-private explicit-operand helper interfaces using ordinary C ABI; original numerical/status algorithms and generic fallback retained. fp_top0 default; b unvalidated.
+
+diff --git a/accel/tcg/cpu-exec.c b/accel/tcg/cpu-exec.c
+index c42207e728..d49311d770 100644
+--- a/accel/tcg/cpu-exec.c
++++ b/accel/tcg/cpu-exec.c
+@@ -513,6 +513,47 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
+     return tb->tc.ptr;
+ }
+ 
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++uint64_t boxdroid_fp_top_fallbacks;
++
++const void *HELPER(boxdroid_fp_generic)(CPUArchState *env, uint32_t cflags)
++{
++    CPUState *cpu = env_cpu(env);
++    TranslationBlock *tb;
++    TCGTBCPUState state = cpu->cc->tcg_ops->get_tb_cpu_state(cpu);
++
++    /* The entry guard has committed no guest work. Its cold exit supplies
++     * the original guest PC and canonical state, including the actual TOP.
++     * Preserve the requested instruction count and debug/IRQ controls.
++     */
++    state.cflags = (cflags & ~CF_BOX_FP_TOP) | CF_BOX_FP_GENERIC;
++    cpu->neg.can_do_io = true;
++    ++boxdroid_fp_top_fallbacks;
++    if (check_for_breakpoints(cpu, state.pc, &state.cflags)) {
++        cpu_loop_exit(cpu);
++    }
++    mmap_lock();
++    tb = tb_lookup(cpu, state);
++    if (!tb) {
++        /* Never generate code from a live JIT frame: serial allocation may
++         * flush and reuse that very frame's code. Leave to the dispatcher
++         * with exact initial state and request the generic key there.
++         */
++        mmap_unlock();
++        cpu->cflags_next_tb = state.cflags;
++        cpu_loop_exit_noexc(cpu);
++    }
++    mmap_unlock();
++    if (qemu_loglevel_mask(CPU_LOG_TB_CPU | CPU_LOG_EXEC)) {
++        log_cpu_exec(state.pc, cpu, tb);
++    }
++    if (unlikely(boxdroid_order_audit_active)) {
++        boxdroid_order_audit(tb, true);
++    }
++    return tb->tc.ptr;
++}
++#endif
++
+ /* Return the current PC from CPU, which may be cached in TB. */
+ static vaddr log_pc(CPUState *cpu, const TranslationBlock *tb)
+ {
+diff --git a/accel/tcg/tcg-accel-ops.c b/accel/tcg/tcg-accel-ops.c
+index b2f9dc6c6a..fe728965d5 100644
+--- a/accel/tcg/tcg-accel-ops.c
++++ b/accel/tcg/tcg-accel-ops.c
+@@ -40,6 +40,10 @@
+ #include "exec/translation-block.h"
+ #include "exec/watchpoint.h"
+ #include "gdbstub/enums.h"
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++#include <sys/system_properties.h>
++#include "qemu/target-info.h"
++#endif
+ 
+ #include "hw/core/cpu.h"
+ 
+@@ -66,6 +70,14 @@ void tcg_cpu_init_cflags(CPUState *cpu, bool parallel)
+ 
+     cflags |= parallel ? CF_PARALLEL : 0;
+     cflags |= icount_enabled() ? CF_USE_ICOUNT : 0;
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    char prop[PROP_VALUE_MAX] = { 0 };
++    if (target_long_bits() == 32 && !strcmp(target_name(), "i386") &&
++        __system_property_get("debug.boxdroid.fp_top", prop) &&
++        !strcmp(prop, "1")) {
++        cflags |= CF_BOX_FP_TOP;
++    }
++#endif
+     tcg_cflags_set(cpu, cflags);
+ }
+ 
+diff --git a/accel/tcg/tcg-runtime.h b/accel/tcg/tcg-runtime.h
+index 8436599b9f..30d44972d4 100644
+--- a/accel/tcg/tcg-runtime.h
++++ b/accel/tcg/tcg-runtime.h
+@@ -25,6 +25,9 @@ DEF_HELPER_FLAGS_1(ctpop_i32, TCG_CALL_NO_RWG_SE, i32, i32)
+ DEF_HELPER_FLAGS_1(ctpop_i64, TCG_CALL_NO_RWG_SE, i64, i64)
+ 
+ DEF_HELPER_FLAGS_1(lookup_tb_ptr, TCG_CALL_NO_WG_SE, cptr, env)
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++DEF_HELPER_FLAGS_2(boxdroid_fp_generic, TCG_CALL_NO_WG_SE, cptr, env, i32)
++#endif
+ 
+ DEF_HELPER_FLAGS_1(exit_atomic, TCG_CALL_NO_WG, noreturn, env)
+ 
+diff --git a/include/exec/translation-block.h b/include/exec/translation-block.h
+index 433fa3bc28..e29323c9c9 100644
+--- a/include/exec/translation-block.h
++++ b/include/exec/translation-block.h
+@@ -81,6 +81,8 @@ struct TranslationBlock {
+ #define CF_NOIRQ         0x00010000 /* Generate an uninterruptible TB */
+ #define CF_PCREL         0x00020000 /* Opcodes in TB are PC-relative */
+ #define CF_BP_PAGE       0x00040000 /* Breakpoint present in code page */
++#define CF_BOX_FP_TOP    0x00080000 /* BoxDroid: guarded x87 TOP specialization */
++#define CF_BOX_FP_GENERIC 0x00100000 /* Exact fallback without TOP assumptions */
+ #define CF_CLUSTER_MASK  0xff000000 /* Top 8 bits are cluster ID */
+ #define CF_CLUSTER_SHIFT 24
+ 
+diff --git a/include/tcg/tcg-op-common.h b/include/tcg/tcg-op-common.h
+index 8b3bd903a2..11ea39568c 100644
+--- a/include/tcg/tcg-op-common.h
++++ b/include/tcg/tcg-op-common.h
+@@ -78,6 +78,9 @@ void tcg_gen_goto_tb(unsigned idx);
+  * this op is equivalent to calling tcg_gen_exit_tb() with 0 as the argument.
+  */
+ void tcg_gen_lookup_and_goto_ptr(void);
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++void tcg_gen_boxdroid_fp_generic(uint32_t cflags);
++#endif
+ 
+ void tcg_gen_plugin_cb(unsigned from);
+ void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo);
+diff --git a/target/i386/helper.h b/target/i386/helper.h
+index 661bea82d9..47f91f6402 100644
+--- a/target/i386/helper.h
++++ b/target/i386/helper.h
+@@ -248,6 +248,12 @@ BOXDROID_FP_HELPER(fsubr)
+ BOXDROID_FP_HELPER(fdiv)
+ BOXDROID_FP_HELPER(fdivr)
+ #undef BOXDROID_FP_HELPER
++DEF_HELPER_FLAGS_2(boxdroid_fxchg_top, TCG_CALL_NO_RWG | TCG_CALL_NO_GUEST_MEMORY, void, ptr, ptr)
++DEF_HELPER_FLAGS_1(boxdroid_fchs_top, TCG_CALL_NO_RWG | TCG_CALL_NO_GUEST_MEMORY, void, ptr)
++DEF_HELPER_FLAGS_1(boxdroid_fabs_top, TCG_CALL_NO_RWG | TCG_CALL_NO_GUEST_MEMORY, void, ptr)
++DEF_HELPER_FLAGS_2(boxdroid_fsqrt_top, TCG_CALL_NO_RWG | TCG_CALL_NO_GUEST_MEMORY, void, env, ptr)
++DEF_HELPER_FLAGS_2(boxdroid_fsin_top, TCG_CALL_NO_RWG | TCG_CALL_NO_GUEST_MEMORY, void, env, ptr)
++DEF_HELPER_FLAGS_2(boxdroid_fcos_top, TCG_CALL_NO_RWG | TCG_CALL_NO_GUEST_MEMORY, void, env, ptr)
+ #if defined(__clang__)
+ #define BOXDROID_FP_ABI_FLAGS TCG_CALL_PRESERVE_MOST
+ #ifdef IN_HELPER_PROTO
+diff --git a/target/i386/tcg/fpu_helper.c b/target/i386/tcg/fpu_helper.c
+index 0274370bbf..58118fd4e6 100644
+--- a/target/i386/tcg/fpu_helper.c
++++ b/target/i386/tcg/fpu_helper.c
+@@ -3114,6 +3114,72 @@ void helper_fcos(CPUX86State *env)
+     }
+ }
+ 
++
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++/* Explicit CPU-private operands avoid reading the fpstt TCG global. These
++ * retain the original numerical algorithms and status/exception handling.
++ */
++void helper_boxdroid_fxchg_top(void *left, void *right)
++{
++    floatx80 *a = left, *b = right;
++    floatx80 value = *b;
++    *b = *a;
++    *a = value;
++}
++
++void helper_boxdroid_fchs_top(void *pointer)
++{
++    floatx80 *value = pointer;
++    *value = floatx80_chs(*value);
++}
++
++void helper_boxdroid_fabs_top(void *pointer)
++{
++    floatx80 *value = pointer;
++    *value = floatx80_abs(*value);
++}
++
++void helper_boxdroid_fsqrt_top(CPUX86State *env, void *pointer)
++{
++    floatx80 *value = pointer;
++    int old_flags = save_arithmetic_exception_flags(env);
++    if (floatx80_is_neg((*value))) {
++        env->fpus &= ~0x4700;  /* (C3,C2,C1,C0) <-- 0000 */
++        env->fpus |= 0x400;
++    }
++    (*value) = floatx80_sqrt((*value), &env->fp_status);
++    merge_exception_flags(env, old_flags);
++}
++
++void helper_boxdroid_fsin_top(CPUX86State *env, void *pointer)
++{
++    floatx80 *value = pointer;
++    double fptemp = floatx80_to_double(env, (*value));
++
++    if ((fptemp > MAXTAN) || (fptemp < -MAXTAN)) {
++        env->fpus |= 0x400;
++    } else {
++        (*value) = double_to_floatx80(env, sin(fptemp));
++        env->fpus &= ~0x400;  /* C2 <-- 0 */
++        /* the above code is for |arg| < 2**53 only */
++    }
++}
++
++void helper_boxdroid_fcos_top(CPUX86State *env, void *pointer)
++{
++    floatx80 *value = pointer;
++    double fptemp = floatx80_to_double(env, (*value));
++
++    if ((fptemp > MAXTAN) || (fptemp < -MAXTAN)) {
++        env->fpus |= 0x400;
++    } else {
++        (*value) = double_to_floatx80(env, cos(fptemp));
++        env->fpus &= ~0x400;  /* C2 <-- 0 */
++        /* the above code is for |arg| < 2**63 only */
++    }
++}
++#endif
++
+ void helper_fxam_ST0(CPUX86State *env)
+ {
+     X87_SCOPE(75);
+diff --git a/target/i386/tcg/translate.c b/target/i386/tcg/translate.c
+index 6ace1c523d..9db4bdeb9d 100644
+--- a/target/i386/tcg/translate.c
++++ b/target/i386/tcg/translate.c
+@@ -36,6 +36,9 @@
+ #include "exec/log.h"
+ 
+ static int g_use_hard_fpu;
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++uint64_t boxdroid_fp_top_regions;
++#endif
+ 
+ #if defined(XBOX) && defined(__x86_64__)
+ #include "ui/xemu-settings.h"
+@@ -205,6 +208,11 @@ typedef struct DisasContext {
+ #endif
+     bool vex_w; /* used by AVX even on 32-bit processors */
+     bool jmp_opt; /* use direct block chaining for direct jumps */
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    TCGOp *fp_top_before, *fp_top_after;
++    TCGLabel *fp_top_fallback;
++    bool fp_top_used;
++#endif
+     bool cc_op_dirty;
+ 
+     CCOp cc_op;  /* current CC operation */
+@@ -1843,8 +1851,22 @@ static void gen_fmov_STN_ST0(DisasContext *s, int st_index)
+     fp_pc_wrapper(gen_fmov_STN_ST0)(s, st_index);
+ }
+ 
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__) && !defined(BOXDROID_X87_PROFILE)
++static bool boxdroid_fp_top_helpers(void)
++{
++    return !g_use_hard_fpu &&
++           (tb_cflags(tcg_ctx->gen_tb) & (CF_BOX_FP_TOP | CF_BOX_FP_GENERIC));
++}
++#endif
++
+ static void gen_fxchg_ST0_STN(DisasContext *s, int st_index)
+ {
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__) && !defined(BOXDROID_X87_PROFILE)
++    if (boxdroid_fp_top_helpers()) {
++        gen_helper_boxdroid_fxchg_top(gen_stn_ptr(0), gen_stn_ptr(st_index));
++        return;
++    }
++#endif
+     GEN_HELPER_FALLBACK_v_i(fxchg_ST0_STN, st_index);
+ 
+     /* Ensure ST0, STN are loaded */
+@@ -1976,18 +1998,36 @@ static void gen_fistll_ST0(DisasContext *s, TCGv_i64 arg)
+ 
+ static void gen_fchs_ST0(DisasContext *s)
+ {
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__) && !defined(BOXDROID_X87_PROFILE)
++    if (boxdroid_fp_top_helpers()) {
++        gen_helper_boxdroid_fchs_top(gen_stn_ptr(0));
++        return;
++    }
++#endif
+     GEN_HELPER_FALLBACK_v_v(fchs_ST0);
+     fp_pc_wrapper(gen_fchs_ST0)(s);
+ }
+ 
+ static void gen_fabs_ST0(DisasContext *s)
+ {
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__) && !defined(BOXDROID_X87_PROFILE)
++    if (boxdroid_fp_top_helpers()) {
++        gen_helper_boxdroid_fabs_top(gen_stn_ptr(0));
++        return;
++    }
++#endif
+     GEN_HELPER_FALLBACK_v_v(fabs_ST0);
+     fp_pc_wrapper(gen_fabs_ST0)(s);
+ }
+ 
+ static void gen_fsqrt(DisasContext *s)
+ {
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__) && !defined(BOXDROID_X87_PROFILE)
++    if (boxdroid_fp_top_helpers()) {
++        gen_helper_boxdroid_fsqrt_top(tcg_env, gen_stn_ptr(0));
++        return;
++    }
++#endif
+     GEN_HELPER_FALLBACK_v_v(fsqrt);
+     fp_pc_wrapper(gen_fsqrt)(s);
+ }
+@@ -2002,6 +2042,12 @@ static void gen_clear_fpus_c2(DisasContext *s)
+ 
+ static void gen_fsin(DisasContext *s)
+ {
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__) && !defined(BOXDROID_X87_PROFILE)
++    if (boxdroid_fp_top_helpers()) {
++        gen_helper_boxdroid_fsin_top(tcg_env, gen_stn_ptr(0));
++        return;
++    }
++#endif
+     GEN_HELPER_FALLBACK_v_v(fsin);
+     fp_pc_wrapper(gen_fsin)(s);
+     gen_clear_fpus_c2(s); /* FIXME: Does not check range correctly */
+@@ -2009,6 +2055,12 @@ static void gen_fsin(DisasContext *s)
+ 
+ static void gen_fcos(DisasContext *s)
+ {
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__) && !defined(BOXDROID_X87_PROFILE)
++    if (boxdroid_fp_top_helpers()) {
++        gen_helper_boxdroid_fcos_top(tcg_env, gen_stn_ptr(0));
++        return;
++    }
++#endif
+     GEN_HELPER_FALLBACK_v_v(fcos);
+     fp_pc_wrapper(gen_fcos)(s);
+     gen_clear_fpus_c2(s); /* FIXME: Does not check range correctly */
+@@ -3042,6 +3094,9 @@ static void gen_sty_env_A0(DisasContext *s, int offset, bool align)
+ 
+ static void gen_x87(DisasContext *s, X86DecodedInsn *decode)
+ {
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    s->fp_top_used = true;
++#endif
+     bool update_fip = true;
+     int b = decode->b;
+     int modrm = s->modrm;
+@@ -4357,6 +4412,11 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
+     int iopl = (flags >> IOPL_SHIFT) & 3;
+ 
+     dc->cs_base = dc->base.tb->cs_base;
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    dc->fp_top_before = dc->fp_top_after = NULL;
++    dc->fp_top_fallback = NULL;
++    dc->fp_top_used = false;
++#endif
+     dc->pc_save = dc->base.pc_next;
+     dc->flags = flags;
+ #ifndef CONFIG_USER_ONLY
+@@ -4410,6 +4470,22 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
+ 
+ static void i386_tr_tb_start(DisasContextBase *db, CPUState *cpu)
+ {
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    DisasContext *dc = container_of(db, DisasContext, base);
++    uint32_t cflags = tb_cflags(db->tb);
++
++    if ((cflags & CF_BOX_FP_TOP) && !g_use_hard_fpu && CODE32(dc) &&
++        !dc->cs_base && !db->plugin_enabled &&
++        !(cflags & (CF_USE_ICOUNT | CF_PCREL | CF_SINGLE_STEP | CF_NO_GOTO_PTR)) &&
++        !(dc->flags & (HF_RF_MASK | HF_TF_MASK | HF_INHIBIT_IRQ_MASK))) {
++        unsigned top = cpu_env(cpu)->fpstt;
++        dc->fp_top_before = tcg_last_op();
++        dc->fp_top_fallback = gen_new_label();
++        tcg_gen_brcondi_i32(TCG_COND_NE, fpstt, top, dc->fp_top_fallback);
++        tcg_gen_movi_i32(fpstt, top);
++        dc->fp_top_after = tcg_last_op();
++    }
++#endif
+ }
+ 
+ static void i386_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
+@@ -4523,6 +4599,28 @@ static void i386_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
+     default:
+         g_assert_not_reached();
+     }
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    if (dc->fp_top_fallback) {
++        if (!dc->fp_top_used) {
++            TCGOp *op = dc->fp_top_before ?
++                QTAILQ_NEXT(dc->fp_top_before, link) :
++                QTAILQ_FIRST(&tcg_ctx->ops);
++            TCGOp *stop = QTAILQ_NEXT(dc->fp_top_after, link);
++            while (op != stop) {
++                TCGOp *next = QTAILQ_NEXT(op, link);
++                tcg_op_remove(tcg_ctx, op);
++                op = next;
++            }
++            gen_set_label(dc->fp_top_fallback);
++        } else {
++            ++boxdroid_fp_top_regions;
++            gen_set_label(dc->fp_top_fallback);
++            /* No guest work committed on this entry-only edge. */
++            tcg_gen_movi_tl(cpu_eip, dcbase->pc_first - dc->cs_base);
++            tcg_gen_boxdroid_fp_generic(tb_cflags(dcbase->tb));
++        }
++    }
++#endif
+ }
+ 
+ static const TranslatorOps i386_tr_ops = {
+diff --git a/tcg/tcg-op.c b/tcg/tcg-op.c
+index ab7b409be6..f075b5768a 100644
+--- a/tcg/tcg-op.c
++++ b/tcg/tcg-op.c
+@@ -3245,6 +3245,21 @@ void tcg_gen_goto_tb(unsigned idx)
+     tcg_gen_op1i(INDEX_op_goto_tb, 0, idx);
+ }
+ 
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++void tcg_gen_boxdroid_fp_generic(uint32_t cflags)
++{
++    /* Entry-only deoptimization, not an additional guest branch. The target
++     * executes the same requested instruction count without specialization.
++     * The frontend excludes icount, plugins and architectural single-step.
++     */
++    TCGv_ptr ptr = tcg_temp_ebb_new_ptr();
++    plugin_gen_disable_mem_helpers();
++    gen_helper_boxdroid_fp_generic(ptr, tcg_env, tcg_constant_i32(cflags));
++    tcg_gen_op1i(INDEX_op_goto_ptr, TCG_TYPE_PTR, tcgv_ptr_arg(ptr));
++    tcg_temp_free_ptr(ptr);
++}
++#endif
++
+ void tcg_gen_lookup_and_goto_ptr(void)
+ {
+     TCGv_ptr ptr;

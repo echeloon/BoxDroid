@@ -37,7 +37,7 @@ def screenshot(path):
 def recognize(path):
     return subprocess.check_output([str(OCR),str(path)],text=True)
 
-def launch(title,label):
+def launch(title,label,checkpoint_row=None):
     if not OCR.exists():
         subprocess.run(['swiftc',str(ROOT/'scripts/tests/read-screen.swift'),'-o',str(OCR)],check=True)
     driver=subprocess.check_output(['adb','shell','run-as','org.boxdroid','cat','files/graphics-drivers/state.json'],text=True)
@@ -48,6 +48,7 @@ def launch(title,label):
     shell('input tap 960 460');time.sleep(2)
     shell('input tap 400 '+('360' if title=='pandora' else '580'))
     started=time.monotonic();last_action=0;quick=False;seen_title=False
+    checkpoint_selected=False
     for n in range(150):
         time.sleep(2)
         path=nav/f'{n:03d}.png';screenshot(path)
@@ -60,11 +61,26 @@ def launch(title,label):
             shell('input tap 400 '+('360' if title=='pandora' else '580'))
             last_action=elapsed;continue
         if title=='pandora' and 'PISTOL' in upper and 'MENU' not in upper:
-            time.sleep(10);screenshot(nav/'ready.png');return nav
+            pid=subprocess.check_output(['adb','shell','pidof','org.boxdroid:emulator'],text=True).strip()
+            time.sleep(10);screenshot(nav/'ready.png')
+            ready_text=recognize(nav/'ready.png').upper()
+            stable_pid=subprocess.check_output(['adb','shell','pidof','org.boxdroid:emulator'],text=True).strip()
+            assert pid==stable_pid and 'PISTOL' in ready_text and 'MENU' not in ready_text, 'Scene/process changed during readiness verification'
+            return nav
         if title=='sega' and ('LAP' in upper or 'POSITION' in upper) and ('MPH' in upper or 'KM/H' in upper or 'KMH' in upper):
             time.sleep(5);screenshot(nav/'ready.png');return nav
         if elapsed-last_action<2:continue
         if title=='pandora':
+            if checkpoint_row is not None and 'CURRENT PROGRESS WILL BE LOST' in upper:
+                button(304);last_action=elapsed
+                continue
+            if checkpoint_row is not None and 'LOAD CHECKPOINT' in upper and 'DILI' in upper:
+                if not checkpoint_selected:
+                    # Explicit saved-game row; never use the moving autosave.
+                    for _ in range(checkpoint_row-1):
+                        event(3,17,1);time.sleep(0.15);event(3,17,0);time.sleep(0.2)
+                    button(304);last_action=elapsed;checkpoint_selected=True
+                continue
             if 'PRESS START' in upper or 'PRESSSTART' in upper:
                 button(315);last_action=elapsed;seen_title=True
             elif any(s in upper for s in ['MAIN MENU','SINGLE PLAYER','PROFILES','GAME MENU','LOAD GAME']):
@@ -93,14 +109,17 @@ def launch(title,label):
         if elapsed>400:break
     raise RuntimeError('Gameplay scene was not established; inspect saved navigation')
 
-def capture(title,label,duration,attach=False,warmup=45,motion='none',perf=False):
+def capture(title,label,duration,attach=False,warmup=45,motion='none',perf=False,checkpoint_row=None):
     if attach:
         nav=OUT/'navigation'/label;nav.mkdir(parents=True,exist_ok=False)
         screenshot(nav/'ready.png')
         text=recognize(nav/'ready.png').upper()
         assert title!='pandora' or 'PISTOL' in text, 'Attach requires gameplay'
     else:
-        nav=launch(title,label)
+        nav=launch(title,label,checkpoint_row)
+    with (nav/'startup-runtime.log').open('w') as startup_log:
+        adb('logcat','-d','-v','threadtime','-s','BoxDroid:I','*:S',
+            stdout=startup_log)
     time.sleep(warmup)
     command=['python3',str(ROOT/'scripts/profile-android.py'),label,'--duration',str(duration),
              '--note',title+' verified gameplay; System driver; motion='+motion,
@@ -138,6 +157,7 @@ if __name__=='__main__':
     p.add_argument('--attach',action='store_true');p.add_argument('--warmup',type=int,default=45)
     p.add_argument('--perf',action='store_true',help='Separate diagnostic capture; exclude from final cadence numbers')
     p.add_argument('--motion',choices=['none','camera','drive'],default='none')
+    p.add_argument('--checkpoint-row',type=int,choices=[1,2],help='Pandora saved-game row below LOAD CHECKPOINT; avoids changing autosave')
     a=p.parse_args();assert re.fullmatch(r'[\w.-]+',a.label)
-    if a.launch_only:launch(a.title,a.label)
-    else:capture(a.title,a.label,a.duration,a.attach,a.warmup,a.motion,a.perf)
+    if a.launch_only:launch(a.title,a.label,a.checkpoint_row)
+    else:capture(a.title,a.label,a.duration,a.attach,a.warmup,a.motion,a.perf,a.checkpoint_row)

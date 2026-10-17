@@ -1,0 +1,166 @@
+# Experimental O(1) full virtual jump-cache invalidation via upper32 PC generations, guarded i38632 target. C and generated lookups reject stale keys before TB dereference; wrap and whole code-cache flush clear pointers. Page/SMC/TLB invalidation unchanged; physical-cache35 removed. Default jmp_epoch0.
+
+diff --git a/accel/tcg/cpu-exec.c b/accel/tcg/cpu-exec.c
+index 1a53f14090..c42207e728 100644
+--- a/accel/tcg/cpu-exec.c
++++ b/accel/tcg/cpu-exec.c
+@@ -33,6 +33,7 @@
+ #include "exec/translation-block.h"
+ #include "tcg/tcg.h"
+ #include "qemu/atomic.h"
++#include "qemu/target-info.h"
+ #include "qemu/rcu.h"
+ #include "exec/log.h"
+ #include "qemu/main-loop.h"
+@@ -53,6 +54,7 @@
+ #if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
+ #include <sys/system_properties.h>
+ bool boxdroid_jmp_cache2;
++bool boxdroid_jmp_epoch;
+ bool boxdroid_inline_lookup_observe;
+ uint64_t boxdroid_inline_lookup_hits[2];
+ uint64_t boxdroid_inline_lookup_fallbacks;
+@@ -269,7 +271,11 @@ static void tb_jmp_cache_insert(CPUJumpCache *jc, uint32_t hash,
+         qatomic_set(&jc->secondary[hash].tb, previous);
+     }
+ #endif
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    jc->array[hash].pc = boxdroid_jmp_cache_pc(jc, pc);
++#else
+     jc->array[hash].pc = pc;
++#endif
+     qatomic_set(&jc->array[hash].tb, tb);
+ }
+ 
+@@ -284,10 +290,14 @@ static inline TranslationBlock *tb_lookup(CPUState *cpu, TCGTBCPUState s)
+ 
+     hash = tb_jmp_cache_hash_func(s.pc);
+     jc = cpu->tb_jmp_cache;
++    vaddr cache_pc = s.pc;
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    cache_pc = boxdroid_jmp_cache_pc(jc, s.pc);
++#endif
+ 
+     tb = qatomic_read(&jc->array[hash].tb);
+     if (likely(tb &&
+-               jc->array[hash].pc == s.pc &&
++               jc->array[hash].pc == cache_pc &&
+                tb->cs_base == s.cs_base &&
+                tb->flags == s.flags &&
+                tb_cflags(tb) == s.cflags)) {
+@@ -300,7 +310,7 @@ static inline TranslationBlock *tb_lookup(CPUState *cpu, TCGTBCPUState s)
+ #if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
+     if (boxdroid_jmp_cache2) {
+         tb = qatomic_read(&jc->secondary[hash].tb);
+-        if (tb && jc->secondary[hash].pc == s.pc &&
++        if (tb && jc->secondary[hash].pc == cache_pc &&
+             tb->cs_base == s.cs_base && tb->flags == s.flags &&
+             tb_cflags(tb) == s.cflags) {
+ #ifdef BOXDROID_RUNTIME
+@@ -1176,6 +1186,10 @@ bool tcg_exec_realizefn(CPUState *cpu, Error **errp)
+         char prop[PROP_VALUE_MAX] = {0};
+         boxdroid_jmp_cache2 = __system_property_get("debug.boxdroid.jmp_cache2", prop) &&
+                              !strcmp(prop, "1");
++        boxdroid_jmp_epoch =
++            target_long_bits() == 32 && !strcmp(target_name(), "i386") &&
++            __system_property_get("debug.boxdroid.jmp_epoch", prop) &&
++            !strcmp(prop, "1");
+         boxdroid_inline_lookup_observe =
+             __system_property_get("debug.boxdroid.inline_lookup_count", prop) &&
+             !strcmp(prop, "1");
+diff --git a/accel/tcg/tb-jmp-cache.h b/accel/tcg/tb-jmp-cache.h
+index 3ce73f508b..b820c3501c 100644
+--- a/accel/tcg/tb-jmp-cache.h
++++ b/accel/tcg/tb-jmp-cache.h
+@@ -33,7 +33,18 @@ typedef struct CPUJumpCache {
+         TranslationBlock *tb;
+         vaddr pc;
+     } secondary[TB_JMP_CACHE_SIZE];
++    uint32_t generation;
+ #endif
+ } CPUJumpCache;
+ 
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++extern bool boxdroid_jmp_epoch;
++static inline vaddr boxdroid_jmp_cache_pc(CPUJumpCache *jc, vaddr pc)
++{
++    /* The supported i386 target wraps every linear PC to 32 bits. */
++    return boxdroid_jmp_epoch ? (uint32_t)pc |
++           ((uint64_t)qatomic_read(&jc->generation) << 32) : pc;
++}
++#endif
++
+ #endif /* ACCEL_TCG_TB_JMP_CACHE_H */
+diff --git a/accel/tcg/tb-maint.c b/accel/tcg/tb-maint.c
+index cf52ced984..bc36221537 100644
+--- a/accel/tcg/tb-maint.c
++++ b/accel/tcg/tb-maint.c
+@@ -28,6 +28,7 @@
+ #include "exec/target_page.h"
+ #include "accel/tcg/cpu-ops.h"
+ #include "tb-internal.h"
++#include "tb-jmp-cache.h"
+ #include "system/tcg.h"
+ #include "tcg/tcg.h"
+ #include "tb-hash.h"
+@@ -786,6 +787,18 @@ void tb_flush__exclusive_or_serial(void)
+ 
+     CPU_FOREACH(cpu) {
+         tcg_flush_jmp_cache(cpu);
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++        if (cpu->tb_jmp_cache) {
++            if (boxdroid_jmp_epoch) {
++                /* This exclusive flush reclaims TB storage. Clear even stale
++                 * virtual entries before any code allocation can be reused. */
++                memset(cpu->tb_jmp_cache->array, 0,
++                       sizeof(cpu->tb_jmp_cache->array));
++                memset(cpu->tb_jmp_cache->secondary, 0,
++                       sizeof(cpu->tb_jmp_cache->secondary));
++            }
++        }
++#endif
+     }
+ 
+     qht_reset_size(&tb_ctx.htable, CODE_GEN_HTABLE_SIZE);
+diff --git a/accel/tcg/translate-all.c b/accel/tcg/translate-all.c
+index 9fd1fc7225..7af1119912 100644
+--- a/accel/tcg/translate-all.c
++++ b/accel/tcg/translate-all.c
+@@ -884,6 +884,19 @@ void tcg_flush_jmp_cache(CPUState *cpu)
+         return;
+     }
+ 
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    if (boxdroid_jmp_epoch) {
++        /* Full flushes run on the owner CPU or while execution is stopped.
++         * Page/SMC invalidators still clear individual atomic pointers.
++         * A wrapping generation must clear all pointers before reusing zero. */
++        uint32_t next = qatomic_read(&jc->generation) + 1;
++        qatomic_set(&jc->generation, next);
++        if (next) {
++            return;
++        }
++    }
++#endif
++
+     for (int i = 0; i < TB_JMP_CACHE_SIZE; i++) {
+         qatomic_set(&jc->array[i].tb, NULL);
+ #if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
+diff --git a/tcg/aarch64/tcg-target.c.inc b/tcg/aarch64/tcg-target.c.inc
+index d01bed8857..18bb7e770a 100644
+--- a/tcg/aarch64/tcg-target.c.inc
++++ b/tcg/aarch64/tcg-target.c.inc
+@@ -1497,6 +1497,13 @@ static void boxdroid_out_lookup_tb_ptr(TCGContext *s,
+     tcg_out_logicali(s, I3404_ANDI, TCG_TYPE_I32, tmp, tmp, 0x7f);
+     tcg_out_insn(s, 3510, ORR, TCG_TYPE_I32, tmp, tmp, work);
+     tcg_out_ld(s, TCG_TYPE_PTR, entry, cpu, offsetof(CPUState, tb_jmp_cache));
++    if (boxdroid_jmp_epoch) {
++        /* Hashing used the original 32-bit PC. Add the current generation to
++         * its comparison key before either slot's TB pointer is dereferenced. */
++        tcg_out_ld(s, TCG_TYPE_I32, work, entry,
++                   offsetof(CPUJumpCache, generation));
++        tcg_out_insn(s, 3502S, ADD_LSL, TCG_TYPE_I64, pc, pc, work, 32);
++    }
+     tcg_out_insn(s, 3502S, ADD_LSL, TCG_TYPE_PTR, entry, entry, tmp, 4);
+     tcg_out_insn(s, 3401, ADDI, TCG_TYPE_PTR, entry, entry,
+                  offsetof(CPUJumpCache, array));

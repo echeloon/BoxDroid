@@ -1,0 +1,10 @@
+after step eip=10003 fpstt=0 exception=-1 hflags=200000b0 cr0=1
+actual TCG MMX load/register/EMMS execution PASS
+actual jump cache collision/SMC/page/full invalidation PASS, secondary active=1
+actual indirect chained lookup: primary=271 secondary=15 fallbacks=0
+shared lookup generated entries=1, cflags=ff000000 PASS
+discarded duplicate TB: shared-code publication rollback PASS
+actual indirect full-state/flags/breakpoint/SMC/flush/CS/mode checks PASS
+virtual code aliases: CALL PC, direct chains, physical SMC/flush PASS
+/Users/maverick/Documents/BoxDroid/BoxDroid/scripts/tests/tcg-state-recovery.c:294: void test_physical_lookup(CPUState *, const CPUX86State *): assertion "chained_exec(cpu) == EXCP0E_PAGE" failed
+Aborted 

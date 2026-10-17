@@ -1,0 +1,706 @@
+{
+  "duration_seconds": 34.36999999999989,
+  "snapshot_spacing_seconds": {
+    "min": 1.699999999999818,
+    "median": 1.7149999999999181,
+    "max": 1.7699999999999818
+  },
+  "threads": [
+    {
+      "tid": 20527,
+      "name": "ALL CPUs/TCG",
+      "cpu_percent": 95.78077023276143,
+      "scheduler_wait_ms": 298.183531,
+      "scheduler_slices_per_second": 1995.5193482688455,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4,
+        5,
+        7
+      ],
+      "user_cpu_seconds": 32.14,
+      "system_cpu_seconds": 0.77
+    },
+    {
+      "tid": 20532,
+      "name": "mcpx.apu_thread",
+      "cpu_percent": 52.64420429444299,
+      "scheduler_wait_ms": 1967.091488,
+      "scheduler_slices_per_second": 1638.1728251382071,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "user_cpu_seconds": 16.97,
+      "system_cpu_seconds": 1.12
+    },
+    {
+      "tid": 20533,
+      "name": "nv2a.pfifo",
+      "cpu_percent": 22.6062456968287,
+      "scheduler_wait_ms": 960.018091,
+      "scheduler_slices_per_second": 1088.1873727087611,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "user_cpu_seconds": 5.33,
+      "system_cpu_seconds": 2.43
+    },
+    {
+      "tid": 20520,
+      "name": "boxdroid-wsi",
+      "cpu_percent": 6.4361757957521295,
+      "scheduler_wait_ms": 101.727291,
+      "scheduler_slices_per_second": 70.32295606633714,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "user_cpu_seconds": 2.04,
+      "system_cpu_seconds": 0.17
+    },
+    {
+      "tid": 20525,
+      "name": "boxdroid-main",
+      "cpu_percent": 6.412108030258967,
+      "scheduler_wait_ms": 1631.960421,
+      "scheduler_slices_per_second": 2293.337212685489,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4,
+        5,
+        6
+      ],
+      "user_cpu_seconds": 1.73,
+      "system_cpu_seconds": 0.46
+    },
+    {
+      "tid": 20528,
+      "name": "mcpx.voice0",
+      "cpu_percent": 5.408392554553407,
+      "scheduler_wait_ms": 2306.021056,
+      "scheduler_slices_per_second": 2904.5679371545043,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "user_cpu_seconds": 1.32,
+      "system_cpu_seconds": 0.54
+    },
+    {
+      "tid": 20529,
+      "name": "mcpx.voice1",
+      "cpu_percent": 4.699712953156838,
+      "scheduler_wait_ms": 2604.419191,
+      "scheduler_slices_per_second": 2781.2336339831336,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "user_cpu_seconds": 1.15,
+      "system_cpu_seconds": 0.46
+    },
+    {
+      "tid": 20530,
+      "name": "mcpx.voice2",
+      "cpu_percent": 4.189663215013106,
+      "scheduler_wait_ms": 2540.270896,
+      "scheduler_slices_per_second": 2337.1254000581976,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "user_cpu_seconds": 1.04,
+      "system_cpu_seconds": 0.4
+    },
+    {
+      "tid": 20531,
+      "name": "mcpx.voice3",
+      "cpu_percent": 3.3975557753855212,
+      "scheduler_wait_ms": 1659.314892,
+      "scheduler_slices_per_second": 1592.1152167588064,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "user_cpu_seconds": 0.99,
+      "system_cpu_seconds": 0.18
+    },
+    {
+      "tid": 20524,
+      "name": "AudioTrack",
+      "cpu_percent": 0.7185373523421612,
+      "scheduler_wait_ms": 4.397497,
+      "scheduler_slices_per_second": 265.05673552516816,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4,
+        5,
+        6
+      ],
+      "user_cpu_seconds": 0.19,
+      "system_cpu_seconds": 0.05
+    },
+    {
+      "tid": 20473,
+      "name": "xdroid:emulator",
+      "cpu_percent": 0.395328737270877,
+      "scheduler_wait_ms": 23.57588,
+      "scheduler_slices_per_second": 9.223159732324731,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4,
+        5,
+        6
+      ],
+      "user_cpu_seconds": 0.14,
+      "system_cpu_seconds": 0.0
+    },
+    {
+      "tid": 20506,
+      "name": "pool-3-thread-1",
+      "cpu_percent": 0.32265405295315785,
+      "scheduler_wait_ms": 5.253337,
+      "scheduler_slices_per_second": 3.4041315100378347,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4,
+        5,
+        6
+      ],
+      "user_cpu_seconds": 0.1,
+      "system_cpu_seconds": 0.0
+    },
+    {
+      "tid": 20523,
+      "name": "binder:20473_4",
+      "cpu_percent": 0.19294894384637826,
+      "scheduler_wait_ms": 20.974168,
+      "scheduler_slices_per_second": 21.239453011347173,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4,
+        5,
+        6
+      ],
+      "user_cpu_seconds": 0.04,
+      "system_cpu_seconds": 0.03
+    },
+    {
+      "tid": 20493,
+      "name": "RenderThread",
+      "cpu_percent": 0.17478652313063772,
+      "scheduler_wait_ms": 5.327547,
+      "scheduler_slices_per_second": 5.789933081175462,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "user_cpu_seconds": 0.05,
+      "system_cpu_seconds": 0.01
+    },
+    {
+      "tid": 20488,
+      "name": "binder:20473_1",
+      "cpu_percent": 0.08472242944428307,
+      "scheduler_wait_ms": 6.323799,
+      "scheduler_slices_per_second": 9.630491707884813,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "user_cpu_seconds": 0.02,
+      "system_cpu_seconds": 0.01
+    },
+    {
+      "tid": 20483,
+      "name": "Jit thread pool",
+      "cpu_percent": 0.060846415478615266,
+      "scheduler_wait_ms": 8.859014,
+      "scheduler_slices_per_second": 2.3276112889147584,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "user_cpu_seconds": 0.02,
+      "system_cpu_seconds": 0.0
+    },
+    {
+      "tid": 20519,
+      "name": "binder:20473_2",
+      "cpu_percent": 0.03082603433226661,
+      "scheduler_wait_ms": 21.387494,
+      "scheduler_slices_per_second": 25.865580448065256,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "user_cpu_seconds": 0.01,
+      "system_cpu_seconds": 0.0
+    },
+    {
+      "tid": 20578,
+      "name": "worker",
+      "cpu_percent": 0.019510416060517954,
+      "scheduler_wait_ms": 3.99318,
+      "scheduler_slices_per_second": 7.6229269711958345,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "user_cpu_seconds": 0.0,
+      "system_cpu_seconds": 0.01
+    },
+    {
+      "tid": 20636,
+      "name": "worker",
+      "cpu_percent": 0.018456784986907244,
+      "scheduler_wait_ms": 3.268075,
+      "scheduler_slices_per_second": 7.506546406750097,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4,
+        5,
+        6
+      ],
+      "user_cpu_seconds": 0.01,
+      "system_cpu_seconds": 0.01
+    },
+    {
+      "tid": 20484,
+      "name": "HeapTaskDaemon",
+      "cpu_percent": 0.01385443700901954,
+      "scheduler_wait_ms": 3.817396,
+      "scheduler_slices_per_second": 0.3200465522257793,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4,
+        5,
+        6
+      ],
+      "user_cpu_seconds": 0.01,
+      "system_cpu_seconds": 0.0
+    },
+    {
+      "tid": 20485,
+      "name": "ReferenceQueueD",
+      "cpu_percent": 0.010155874308990431,
+      "scheduler_wait_ms": 0.165,
+      "scheduler_slices_per_second": 0.08728542333430345,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        5
+      ],
+      "user_cpu_seconds": 0.0,
+      "system_cpu_seconds": 0.0
+    },
+    {
+      "tid": 20492,
+      "name": "Profile Saver",
+      "cpu_percent": 0.0032066831539133067,
+      "scheduler_wait_ms": 0.319791,
+      "scheduler_slices_per_second": 0.11638056444573792,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        5,
+        6
+      ],
+      "user_cpu_seconds": 0.0,
+      "system_cpu_seconds": 0.0
+    },
+    {
+      "tid": 20486,
+      "name": "FinalizerDaemon",
+      "cpu_percent": 0.00020306080884492354,
+      "scheduler_wait_ms": 0.004844,
+      "scheduler_slices_per_second": 0.02909514111143448,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        6
+      ],
+      "user_cpu_seconds": 0.0,
+      "system_cpu_seconds": 0.0
+    },
+    {
+      "tid": 20487,
+      "name": "FinalizerWatchd",
+      "cpu_percent": 0.00017017457084666916,
+      "scheduler_wait_ms": 0.0,
+      "scheduler_slices_per_second": 0.05819028222286896,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4,
+        5
+      ],
+      "user_cpu_seconds": 0.0,
+      "system_cpu_seconds": 0.0
+    },
+    {
+      "tid": 20480,
+      "name": "Signal Catcher",
+      "cpu_percent": 0.0,
+      "scheduler_wait_ms": 0.0,
+      "scheduler_slices_per_second": 0.0,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4
+      ],
+      "user_cpu_seconds": 0.0,
+      "system_cpu_seconds": 0.0
+    },
+    {
+      "tid": 20498,
+      "name": "xdroid:emulator",
+      "cpu_percent": 0.0,
+      "scheduler_wait_ms": 0.0,
+      "scheduler_slices_per_second": 0.0,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        6
+      ],
+      "user_cpu_seconds": 0.0,
+      "system_cpu_seconds": 0.0
+    },
+    {
+      "tid": 20489,
+      "name": "binder:20473_2",
+      "cpu_percent": 0.0,
+      "scheduler_wait_ms": 0.0,
+      "scheduler_slices_per_second": 0.0,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        6
+      ],
+      "user_cpu_seconds": 0.0,
+      "system_cpu_seconds": 0.0
+    },
+    {
+      "tid": 20482,
+      "name": "ADB-JDWP Connec",
+      "cpu_percent": 0.0,
+      "scheduler_wait_ms": 0.0,
+      "scheduler_slices_per_second": 0.0,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        6
+      ],
+      "user_cpu_seconds": 0.0,
+      "system_cpu_seconds": 0.0
+    },
+    {
+      "tid": 20510,
+      "name": "hwuiTask1",
+      "cpu_percent": 0.0,
+      "scheduler_wait_ms": 0.0,
+      "scheduler_slices_per_second": 0.0,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        7
+      ],
+      "user_cpu_seconds": 0.0,
+      "system_cpu_seconds": 0.0
+    },
+    {
+      "tid": 20509,
+      "name": "hwuiTask0",
+      "cpu_percent": 0.0,
+      "scheduler_wait_ms": 0.0,
+      "scheduler_slices_per_second": 0.0,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        6
+      ],
+      "user_cpu_seconds": 0.0,
+      "system_cpu_seconds": 0.0
+    },
+    {
+      "tid": 20481,
+      "name": "perfetto_hprof_",
+      "cpu_percent": 0.0,
+      "scheduler_wait_ms": 0.0,
+      "scheduler_slices_per_second": 0.0,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4
+      ],
+      "user_cpu_seconds": 0.0,
+      "system_cpu_seconds": 0.0
+    },
+    {
+      "tid": 20516,
+      "name": "pool-2-thread-1",
+      "cpu_percent": 0.0,
+      "scheduler_wait_ms": 0.0,
+      "scheduler_slices_per_second": 0.0,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4
+      ],
+      "user_cpu_seconds": 0.0,
+      "system_cpu_seconds": 0.0
+    },
+    {
+      "tid": 20491,
+      "name": "binder:20473_3",
+      "cpu_percent": 0.0,
+      "scheduler_wait_ms": 0.0,
+      "scheduler_slices_per_second": 0.0,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        6
+      ],
+      "user_cpu_seconds": 0.0,
+      "system_cpu_seconds": 0.0
+    },
+    {
+      "tid": 20518,
+      "name": "InsetsAnimation",
+      "cpu_percent": 0.0,
+      "scheduler_wait_ms": 0.0,
+      "scheduler_slices_per_second": 0.0,
+      "allowed": "0-7",
+      "sampled_cpus": [
+        4
+      ],
+      "user_cpu_seconds": 0.0,
+      "system_cpu_seconds": 0.0
+    }
+  ],
+  "timing": {
+    "unique_per_second": 11.758491782900428,
+    "frames_per_second": 23.487806166835842,
+    "guest_flips_per_second": 11.758491782900428,
+    "refresh_per_second": 62.410456386163816,
+    "display_refresh_callbacks_per_second": 62.410456386163816,
+    "scanout_us_per_second": 28597.439805785896,
+    "conversion_us_per_second": 10077.231699738422,
+    "presenter_us_per_second": 6451.677281744814,
+    "bql_reacquire_us_per_second": 105.3012328647336,
+    "callback_us_per_second": 50538.34781169362,
+    "unique_frame_interval_us": {
+      "p50": 80366,
+      "p95": 108033,
+      "p99": 114371,
+      "max": 126262
+    },
+    "unique_frame_gaps_over_1s": 0,
+    "changed_image_interval_us": {
+      "p50": 80366,
+      "p95": 108033,
+      "p99": 114371,
+      "max": 126262
+    },
+    "guest_flip_interval_us": {
+      "p50": 84806,
+      "p95": 101795,
+      "p99": 106609,
+      "max": 110686
+    },
+    "guest_flip_events": 411,
+    "guest_flip_events_per_second": 11.730820473326016,
+    "guest_flip_event_id_gaps": 0,
+    "guest_flip_interval_scope": "NV097 FLIP_INCREMENT_WRITE submission",
+    "completed_presents_per_second": 23.476613018459624,
+    "presentation_interval_us": {
+      "p50": 19606,
+      "p95": 85094,
+      "p99": 98428,
+      "max": 109864
+    },
+    "presentation_service_us": {
+      "p50": 2914,
+      "p95": 3958,
+      "p99": 4401,
+      "max": 6145
+    },
+    "presentation_queue_us": {
+      "p50": 14,
+      "p95": 107,
+      "p99": 341,
+      "max": 2205
+    },
+    "failed_presents": 0
+  },
+  "perf_windows": 34,
+  "presentation_queue": {
+    "submitted": 5050,
+    "completed": 5049,
+    "failed": 0,
+    "canceled": 0,
+    "max_depth": 2,
+    "blocked_us": 0,
+    "idle_us": 135983628
+  },
+  "presentation_queue_window": {
+    "submitted": 782,
+    "completed": 782,
+    "failed": 0,
+    "canceled": 0,
+    "blocked_us": 0,
+    "idle_us": 30853063
+  },
+  "apu": {
+    "windows": 35,
+    "elapsed_seconds": 35.03617,
+    "frames_per_second": 1421.7878266945274,
+    "vp_us_per_second": 319426.2671975847,
+    "dsp_us_per_second": 479519.6221504805,
+    "monitor_us_per_second": 648.4441649872118,
+    "ep_batches_per_second": 177.73061381994663,
+    "ep_budget_overruns_per_second": 38.16056378308474,
+    "ep_work_peak_us": 24725,
+    "ep_budget_us": 5333,
+    "ep_budget_overrun_fraction": 0.2147101332905091
+  },
+  "voice_workers": {
+    "windows": 35,
+    "elapsed_seconds": 35.025146,
+    "frames_per_second": 1421.7785130717227,
+    "jobs_per_second": 11490.116272463218,
+    "barrier_us_per_second": 312134.05934125156,
+    "voice_lock_us_per_second": 2213.2670053680863,
+    "worker_work_us_per_second": 119301.62974909513,
+    "worker_lock_wait_us_per_second": 6420.558532432669,
+    "worker_mix_hold_us_per_second": 5888.255255238622,
+    "worker_wait_us_per_second": 3858625.856977156,
+    "worker_wakes_per_second": 5687.114052286891,
+    "queue_peak": 11,
+    "worker_queue_peak": 3,
+    "workers_seen": [
+      4
+    ],
+    "background_workers_seen": [
+      4
+    ],
+    "apu_participation_seen": [
+      0
+    ]
+  },
+  "audio": {
+    "observed_errors": [
+      0
+    ],
+    "underrun_callbacks": 457,
+    "underrun_frames": 52992,
+    "dropped_frames": 0,
+    "offered_frames": 954880,
+    "consumed_frames": 955008,
+    "callback_frames_total": 1008000,
+    "counter_window_seconds": 21.0,
+    "underrun_frame_fraction": 0.052571428571428575,
+    "production_minus_consumption_ms": -2.6666666666666665
+  },
+  "guest_voice_ownership_wait": {
+    "counter_window_seconds": 35.035985,
+    "calls": 35546,
+    "total_us": 650363,
+    "maximum_us": 4210,
+    "us_per_second": 18562.714877289734,
+    "scope": "guest-thread voice ownership calls, including unlock and internal handoffs"
+  },
+  "cpu_frequencies": {
+    "policy0": {
+      "min_khz": 1171200,
+      "median_khz": 1171200,
+      "max_khz": 1171200
+    },
+    "policy4": {
+      "min_khz": 2419200,
+      "median_khz": 2419200,
+      "max_khz": 2419200
+    },
+    "policy7": {
+      "min_khz": 2841600,
+      "median_khz": 2841600,
+      "max_khz": 2841600
+    }
+  },
+  "thermal_peak_raw": {
+    "cpu-0-0-usr": 65900,
+    "cpu-1-3-usr": 82600,
+    "cpu-1-4-usr": 74000,
+    "cpu-1-5-usr": 74000,
+    "cpu-1-6-usr": 76000,
+    "cpu-1-7-usr": 78300,
+    "gpuss-0-usr": 52700,
+    "cpu-0-1-usr": 63200,
+    "gpuss-1-usr": 55600,
+    "gpuss-max-step": 55200,
+    "cpu-0-0-step": 65900,
+    "cpu-0-2-usr": 61200,
+    "cpu-0-1-step": 63200,
+    "cpu-0-2-step": 60800,
+    "cpu-0-3-step": 64700,
+    "cpu-1-0-step": 74800,
+    "cpu-1-1-step": 75200,
+    "cpu-1-2-step": 76000,
+    "cpu-1-3-step": 83000,
+    "cpu-1-4-step": 74000,
+    "cpu-1-5-step": 74000,
+    "cpu-1-6-step": 75600,
+    "cpu-0-3-usr": 64300,
+    "cpu-1-7-step": 79500,
+    "cpuss-0-usr": 69400,
+    "cpuss-1-usr": 72100,
+    "cpu-1-0-usr": 75600,
+    "cpu-1-1-usr": 75600,
+    "gpu-skin-avg-step": 24890,
+    "cpu-1-2-usr": 76400
+  },
+  "battery_temperature_start_tenths_c": 332,
+  "battery_temperature_end_tenths_c": 332,
+  "rss_start_bytes": 703225856,
+  "rss_end_bytes": 701788160,
+  "emulation_speed_percent": null,
+  "native_title_cadence_fps": null,
+  "process_io": {
+    "counter_window_seconds": 35.177185834,
+    "counters": {
+      "cancelled_write_bytes": 0,
+      "rchar": 8754313,
+      "read_bytes": 2953216,
+      "syscr": 27319,
+      "syscw": 3430,
+      "wchar": 246302,
+      "write_bytes": 0
+    },
+    "counter_reset": false
+  }
+}

@@ -1,0 +1,23 @@
+ninja: Entering directory `/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64'
+[1/9] Generating qemu-version.h with a custom command (wrapped by meson to capture output)
+[2/7] Generating xemu-version-macro.h with a custom command (wrapped by meson to capture output)
+[3/7] Compiling C object libqemu-i386-softmmu.a.p/xemu-version.c.o
+[4/7] Compiling C object libsystem.a.p/accel_tcg_cpu-exec.c.o
+[5/7] Compiling C object libsystem.a.p/accel_tcg_translate-all.c.o
+../source/xemu/accel/tcg/translate-all.c:24:10: warning: no previous prototype for function 'boxdroid_tcg_memory_mode' [-Wmissing-prototypes]
+   24 | unsigned boxdroid_tcg_memory_mode(void)
+      |          ^
+../source/xemu/accel/tcg/translate-all.c:24:1: note: declare 'static' if the function is not intended to be used outside of this translation unit
+   24 | unsigned boxdroid_tcg_memory_mode(void)
+      | ^
+      | static 
+../source/xemu/accel/tcg/translate-all.c:65:6: warning: no previous prototype for function 'boxdroid_order_audit' [-Wmissing-prototypes]
+   65 | void boxdroid_order_audit(TranslationBlock *tb, bool executed)
+      |      ^
+../source/xemu/accel/tcg/translate-all.c:65:1: note: declare 'static' if the function is not intended to be used outside of this translation unit
+   65 | void boxdroid_order_audit(TranslationBlock *tb, bool executed)
+      | ^
+      | static 
+2 warnings generated.
+[6/7] Compiling C object libsystem.a.p/tcg_tcg.c.o
+[7/7] Linking target libboxdroid.so

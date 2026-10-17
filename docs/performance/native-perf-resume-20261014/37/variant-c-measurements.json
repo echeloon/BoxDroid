@@ -1,0 +1,553 @@
+{
+  "native-run-pinned-gp-c-all8-bridge-20261014": {
+    "timing": {
+      "unique_per_second": 11.563600596863182,
+      "frames_per_second": 23.098859035400718,
+      "guest_flips_per_second": 11.563600596863182,
+      "refresh_per_second": 62.4094326330704,
+      "display_refresh_callbacks_per_second": 62.4094326330704,
+      "scanout_us_per_second": 24048.321339309823,
+      "conversion_us_per_second": 10495.83812410283,
+      "presenter_us_per_second": 6382.370633352009,
+      "bql_reacquire_us_per_second": 268.7970295604177,
+      "callback_us_per_second": 47964.00137765564,
+      "unique_frame_interval_us": {
+        "p50": 80699,
+        "p95": 111581,
+        "p99": 117222,
+        "max": 129125
+      },
+      "unique_frame_gaps_over_1s": 0,
+      "changed_image_interval_us": {
+        "p50": 80699,
+        "p95": 111581,
+        "p99": 117222,
+        "max": 129125
+      },
+      "guest_flip_interval_us": {
+        "p50": 86166,
+        "p95": 103125,
+        "p99": 107748,
+        "max": 115159
+      },
+      "guest_flip_events": 412,
+      "guest_flip_events_per_second": 11.559505550165808,
+      "guest_flip_event_id_gaps": 0,
+      "guest_flip_interval_scope": "NV097 FLIP_INCREMENT_WRITE submission",
+      "completed_presents_per_second": 23.114229512405327,
+      "presentation_interval_us": {
+        "p50": 19975,
+        "p95": 85741,
+        "p99": 99303,
+        "max": 113991
+      },
+      "presentation_service_us": {
+        "p50": 2925,
+        "p95": 3936,
+        "p99": 4896,
+        "max": 8575
+      },
+      "presentation_queue_us": {
+        "p50": 15,
+        "p95": 108,
+        "p99": 555,
+        "max": 4358
+      },
+      "failed_presents": 0
+    },
+    "audio": {
+      "observed_errors": [
+        0
+      ],
+      "underrun_callbacks": 745,
+      "underrun_frames": 89472,
+      "dropped_frames": 0,
+      "offered_frames": 1422336,
+      "consumed_frames": 1422336,
+      "callback_frames_total": 1511808,
+      "counter_window_seconds": 31.499000072479248,
+      "underrun_frame_fraction": 0.05918211836423673,
+      "production_minus_consumption_ms": 0.0
+    },
+    "threads": [
+      {
+        "tid": 32316,
+        "name": "ALL CPUs/TCG",
+        "cpu_percent": 95.65547377211908,
+        "scheduler_wait_ms": 324.573278,
+        "scheduler_slices_per_second": 1958.2238720728733,
+        "allowed": "0-7",
+        "sampled_cpus": [
+          4,
+          5,
+          7
+        ],
+        "user_cpu_seconds": 32.33,
+        "system_cpu_seconds": 1.16
+      },
+      {
+        "tid": 32321,
+        "name": "mcpx.apu_thread",
+        "cpu_percent": 52.10019399770953,
+        "scheduler_wait_ms": 2159.072867,
+        "scheduler_slices_per_second": 1621.045117075768,
+        "allowed": "0-7",
+        "sampled_cpus": [
+          4,
+          5,
+          6,
+          7
+        ],
+        "user_cpu_seconds": 17.12,
+        "system_cpu_seconds": 1.12
+      },
+      {
+        "tid": 32322,
+        "name": "nv2a.pfifo",
+        "cpu_percent": 22.04974802969475,
+        "scheduler_wait_ms": 917.459976,
+        "scheduler_slices_per_second": 1118.275271273428,
+        "allowed": "0-7",
+        "sampled_cpus": [
+          4,
+          5,
+          6,
+          7
+        ],
+        "user_cpu_seconds": 5.06,
+        "system_cpu_seconds": 2.67
+      }
+    ],
+    "frequencies": {
+      "policy0": {
+        "min_khz": 1171200,
+        "median_khz": 1171200.0,
+        "max_khz": 1171200
+      },
+      "policy4": {
+        "min_khz": 2419200,
+        "median_khz": 2419200.0,
+        "max_khz": 2419200
+      },
+      "policy7": {
+        "min_khz": 2841600,
+        "median_khz": 2841600.0,
+        "max_khz": 2841600
+      }
+    },
+    "battery_start": 320,
+    "battery_end": 320
+  },
+  "native-run-pinned-gp-c-off-bridge-20261014": {
+    "timing": {
+      "unique_per_second": 11.892977474304232,
+      "frames_per_second": 23.81427156164252,
+      "guest_flips_per_second": 11.892977474304232,
+      "refresh_per_second": 62.409815127063155,
+      "display_refresh_callbacks_per_second": 62.409815127063155,
+      "scanout_us_per_second": 33052.39666432564,
+      "conversion_us_per_second": 10688.332122609349,
+      "presenter_us_per_second": 7032.147680877888,
+      "bql_reacquire_us_per_second": 253.29210358964605,
+      "callback_us_per_second": 56188.82514315889,
+      "unique_frame_interval_us": {
+        "p50": 80202,
+        "p95": 106709,
+        "p99": 115714,
+        "max": 124451
+      },
+      "unique_frame_gaps_over_1s": 0,
+      "changed_image_interval_us": {
+        "p50": 80202,
+        "p95": 106709,
+        "p99": 115714,
+        "max": 124451
+      },
+      "guest_flip_interval_us": {
+        "p50": 83799,
+        "p95": 99806,
+        "p99": 104236,
+        "max": 112303
+      },
+      "guest_flip_events": 423,
+      "guest_flip_events_per_second": 11.909116620673583,
+      "guest_flip_event_id_gaps": 0,
+      "guest_flip_interval_scope": "NV097 FLIP_INCREMENT_WRITE submission",
+      "completed_presents_per_second": 23.806624697031857,
+      "presentation_interval_us": {
+        "p50": 20762,
+        "p95": 85494,
+        "p99": 96526,
+        "max": 108857
+      },
+      "presentation_service_us": {
+        "p50": 2861,
+        "p95": 3897,
+        "p99": 4375,
+        "max": 6385
+      },
+      "presentation_queue_us": {
+        "p50": 15,
+        "p95": 127,
+        "p99": 653,
+        "max": 4675
+      },
+      "failed_presents": 0
+    },
+    "audio": {
+      "observed_errors": [
+        0
+      ],
+      "underrun_callbacks": 736,
+      "underrun_frames": 87744,
+      "dropped_frames": 0,
+      "offered_frames": 1352192,
+      "consumed_frames": 1352256,
+      "callback_frames_total": 1440000,
+      "counter_window_seconds": 30.0,
+      "underrun_frame_fraction": 0.06093333333333333,
+      "production_minus_consumption_ms": -1.3333333333333333
+    },
+    "threads": [
+      {
+        "tid": 6154,
+        "name": "ALL CPUs/TCG",
+        "cpu_percent": 95.70430705511866,
+        "scheduler_wait_ms": 319.940201,
+        "scheduler_slices_per_second": 1982.7784156144353,
+        "allowed": "0-7",
+        "sampled_cpus": [
+          4,
+          5,
+          6,
+          7
+        ],
+        "user_cpu_seconds": 32.52,
+        "system_cpu_seconds": 0.83
+      },
+      {
+        "tid": 6159,
+        "name": "mcpx.apu_thread",
+        "cpu_percent": 53.02224834386295,
+        "scheduler_wait_ms": 2110.1686,
+        "scheduler_slices_per_second": 1633.1228473021156,
+        "allowed": "0-7",
+        "sampled_cpus": [
+          0,
+          4,
+          5,
+          6,
+          7
+        ],
+        "user_cpu_seconds": 17.29,
+        "system_cpu_seconds": 1.18
+      },
+      {
+        "tid": 6160,
+        "name": "nv2a.pfifo",
+        "cpu_percent": 22.405726354766884,
+        "scheduler_wait_ms": 1030.435171,
+        "scheduler_slices_per_second": 1101.9804822044732,
+        "allowed": "0-7",
+        "sampled_cpus": [
+          4,
+          5,
+          6,
+          7
+        ],
+        "user_cpu_seconds": 5.58,
+        "system_cpu_seconds": 2.23
+      }
+    ],
+    "frequencies": {
+      "policy0": {
+        "min_khz": 1171200,
+        "median_khz": 1171200,
+        "max_khz": 1171200
+      },
+      "policy4": {
+        "min_khz": 2419200,
+        "median_khz": 2419200,
+        "max_khz": 2419200
+      },
+      "policy7": {
+        "min_khz": 2841600,
+        "median_khz": 2841600,
+        "max_khz": 2841600
+      }
+    },
+    "battery_start": 322,
+    "battery_end": 322
+  },
+  "native-run-pinned-gp-c-pair-bridge-20261014": {
+    "timing": {
+      "unique_per_second": 11.739411195777251,
+      "frames_per_second": 23.478822391554502,
+      "guest_flips_per_second": 11.739411195777251,
+      "refresh_per_second": 62.47240652776297,
+      "display_refresh_callbacks_per_second": 62.47240652776297,
+      "scanout_us_per_second": 23823.97761509232,
+      "conversion_us_per_second": 9990.266484909718,
+      "presenter_us_per_second": 7498.810695683846,
+      "bql_reacquire_us_per_second": 192.57043529598928,
+      "callback_us_per_second": 47056.2723715355,
+      "unique_frame_interval_us": {
+        "p50": 80280,
+        "p95": 107050,
+        "p99": 118112,
+        "max": 128243
+      },
+      "unique_frame_gaps_over_1s": 0,
+      "changed_image_interval_us": {
+        "p50": 80280,
+        "p95": 107050,
+        "p99": 118112,
+        "max": 128243
+      },
+      "guest_flip_interval_us": {
+        "p50": 84752,
+        "p95": 99873,
+        "p99": 107080,
+        "max": 122457
+      },
+      "guest_flip_events": 418,
+      "guest_flip_events_per_second": 11.724942960401886,
+      "guest_flip_event_id_gaps": 0,
+      "guest_flip_interval_scope": "NV097 FLIP_INCREMENT_WRITE submission",
+      "completed_presents_per_second": 23.452805647076513,
+      "presentation_interval_us": {
+        "p50": 20579,
+        "p95": 84834,
+        "p99": 97874,
+        "max": 111756
+      },
+      "presentation_service_us": {
+        "p50": 2917,
+        "p95": 3887,
+        "p99": 4634,
+        "max": 7510
+      },
+      "presentation_queue_us": {
+        "p50": 14,
+        "p95": 143,
+        "p99": 719,
+        "max": 3858
+      },
+      "failed_presents": 0
+    },
+    "audio": {
+      "observed_errors": [
+        0
+      ],
+      "underrun_callbacks": 699,
+      "underrun_frames": 81536,
+      "dropped_frames": 0,
+      "offered_frames": 1406720,
+      "consumed_frames": 1406464,
+      "callback_frames_total": 1488000,
+      "counter_window_seconds": 31.0,
+      "underrun_frame_fraction": 0.054795698924731184,
+      "production_minus_consumption_ms": 5.333333333333333
+    },
+    "threads": [
+      {
+        "tid": 11168,
+        "name": "ALL CPUs/TCG",
+        "cpu_percent": 95.76523173094836,
+        "scheduler_wait_ms": 311.325737,
+        "scheduler_slices_per_second": 2005.2556412456586,
+        "allowed": "0-7",
+        "sampled_cpus": [
+          4,
+          5,
+          7
+        ],
+        "user_cpu_seconds": 32.65,
+        "system_cpu_seconds": 0.88
+      },
+      {
+        "tid": 11173,
+        "name": "mcpx.apu_thread",
+        "cpu_percent": 52.567921259647974,
+        "scheduler_wait_ms": 2079.435295,
+        "scheduler_slices_per_second": 1624.3644672953017,
+        "allowed": "0-7",
+        "sampled_cpus": [
+          4,
+          5,
+          6,
+          7
+        ],
+        "user_cpu_seconds": 17.25,
+        "system_cpu_seconds": 1.15
+      },
+      {
+        "tid": 11174,
+        "name": "nv2a.pfifo",
+        "cpu_percent": 21.978215024282065,
+        "scheduler_wait_ms": 966.211107,
+        "scheduler_slices_per_second": 1105.9411596688317,
+        "allowed": "0-7",
+        "sampled_cpus": [
+          4,
+          5,
+          6,
+          7
+        ],
+        "user_cpu_seconds": 5.4,
+        "system_cpu_seconds": 2.29
+      }
+    ],
+    "frequencies": {
+      "policy0": {
+        "min_khz": 1171200,
+        "median_khz": 1171200.0,
+        "max_khz": 1804800
+      },
+      "policy4": {
+        "min_khz": 2419200,
+        "median_khz": 2419200.0,
+        "max_khz": 2419200
+      },
+      "policy7": {
+        "min_khz": 2841600,
+        "median_khz": 2841600.0,
+        "max_khz": 2841600
+      }
+    },
+    "battery_start": 322,
+    "battery_end": 322
+  },
+  "native-run-pinned-gp-c-off-pmu-20261014": {
+    "timing": {
+      "unique_per_second": 11.908267637322792,
+      "frames_per_second": 23.87855750192331,
+      "guest_flips_per_second": 11.908267637322792,
+      "refresh_per_second": 62.518405095944665,
+      "display_refresh_callbacks_per_second": 62.518405095944665,
+      "scanout_us_per_second": 31059.490976138066,
+      "conversion_us_per_second": 10747.21154268382,
+      "presenter_us_per_second": 7313.040818316305,
+      "bql_reacquire_us_per_second": 75.6050950515442,
+      "callback_us_per_second": 54484.41790775211,
+      "unique_frame_interval_us": {
+        "p50": 80159,
+        "p95": 112054,
+        "p99": 123046,
+        "max": 125024
+      },
+      "unique_frame_gaps_over_1s": 0,
+      "changed_image_interval_us": {
+        "p50": 80159,
+        "p95": 112054,
+        "p99": 123046,
+        "max": 125024
+      },
+      "guest_flip_interval_us": {
+        "p50": 83858,
+        "p95": 101549,
+        "p99": 106956,
+        "max": 113432
+      },
+      "guest_flip_events": 196,
+      "guest_flip_events_per_second": 11.899512461718658,
+      "guest_flip_event_id_gaps": 0,
+      "guest_flip_interval_scope": "NV097 FLIP_INCREMENT_WRITE submission",
+      "completed_presents_per_second": 23.802913342320256,
+      "presentation_interval_us": {
+        "p50": 19176,
+        "p95": 87398,
+        "p99": 104674,
+        "max": 110086
+      },
+      "presentation_service_us": {
+        "p50": 2907,
+        "p95": 3864,
+        "p99": 4391,
+        "max": 6159
+      },
+      "presentation_queue_us": {
+        "p50": 15,
+        "p95": 84,
+        "p99": 284,
+        "max": 3688
+      },
+      "failed_presents": 0
+    },
+    "audio": {
+      "observed_errors": [
+        0
+      ]
+    },
+    "threads": [
+      {
+        "tid": 6154,
+        "name": "ALL CPUs/TCG",
+        "cpu_percent": 95.4575357789355,
+        "scheduler_wait_ms": 161.284792,
+        "scheduler_slices_per_second": 1811.7842876160198,
+        "allowed": "0-7",
+        "sampled_cpus": [
+          7
+        ],
+        "user_cpu_seconds": 14.02,
+        "system_cpu_seconds": 0.31
+      },
+      {
+        "tid": 6159,
+        "name": "mcpx.apu_thread",
+        "cpu_percent": 53.20497126496559,
+        "scheduler_wait_ms": 922.351616,
+        "scheduler_slices_per_second": 1593.408788281858,
+        "allowed": "0-7",
+        "sampled_cpus": [
+          4,
+          5,
+          6,
+          7
+        ],
+        "user_cpu_seconds": 7.55,
+        "system_cpu_seconds": 0.44
+      },
+      {
+        "tid": 6160,
+        "name": "nv2a.pfifo",
+        "cpu_percent": 22.400472862843458,
+        "scheduler_wait_ms": 386.749883,
+        "scheduler_slices_per_second": 1103.062583222071,
+        "allowed": "0-7",
+        "sampled_cpus": [
+          4,
+          5,
+          6
+        ],
+        "user_cpu_seconds": 2.42,
+        "system_cpu_seconds": 0.95
+      }
+    ],
+    "frequencies": {
+      "policy0": {
+        "min_khz": 1171200,
+        "median_khz": 1171200.0,
+        "max_khz": 1171200
+      },
+      "policy4": {
+        "min_khz": 2419200,
+        "median_khz": 2419200.0,
+        "max_khz": 2419200
+      },
+      "policy7": {
+        "min_khz": 2841600,
+        "median_khz": 2841600.0,
+        "max_khz": 2841600
+      }
+    },
+    "battery_start": 322,
+    "battery_end": 322,
+    "pmu_per_flip": {
+      "cpu-cycles:u": 216964917.47946596,
+      "instructions:u": 436480173.9159144,
+      "branch-misses:u": 1054323.9502673936
+    }
+  }
+}

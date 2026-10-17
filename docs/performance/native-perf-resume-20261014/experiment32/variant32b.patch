@@ -1,0 +1,117 @@
+# Experiment32b bounded forward-Jcc fallthrough regions (signed displacement filter); precise original side exits; no icount, PC-relative, plugin, trap or interrupt-shadow specialization. Default disabled pending device performance acceptance.
+
+diff --git a/accel/tcg/translate-all.c b/accel/tcg/translate-all.c
+index 9fd1fc7225..b9e6aa3922 100644
+--- a/accel/tcg/translate-all.c
++++ b/accel/tcg/translate-all.c
+@@ -513,6 +513,14 @@ TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
+             !strcmp(prop, "1");
+     }
+     tcg_ctx->boxdroid_lookup_shared_requested = lookup_shared_mode;
++    static int branch_fallthrough_mode = -1;
++    if (branch_fallthrough_mode < 0) {
++        char prop[PROP_VALUE_MAX] = {0};
++        branch_fallthrough_mode =
++            __system_property_get("debug.boxdroid.branch_fallthrough", prop) &&
++            !strcmp(prop, "1");
++    }
++    tcg_ctx->boxdroid_branch_fallthrough_requested = branch_fallthrough_mode;
+ #endif
+ 
+  restart_translate:
+diff --git a/include/tcg/tcg.h b/include/tcg/tcg.h
+index bc95069775..c89dea8141 100644
+--- a/include/tcg/tcg.h
++++ b/include/tcg/tcg.h
+@@ -396,6 +396,7 @@ struct TCGContext {
+     const tcg_insn_unit *boxdroid_lookup_shared[4];
+     const tcg_insn_unit *boxdroid_lookup_pending[4];
+     bool boxdroid_fmul_shared_requested;
++    bool boxdroid_branch_fallthrough_requested;
+     struct {
+         int eip, hflags, eflags, cs_base;
+         uint32_t eligible_mask, eligible_value, eflags_mask;
+diff --git a/target/i386/tcg/emit.c.inc b/target/i386/tcg/emit.c.inc
+index f8cb49bee7..615242322c 100644
+--- a/target/i386/tcg/emit.c.inc
++++ b/target/i386/tcg/emit.c.inc
+@@ -2304,6 +2304,34 @@ static void gen_IRET(DisasContext *s, X86DecodedInsn *decode)
+ 
+ static void gen_Jcc(DisasContext *s, X86DecodedInsn *decode)
+ {
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    /* Continue the untaken path of ordinary forward branches. The existing
++     * page and instruction-budget limits still bound the region. Partial
++     * regions must not debit a full icount budget, use PC-relative recovery,
++     * suppress a debug trap, or extend an interrupt shadow. */
++    uint32_t cflags = tb_cflags(s->base.tb);
++    if (tcg_ctx->boxdroid_branch_fallthrough_requested && CODE32(s) &&
++        s->dflag == MO_32 && (target_long)decode->immediate > 0 &&
++        s->boxdroid_forward_branches < 4 &&
++        s->base.num_insns < s->base.max_insns &&
++        !(cflags & (CF_USE_ICOUNT | CF_PCREL | CF_SINGLE_STEP)) &&
++        !(s->flags & (HF_RF_MASK | HF_TF_MASK | HF_INHIBIT_IRQ_MASK)) &&
++        !s->base.plugin_enabled && translator_is_same_page(&s->base, s->pc)) {
++        TCGLabel *fallthrough = gen_new_label();
++        gen_bnd_jmp(s);
++        gen_jcc(s, (decode->b & 0xf) ^ 1, fallthrough);
++        gen_jmp_rel(s, s->dflag, decode->immediate, -1);
++        gen_set_label(fallthrough);
++        s->base.is_jmp = DISAS_NEXT;
++        ++s->boxdroid_forward_branches;
++        extern bool boxdroid_inline_lookup_observe;
++        extern uint64_t boxdroid_branch_fallthroughs;
++        if (boxdroid_inline_lookup_observe) {
++            ++boxdroid_branch_fallthroughs;
++        }
++        return;
++    }
++#endif
+     TCGLabel *taken = gen_new_label();
+ 
+     gen_bnd_jmp(s);
+diff --git a/target/i386/tcg/translate.c b/target/i386/tcg/translate.c
+index 6ace1c523d..38764a8eda 100644
+--- a/target/i386/tcg/translate.c
++++ b/target/i386/tcg/translate.c
+@@ -205,6 +205,9 @@ typedef struct DisasContext {
+ #endif
+     bool vex_w; /* used by AVX even on 32-bit processors */
+     bool jmp_opt; /* use direct block chaining for direct jumps */
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    unsigned boxdroid_forward_branches;
++#endif
+     bool cc_op_dirty;
+ 
+     CCOp cc_op;  /* current CC operation */
+@@ -352,6 +355,9 @@ STUB_HELPER(write_crN, TCGv_env env, TCGv_i32 reg, TCGv val)
+ #endif
+ 
+ static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num);
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++uint64_t boxdroid_branch_fallthroughs;
++#endif
+ static void gen_jmp_rel_csize(DisasContext *s, int diff, int tb_num);
+ static void gen_exception_gpf(DisasContext *s);
+ 
+@@ -2910,7 +2916,9 @@ gen_eob(DisasContext *s, int mode)
+ /* Jump to eip+diff, truncating the result to OT. */
+ static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num)
+ {
+-    bool use_goto_tb = s->jmp_opt;
++    /* Negative slots are side exits of a larger translation region. Keep
++     * both direct-link slots available for its terminal branch. */
++    bool use_goto_tb = s->jmp_opt && tb_num >= 0;
+     target_ulong mask = -1;
+     target_ulong new_pc = s->pc + diff;
+     target_ulong new_eip = new_pc - s->cs_base;
+@@ -4391,6 +4399,9 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
+     dc->cpuid_xsave_features = env->features[FEAT_XSAVE];
+     dc->jmp_opt = !((cflags & CF_NO_GOTO_TB) ||
+                     (flags & (HF_RF_MASK | HF_TF_MASK | HF_INHIBIT_IRQ_MASK)));
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    dc->boxdroid_forward_branches = 0;
++#endif
+ 
+     dc->T0 = tcg_temp_new();
+     dc->T1 = tcg_temp_new();

@@ -1,0 +1,417 @@
+# Experiment37b: fixed GPR residency, existing NO_READ_GLOBALS including exception-recovery contract; legal fixed outputs emitted directly. Unvalidated.
+
+diff --git a/accel/tcg/tcg-all.c b/accel/tcg/tcg-all.c
+index 18ea0c58b0..cb10a9b6f2 100644
+--- a/accel/tcg/tcg-all.c
++++ b/accel/tcg/tcg-all.c
+@@ -154,6 +154,11 @@ static int tcg_init_machine(AccelState *as, MachineState *ms)
+     tcg_init(s->tb_size * MiB, s->splitwx_enabled, max_threads);
+ 
+ #if defined(CONFIG_SOFTMMU)
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    if (cc->tcg_ops->configure_registers) {
++        cc->tcg_ops->configure_registers();
++    }
++#endif
+     /*
+      * There's no guest base to take into account, so go ahead and
+      * initialize the prologue now.
+diff --git a/include/accel/tcg/cpu-ops.h b/include/accel/tcg/cpu-ops.h
+index dd8ea30016..9bfa0b09d9 100644
+--- a/include/accel/tcg/cpu-ops.h
++++ b/include/accel/tcg/cpu-ops.h
+@@ -48,6 +48,10 @@ struct TCGCPUOps {
+      * Called when the first CPU is realized.
+      */
+     void (*initialize)(void);
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    /* Configure fixed guest-register bindings before generating the prologue. */
++    void (*configure_registers)(void);
++#endif
+     /**
+      * @translate_code: Translate guest instructions to TCGOps
+      * @cpu: cpu context
+diff --git a/include/tcg/tcg-op-common.h b/include/tcg/tcg-op-common.h
+index 8b3bd903a2..5d4e30b9fa 100644
+--- a/include/tcg/tcg-op-common.h
++++ b/include/tcg/tcg-op-common.h
+@@ -28,6 +28,9 @@ TCGv_vec tcg_temp_new_vec(TCGType type);
+ TCGv_vec tcg_temp_new_vec_matching(TCGv_vec match);
+ 
+ TCGv_i32 tcg_global_mem_new_i32(TCGv_ptr reg, intptr_t off, const char *name);
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++TCGv_i32 boxdroid_global_writable_reg_i32(TCGReg reg, const char *name);
++#endif
+ TCGv_i64 tcg_global_mem_new_i64(TCGv_ptr reg, intptr_t off, const char *name);
+ TCGv_f32 tcg_global_mem_new_f32(TCGv_ptr reg, intptr_t offset, const char *name);
+ TCGv_f64 tcg_global_mem_new_f64(TCGv_ptr reg, intptr_t offset, const char *name);
+diff --git a/include/tcg/tcg.h b/include/tcg/tcg.h
+index bc95069775..b349829c80 100644
+--- a/include/tcg/tcg.h
++++ b/include/tcg/tcg.h
+@@ -312,6 +312,7 @@ typedef struct TCGTemp {
+     unsigned int mem_allocated:1;
+     unsigned int temp_allocated:1;
+     unsigned int temp_subindex:2;
++    unsigned int boxdroid_fixed_writable:1;
+ 
+     int64_t val;
+     struct TCGTemp *mem_base;
+@@ -396,6 +397,11 @@ struct TCGContext {
+     const tcg_insn_unit *boxdroid_lookup_shared[4];
+     const tcg_insn_unit *boxdroid_lookup_pending[4];
+     bool boxdroid_fmul_shared_requested;
++    unsigned boxdroid_pin_gp_count;
++    struct {
++        TCGReg reg;
++        int offset;
++    } boxdroid_pin_gp[8];
+     struct {
+         int eip, hflags, eflags, cs_base;
+         uint32_t eligible_mask, eligible_value, eflags_mask;
+@@ -493,6 +499,9 @@ struct TCGContext {
+ 
+ static inline bool temp_readonly(TCGTemp *ts)
+ {
++    if (ts->kind == TEMP_FIXED && ts->boxdroid_fixed_writable) {
++        return false;
++    }
+     return ts->kind >= TEMP_FIXED;
+ }
+ 
+diff --git a/target/i386/tcg/helper-tcg.h b/target/i386/tcg/helper-tcg.h
+index e41cbda407..641b104591 100644
+--- a/target/i386/tcg/helper-tcg.h
++++ b/target/i386/tcg/helper-tcg.h
+@@ -58,6 +58,7 @@ static inline target_long lshift(target_long x, int n)
+ 
+ /* translate.c */
+ void tcg_x86_init(void);
++void tcg_x86_configure_registers(void);
+ void x86_translate_code(CPUState *cs, TranslationBlock *tb,
+                         int *max_insns, vaddr pc, void *host_pc);
+ 
+diff --git a/target/i386/tcg/tcg-cpu.c b/target/i386/tcg/tcg-cpu.c
+index 6f5dc06b3b..f58efee11a 100644
+--- a/target/i386/tcg/tcg-cpu.c
++++ b/target/i386/tcg/tcg-cpu.c
+@@ -165,6 +165,9 @@ const TCGCPUOps x86_tcg_ops = {
+      */
+     .guest_default_memory_order = TCG_MO_ALL & ~TCG_MO_ST_LD,
+     .initialize = tcg_x86_init,
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    .configure_registers = tcg_x86_configure_registers,
++#endif
+     .translate_code = x86_translate_code,
+     .get_tb_cpu_state = x86_get_tb_cpu_state,
+     .synchronize_from_tb = x86_cpu_synchronize_from_tb,
+diff --git a/target/i386/tcg/translate.c b/target/i386/tcg/translate.c
+index 6ace1c523d..f5ec0fa6f7 100644
+--- a/target/i386/tcg/translate.c
++++ b/target/i386/tcg/translate.c
+@@ -17,6 +17,9 @@
+  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
+  */
+ #include "qemu/osdep.h"
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++#include <sys/system_properties.h>
++#endif
+ 
+ #include "qemu/host-utils.h"
+ #include "cpu.h"
+@@ -4251,6 +4254,21 @@ static void gen_multi0F(DisasContext *s, X86DecodedInsn *decode)
+ 
+ #include "decode-new.c.inc"
+ 
++void tcg_x86_configure_registers(void)
++{
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__) && TARGET_LONG_BITS == 32
++    char prop[PROP_VALUE_MAX] = {0};
++    __system_property_get("debug.boxdroid.pin_gp", prop);
++    unsigned count = !strcmp(prop, "1") ? 2 : !strcmp(prop, "2") ? 8 : 0;
++
++    tcg_ctx->boxdroid_pin_gp_count = count;
++    for (unsigned i = 0; i < count; i++) {
++        tcg_ctx->boxdroid_pin_gp[i].reg = TCG_REG_X20 + i;
++        tcg_ctx->boxdroid_pin_gp[i].offset = offsetof(CPUX86State, regs[i]);
++    }
++#endif
++}
++
+ void tcg_x86_init(void)
+ {
+     static const char reg_names[CPU_NB_REGS][4] = {
+@@ -4316,6 +4334,13 @@ void tcg_x86_init(void)
+     cpu_eip = tcg_global_mem_new(tcg_env, offsetof(CPUX86State, eip), eip_name);
+ 
+     for (i = 0; i < CPU_NB_REGS; ++i) {
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__) && TARGET_LONG_BITS == 32
++        if (i < tcg_ctx->boxdroid_pin_gp_count) {
++            TCGReg reg = tcg_ctx->boxdroid_pin_gp[i].reg;
++            cpu_regs[i] = boxdroid_global_writable_reg_i32(reg, reg_names[i]);
++            continue;
++        }
++#endif
+         cpu_regs[i] = tcg_global_mem_new(tcg_env,
+                                          offsetof(CPUX86State, regs[i]),
+                                          reg_names[i]);
+diff --git a/tcg/aarch64/tcg-target.c.inc b/tcg/aarch64/tcg-target.c.inc
+index 18bb7e770a..2106916193 100644
+--- a/tcg/aarch64/tcg-target.c.inc
++++ b/tcg/aarch64/tcg-target.c.inc
+@@ -13,6 +13,25 @@
+ #include "qemu/bitops.h"
+ static void tcg_out_mb(TCGContext *s, unsigned a0);
+ 
++#if defined(BOXDROID_XBOX_RUNTIME)
++/* Guest GPRs occupy AAPCS64 callee-preserved registers. CPU-local numeric
++ * helpers do not observe them; all other C/fault/exit boundaries do. */
++static void boxdroid_sync_pinned_gp(TCGContext *s, bool reload)
++{
++    for (unsigned i = 0; i < s->boxdroid_pin_gp_count; i++) {
++        if (reload) {
++            tcg_out_ld(s, TCG_TYPE_I32, s->boxdroid_pin_gp[i].reg,
++                       TCG_AREG0, s->boxdroid_pin_gp[i].offset);
++        } else {
++            tcg_out_st(s, TCG_TYPE_I32, s->boxdroid_pin_gp[i].reg,
++                       TCG_AREG0, s->boxdroid_pin_gp[i].offset);
++        }
++    }
++}
++#else
++static inline void boxdroid_sync_pinned_gp(TCGContext *s, bool reload) { }
++#endif
++
+ /* Used for function call generation. */
+ #define TCG_REG_CALL_STACK              TCG_REG_SP
+ #define TCG_TARGET_STACK_ALIGN          16
+@@ -1556,7 +1575,9 @@ static void boxdroid_out_lookup_tb_ptr(TCGContext *s,
+         tcg_out_insn(s, 3314, STP, TCG_REG_XZR, TCG_REG_LR,
+                      TCG_REG_SP, -16, 1, 1);
+     }
++    boxdroid_sync_pinned_gp(s, false);
+     tcg_out_call_int(s, target);
++    boxdroid_sync_pinned_gp(s, true);
+     if (s->boxdroid_lookup_no_bridges && s->boxdroid_acquire_reads) {
+         tcg_out_mb(s, TCG_MO_LD_LD | TCG_MO_LD_ST);
+     }
+@@ -1601,6 +1622,17 @@ static void boxdroid_call_shared_lookup(TCGContext *s,
+ static void tcg_out_call(TCGContext *s, const tcg_insn_unit *target,
+                          const TCGHelperInfo *info)
+ {
++    bool inline_lookup = false;
++#if defined(BOXDROID_XBOX_RUNTIME)
++    inline_lookup = s->boxdroid_inline_lookup_requested &&
++                    s->addr_type == TCG_TYPE_I32 &&
++                    !strcmp(info->name, "lookup_tb_ptr");
++#endif
++    /* NO_READ_GLOBALS excludes reads through exception recovery as well.
++     * Keep precisely the same implicit global-read contract as TCG. */
++    if (!inline_lookup && !(info->flags & TCG_CALL_NO_READ_GLOBALS)) {
++        boxdroid_sync_pinned_gp(s, false);
++    }
+ #if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
+     if (s->boxdroid_lookup_no_bridges && s->boxdroid_inline_lookup_requested &&
+         s->addr_type == TCG_TYPE_I32 && !strcmp(info->name, "lookup_tb_ptr")) {
+@@ -1628,6 +1660,10 @@ static void tcg_out_call(TCGContext *s, const tcg_insn_unit *target,
+     {
+         tcg_out_call_int(s, target);
+     }
++    if (!inline_lookup &&
++        !(info->flags & (TCG_CALL_NO_WRITE_GLOBALS | TCG_CALL_NO_READ_GLOBALS))) {
++        boxdroid_sync_pinned_gp(s, true);
++    }
+     if (s->boxdroid_acquire_reads && !(info->flags & TCG_CALL_NO_GUEST_MEMORY)) {
+         tcg_out_mb(s, TCG_MO_LD_LD | TCG_MO_LD_ST);
+     }
+@@ -1837,8 +1873,10 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
+         return false;
+     }
+ 
++    boxdroid_sync_pinned_gp(s, false);
+     tcg_out_ld_helper_args(s, lb, &ldst_helper_param);
+     tcg_out_call_int(s, qemu_ld_helpers[opc & MO_SIZE]);
++    boxdroid_sync_pinned_gp(s, true);
+     tcg_out_ld_helper_ret(s, lb, false, &ldst_helper_param);
+     if (s->boxdroid_acquire_reads && (opc & MO_SIZE) <= MO_64) {
+         /* The ordinary helper read must have acquire ordering on return,
+@@ -1857,8 +1895,10 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
+         return false;
+     }
+ 
++    boxdroid_sync_pinned_gp(s, false);
+     tcg_out_st_helper_args(s, lb, &ldst_helper_param);
+     tcg_out_call_int(s, qemu_st_helpers[opc & MO_SIZE]);
++    boxdroid_sync_pinned_gp(s, true);
+     if (s->boxdroid_acquire_reads) {
+         /* Store helpers can read RAM in a page walk or MMIO callback.
+          * Bridge those ordinary reads before returning to an acquire region. */
+@@ -3848,6 +3888,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
+     }
+ 
+     tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
++    boxdroid_sync_pinned_gp(s, true);
+     tcg_out_insn(s, 3207, BR, tcg_target_call_iarg_regs[1]);
+ 
+     /*
+@@ -3861,6 +3902,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
+     /* TB epilogue */
+     tb_ret_addr = tcg_splitwx_to_rx(s->code_ptr);
+     tcg_out_bti(s, BTI_J);
++    boxdroid_sync_pinned_gp(s, false);
+ 
+     /* Remove TCG locals stack space.  */
+     tcg_out_insn(s, 3401, ADDI, TCG_TYPE_I64, TCG_REG_SP, TCG_REG_SP,
+diff --git a/tcg/tcg.c b/tcg/tcg.c
+index fae8cd809c..11aa61c3c6 100644
+--- a/tcg/tcg.c
++++ b/tcg/tcg.c
+@@ -2035,6 +2035,15 @@ static TCGTemp *tcg_global_alloc(TCGContext *s)
+     return ts;
+ }
+ 
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++TCGv_i32 boxdroid_global_writable_reg_i32(TCGReg reg, const char *name)
++{
++    TCGTemp *ts = tcg_global_reg_new_internal(tcg_ctx, TCG_TYPE_I32, reg, name);
++    ts->boxdroid_fixed_writable = 1;
++    return temp_tcgv_i32(ts);
++}
++#endif
++
+ static TCGTemp *tcg_global_reg_new_internal(TCGContext *s, TCGType type,
+                                             TCGReg reg, const char *name)
+ {
+@@ -4828,7 +4837,7 @@ static inline void temp_dead(TCGContext *s, TCGTemp *ts)
+ static void temp_sync(TCGContext *s, TCGTemp *ts, TCGRegSet allocated_regs,
+                       TCGRegSet preferred_regs, int free_or_dead)
+ {
+-    if (!temp_readonly(ts) && !ts->mem_coherent) {
++    if (ts->kind != TEMP_FIXED && !temp_readonly(ts) && !ts->mem_coherent) {
+         if (!ts->mem_allocated) {
+             temp_allocate_frame(s, ts);
+         }
+@@ -5052,7 +5061,8 @@ static void temp_save(TCGContext *s, TCGTemp *ts, TCGRegSet allocated_regs)
+ {
+     /* The liveness analysis already ensures that globals are back
+        in memory. Keep an tcg_debug_assert for safety. */
+-    tcg_debug_assert(ts->val_type == TEMP_VAL_MEM || temp_readonly(ts));
++    tcg_debug_assert(ts->val_type == TEMP_VAL_MEM || temp_readonly(ts) ||
++                     ts->kind == TEMP_FIXED);
+ }
+ 
+ /* save globals to their canonical location and assume they can be
+@@ -5150,6 +5160,11 @@ static void tcg_reg_alloc_do_movi(TCGContext *s, TCGTemp *ots,
+     /* ENV should not be modified.  */
+     tcg_debug_assert(!temp_readonly(ots));
+ 
++    if (ots->boxdroid_fixed_writable) {
++        tcg_out_movi(s, ots->type, ots->reg, val);
++        return;
++    }
++
+     /* The movi is not explicitly generated here.  */
+     set_temp_val_nonreg(s, ots, TEMP_VAL_CONST);
+     ots->val = val;
+@@ -5194,6 +5209,16 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOp *op)
+         return;
+     }
+ 
++    if (ots->boxdroid_fixed_writable) {
++        temp_load(s, ts, tcg_target_available_regs[itype], allocated_regs,
++                  preferred_regs);
++        tcg_out_mov(s, otype, ots->reg, ts->reg);
++        if (IS_DEAD_ARG(1)) {
++            temp_dead(s, ts);
++        }
++        return;
++    }
++
+     /* If the source value is in memory we're going to be forced
+        to have it in a register in order to perform the copy.  Copy
+        the SOURCE value into its own register first, that way we
+@@ -5478,7 +5503,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
+                  * dead after the instruction, we must allocate a new
+                  * register and move it.
+                  */
+-                if (temp_readonly(ts) || !IS_DEAD_ARG(i)
++                if (ts->kind == TEMP_FIXED || temp_readonly(ts) || !IS_DEAD_ARG(i)
+                     || args_ct[arg_ct->alias_index].newreg) {
+                     allocate_new_reg = true;
+                 } else if (ts->val_type == TEMP_VAL_REG) {
+@@ -5523,7 +5548,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
+                 i_preferred_regs = output_pref(op, arg_ct->alias_index);
+                 if (IS_DEAD_ARG(i1) &&
+                     IS_DEAD_ARG(i2) &&
+-                    !temp_readonly(ts) &&
++                    ts->kind != TEMP_FIXED && !temp_readonly(ts) &&
+                     ts->val_type == TEMP_VAL_REG &&
+                     ts->reg < TCG_TARGET_NB_REGS - 1 &&
+                     tcg_regset_test_reg(i_required_regs, reg) &&
+@@ -5532,6 +5557,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
+                     (ts2
+                      ? ts2->val_type == TEMP_VAL_REG &&
+                        ts2->reg == reg + 1 &&
++                       ts2->kind != TEMP_FIXED &&
+                        !temp_readonly(ts2)
+                      : s->reg_to_temp[reg + 1] == NULL)) {
+                     break;
+@@ -5559,7 +5585,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
+             i_preferred_regs = output_pref(op, arg_ct->alias_index);
+ 
+             if (IS_DEAD_ARG(i) &&
+-                !temp_readonly(ts) &&
++                ts->kind != TEMP_FIXED && !temp_readonly(ts) &&
+                 ts->val_type == TEMP_VAL_REG &&
+                 reg > 0 &&
+                 s->reg_to_temp[reg - 1] == NULL &&
+@@ -5676,7 +5702,13 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
+ 
+             switch (arg_ct->pair) {
+             case 0: /* not paired */
+-                if (arg_ct->oalias && !const_args[arg_ct->alias_index]) {
++                if (ts->boxdroid_fixed_writable && nb_oargs == 1 &&
++                    !arg_ct->oalias && !arg_ct->newreg &&
++                    tcg_regset_test_reg(arg_ct->regs, ts->reg)) {
++                    /* This output may overlap inputs. Its fixed register is
++                     * reserved from allocation, but belongs to this global. */
++                    reg = ts->reg;
++                } else if (arg_ct->oalias && !const_args[arg_ct->alias_index]) {
+                     reg = new_args[arg_ct->alias_index];
+                 } else if (arg_ct->newreg) {
+                     reg = tcg_reg_alloc(s, arg_ct->regs,
+@@ -5720,7 +5752,9 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
+                 g_assert_not_reached();
+             }
+             tcg_regset_set_reg(o_allocated_regs, reg);
+-            set_temp_val_reg(s, ts, reg);
++            if (!ts->boxdroid_fixed_writable) {
++                set_temp_val_reg(s, ts, reg);
++            }
+             ts->mem_coherent = 0;
+             new_args[i] = reg;
+         }
+@@ -6080,6 +6114,10 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
+         /* ENV should not be modified.  */
+         tcg_debug_assert(!temp_readonly(ts));
+ 
++        if (ts->boxdroid_fixed_writable) {
++            tcg_out_mov(s, ts->type, ts->reg, new_args[i]);
++        }
++
+         if (NEED_SYNC_ARG(i)) {
+             temp_sync(s, ts, o_allocated_regs, 0, IS_DEAD_ARG(i));
+         } else if (IS_DEAD_ARG(i)) {
+@@ -6333,7 +6371,11 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
+             /* ENV should not be modified.  */
+             tcg_debug_assert(!temp_readonly(ts));
+ 
+-            set_temp_val_reg(s, ts, reg);
++            if (ts->boxdroid_fixed_writable) {
++                tcg_out_mov(s, ts->type, ts->reg, reg);
++            } else {
++                set_temp_val_reg(s, ts, reg);
++            }
+             ts->mem_coherent = 0;
+         }
+         break;

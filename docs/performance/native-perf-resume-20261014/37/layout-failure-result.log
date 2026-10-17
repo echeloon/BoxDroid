@@ -1,0 +1,22 @@
+fixed writable guest GPR bindings: 2
+actual TCG MMX load/register/EMMS execution PASS
+virtual TB cache generation: stale-key rejection and wrap clear PASS
+actual jump cache collision/SMC/page/full invalidation PASS, secondary active=1
+after step eip=10003 fpstt=0 exception=-1 hflags=200000b0 cr0=1
+actual indirect chained lookup: primary=271 secondary=15 fallbacks=0
+shared lookup generated entries=1, cflags=ff000000 PASS
+discarded duplicate TB: shared-code publication rollback PASS
+actual indirect full-state/flags/breakpoint/SMC/flush/CS/mode checks PASS
+virtual code aliases: CALL PC, direct chains, physical SMC/flush PASS
+TB cache CR3 remap/reload, SMC, code-cache flush, code-page faults PASS
+indirect-chain device-visible store ordering/interrupt resume: samples=861875 violations=0 interrupt=0 PASS
+visibility observer: samples=861875 violations=0 pass=0 result=65537
+indirect-chain device-visible store ordering/interrupt resume: samples=4102 violations=0 interrupt=1 PASS
+visibility observer: samples=4102 violations=0 pass=1 result=65538
+actual SSE pair reads: concurrent half atomicity/warm alignment PASS
+MMX full-state comparisons: 2048 PASS
+x87 stack/register full-state comparisons: 6144 PASS
+actual TCG arithmetic full-state differential: 147456 cases PASS
+actual FMUL bits/full-state/flags/aliases/refresh: 16384 cases, 0 fast hits PASS
+/Users/maverick/Documents/BoxDroid/BoxDroid/scripts/tests/tcg-state-recovery.c:1625: void test_on_cpu(CPUState *, run_on_cpu_data): assertion "cpu->exception_index == -1 && !memcmp(env, &expected, sizeof(*env)) && !memcmp(outputs, mem + 0x43000, sizeof(outputs)) && !memcmp(&pushed_flags, mem + 0x4effc, sizeof(pushed_flags))" failed
+Aborted 

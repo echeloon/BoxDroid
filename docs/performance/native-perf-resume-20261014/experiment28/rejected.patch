@@ -1,0 +1,367 @@
+# Experiment28 opt-in flat_tlb=1. Fixed i386 MMU contexts and direct-index TLB shadow; validation/performance pending.
+
+diff --git a/accel/tcg/cputlb.c b/accel/tcg/cputlb.c
+index ce28b34e29..dcd4cc4ad4 100644
+--- a/accel/tcg/cputlb.c
++++ b/accel/tcg/cputlb.c
+@@ -100,6 +100,69 @@ static inline size_t tlb_n_entries(CPUTLBDescFast *fast)
+     return (fast->mask >> CPU_TLB_ENTRY_BITS) + 1;
+ }
+ 
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++#include <sys/system_properties.h>
++#define BOXDROID_FLAT_PAGES (UINT32_C(1) << 20)
++#define BOXDROID_FLAT_INVALID ((uintptr_t)1)
++uint64_t boxdroid_flat_tlb_fast_hits;
++
++/* Under tlb_c.lock. Only original normal-page translations with an aligned
++ * addend qualify. The sentinel shares the fast path's alignment check. */
++static void boxdroid_flat_publish(CPUTLBDescFast *f, const CPUTLBEntry *e,
++                                  const CPUTLBEntryFull *full, vaddr page)
++{
++    if (!f->boxdroid_flat_read || page > UINT32_MAX) {
++        return;
++    }
++    size_t index = page >> 12;
++    uintptr_t read = BOXDROID_FLAT_INVALID, write = BOXDROID_FLAT_INVALID;
++    if (!(e->addend & 4095)) {
++        if (e->addr_read == page && !full->slow_flags[MMU_DATA_LOAD]) {
++            read = e->addend;
++        }
++        if (e->addr_write == page && !full->slow_flags[MMU_DATA_STORE]) {
++            write = e->addend;
++        }
++    }
++    qatomic_set(&f->boxdroid_flat_read[index], read);
++    qatomic_set(&f->boxdroid_flat_write[index], write);
++}
++
++static void boxdroid_flat_invalidate(CPUTLBDescFast *f, const CPUTLBEntry *e,
++                                     bool writes_only)
++{
++    if (!f->boxdroid_flat_read) {
++        return;
++    }
++    uintptr_t pages[] = {e->addr_read & TARGET_PAGE_MASK,
++                         e->addr_write & TARGET_PAGE_MASK};
++    for (unsigned i = 0; i < ARRAY_SIZE(pages); i++) {
++        if (pages[i] <= UINT32_MAX) {
++            size_t index = pages[i] >> 12;
++            if (!writes_only) {
++                qatomic_set(&f->boxdroid_flat_read[index], BOXDROID_FLAT_INVALID);
++            }
++            qatomic_set(&f->boxdroid_flat_write[index], BOXDROID_FLAT_INVALID);
++        }
++    }
++}
++
++/* Exactly the old fast/victim lifetime, including adaptive resize. Clearing
++ * existing entries avoids a full 16MiB shadow memset on every TLB flush. */
++static void boxdroid_flat_clear(CPUTLBDesc *d, CPUTLBDescFast *f,
++                                bool writes_only)
++{
++    if (f->boxdroid_flat_read) {
++        for (unsigned i = 0; i < tlb_n_entries(f); i++) {
++            boxdroid_flat_invalidate(f, &f->table[i], writes_only);
++        }
++        for (unsigned i = 0; i < CPU_VTLB_SIZE; i++) {
++            boxdroid_flat_invalidate(f, &d->vtable[i], writes_only);
++        }
++    }
++}
++#endif
++
+ static inline size_t sizeof_tlb(CPUTLBDescFast *fast)
+ {
+     return fast->mask + (1 << CPU_TLB_ENTRY_BITS);
+@@ -305,6 +368,9 @@ static void tlb_flush_one_mmuidx_locked(CPUState *cpu, int mmu_idx,
+     CPUTLBDesc *desc = &cpu->neg.tlb.d[mmu_idx];
+     CPUTLBDescFast *fast = cpu_tlb_fast(cpu, mmu_idx);
+ 
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    boxdroid_flat_clear(desc, fast, false);
++#endif
+     tlb_mmu_resize_locked(desc, fast, now);
+     tlb_mmu_flush_locked(desc, fast);
+ }
+@@ -343,6 +409,29 @@ void tlb_init(CPUState *cpu)
+ 
+     for (i = 0; i < NB_MMU_MODES; i++) {
+         tlb_mmu_init(&cpu->neg.tlb.d[i], cpu_tlb_fast(cpu, i), now);
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++        char prop[PROP_VALUE_MAX] = {0};
++        CPUTLBDescFast *f = cpu_tlb_fast(cpu, i);
++        f->boxdroid_flat_read = f->boxdroid_flat_write = NULL;
++        /* Fixed Xbox x86's 32-bit SMAP/user/kernel data contexts. All other
++         * contexts and allocation failures retain the ordinary TLB. */
++        if (TARGET_PAGE_BITS == 12 && (i == 1 || i == 3 || i == 5) &&
++            __system_property_get("debug.boxdroid.flat_tlb", prop) &&
++            !strcmp(prop, "1")) {
++            uintptr_t *read = g_try_new(uintptr_t, BOXDROID_FLAT_PAGES);
++            uintptr_t *write = g_try_new(uintptr_t, BOXDROID_FLAT_PAGES);
++            if (read && write) {
++                for (size_t n = 0; n < BOXDROID_FLAT_PAGES; n++) {
++                    read[n] = write[n] = BOXDROID_FLAT_INVALID;
++                }
++                f->boxdroid_flat_read = read;
++                f->boxdroid_flat_write = write;
++            } else {
++                g_free(read);
++                g_free(write);
++            }
++        }
++#endif
+     }
+ }
+ 
+@@ -355,6 +444,10 @@ void tlb_destroy(CPUState *cpu)
+         CPUTLBDesc *desc = &cpu->neg.tlb.d[i];
+         CPUTLBDescFast *fast = cpu_tlb_fast(cpu, i);
+ 
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++        g_free(fast->boxdroid_flat_read);
++        g_free(fast->boxdroid_flat_write);
++#endif
+         g_free(fast->table);
+         g_free(desc->fulltlb);
+     }
+@@ -500,6 +593,11 @@ static void tlb_flush_vtlb_page_mask_locked(CPUState *cpu, int mmu_idx,
+ 
+     assert_cpu_is_self(cpu);
+     for (k = 0; k < CPU_VTLB_SIZE; k++) {
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++        if (tlb_hit_page_mask_anyprot(&d->vtable[k], page, mask)) {
++            boxdroid_flat_invalidate(cpu_tlb_fast(cpu, mmu_idx), &d->vtable[k], false);
++        }
++#endif
+         if (tlb_flush_entry_mask_locked(&d->vtable[k], page, mask)) {
+             tlb_n_used_entries_dec(cpu, mmu_idx);
+         }
+@@ -516,6 +614,13 @@ static void tlb_flush_page_locked(CPUState *cpu, int midx, vaddr page)
+ {
+     vaddr lp_addr = cpu->neg.tlb.d[midx].large_page_addr;
+     vaddr lp_mask = cpu->neg.tlb.d[midx].large_page_mask;
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    CPUTLBDescFast *fast = cpu_tlb_fast(cpu, midx);
++    if (fast->boxdroid_flat_read && page <= UINT32_MAX) {
++        qatomic_set(&fast->boxdroid_flat_read[page >> 12], BOXDROID_FLAT_INVALID);
++        qatomic_set(&fast->boxdroid_flat_write[page >> 12], BOXDROID_FLAT_INVALID);
++    }
++#endif
+ 
+     /* Check if we need to flush due to large pages.  */
+     if ((page & lp_mask) == lp_addr) {
+@@ -680,6 +785,9 @@ static void tlb_flush_range_locked(CPUState *cpu, int midx,
+     CPUTLBDesc *d = &cpu->neg.tlb.d[midx];
+     CPUTLBDescFast *f = cpu_tlb_fast(cpu, midx);
+     vaddr mask = MAKE_64BIT_MASK(0, bits);
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    boxdroid_flat_clear(d, f, false);
++#endif
+ 
+     /*
+      * If @bits is smaller than the tlb size, there may be multiple entries
+@@ -937,6 +1045,10 @@ void tlb_reset_dirty(CPUState *cpu, uintptr_t start, uintptr_t length)
+         CPUTLBDescFast *fast = cpu_tlb_fast(cpu, mmu_idx);
+         unsigned int n = tlb_n_entries(fast);
+         unsigned int i;
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++        /* Remove eligibility before cross-thread protection changes. */
++        boxdroid_flat_clear(desc, fast, true);
++#endif
+ 
+         for (i = 0; i < n; i++) {
+             tlb_reset_dirty_range_locked(&desc->fulltlb[i], &fast->table[i],
+@@ -972,12 +1084,27 @@ static void tlb_set_dirty(CPUState *cpu, vaddr addr)
+     qemu_spin_lock(&cpu->neg.tlb.c.lock);
+     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
+         tlb_set_dirty1_locked(tlb_entry(cpu, mmu_idx, addr), addr);
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++        CPUTLBEntry *entry = tlb_entry(cpu, mmu_idx, addr);
++        size_t index = tlb_index(cpu, mmu_idx, addr);
++        if (tlb_hit_page_anyprot(entry, addr)) {
++            boxdroid_flat_publish(cpu_tlb_fast(cpu, mmu_idx), entry,
++                                 &cpu->neg.tlb.d[mmu_idx].fulltlb[index], addr);
++        }
++#endif
+     }
+ 
+     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
+         int k;
+         for (k = 0; k < CPU_VTLB_SIZE; k++) {
+             tlb_set_dirty1_locked(&cpu->neg.tlb.d[mmu_idx].vtable[k], addr);
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++            CPUTLBDesc *d = &cpu->neg.tlb.d[mmu_idx];
++            if (tlb_hit_page_anyprot(&d->vtable[k], addr)) {
++                boxdroid_flat_publish(cpu_tlb_fast(cpu, mmu_idx), &d->vtable[k],
++                                     &d->vfulltlb[k], addr);
++            }
++#endif
+         }
+     }
+     qemu_spin_unlock(&cpu->neg.tlb.c.lock);
+@@ -1149,6 +1276,9 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
+         CPUTLBEntry *tv = &desc->vtable[vidx];
+ 
+         /* Evict the old entry into the victim tlb.  */
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++        boxdroid_flat_invalidate(cpu_tlb_fast(cpu, mmu_idx), tv, false);
++#endif
+         copy_tlb_helper_locked(tv, te);
+         desc->vfulltlb[vidx] = desc->fulltlb[index];
+         tlb_n_used_entries_dec(cpu, mmu_idx);
+@@ -1197,6 +1327,9 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
+ 
+     copy_tlb_helper_locked(te, &tn);
+     tlb_n_used_entries_inc(cpu, mmu_idx);
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    boxdroid_flat_publish(cpu_tlb_fast(cpu, mmu_idx), te, full, addr_page);
++#endif
+     qemu_spin_unlock(&tlb->c.lock);
+ }
+ 
+@@ -1700,7 +1833,15 @@ static bool mmu_lookup1(CPUState *cpu, MMULookupPageData *data, MemOp memop,
+     data->flags = flags;
+     /* Compute haddr speculatively; depending on flags it might be invalid. */
+     data->haddr = (void *)((uintptr_t)addr + entry->addend);
+-
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    CPUTLBDescFast *fast = cpu_tlb_fast(cpu, mmu_idx);
++    if (fast->boxdroid_flat_read) {
++        /* Exclude dirty-reset races when republishing a warm original TLB. */
++        qemu_spin_lock(&cpu->neg.tlb.c.lock);
++        boxdroid_flat_publish(fast, entry, full, addr & TARGET_PAGE_MASK);
++        qemu_spin_unlock(&cpu->neg.tlb.c.lock);
++    }
++#endif
+     return maybe_resized;
+ }
+ 
+diff --git a/accel/tcg/translate-all.c b/accel/tcg/translate-all.c
+index 9fd1fc7225..4fbdea82b5 100644
+--- a/accel/tcg/translate-all.c
++++ b/accel/tcg/translate-all.c
+@@ -443,6 +443,14 @@ TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
+     tcg_ctx->gen_tb = tb;
+     tcg_ctx->addr_type = target_long_bits() == 32 ? TCG_TYPE_I32 : TCG_TYPE_I64;
+     tcg_ctx->guest_mo = cpu->cc->tcg_ops->guest_default_memory_order;
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    tcg_ctx->boxdroid_flat_tlb_mask = 0;
++    for (unsigned idx = 0; idx < 6; idx++) {
++        if (cpu_tlb_fast(cpu, idx)->boxdroid_flat_read) {
++            tcg_ctx->boxdroid_flat_tlb_mask |= 1u << idx;
++        }
++    }
++#endif
+     tcg_ctx->boxdroid_ordered_stores = false;
+     tcg_ctx->boxdroid_ordered_loads = false;
+     tcg_ctx->boxdroid_acquire_reads = false;
+diff --git a/include/exec/tlb-common.h b/include/exec/tlb-common.h
+index f2b43af11d..9b3612380f 100644
+--- a/include/exec/tlb-common.h
++++ b/include/exec/tlb-common.h
+@@ -69,6 +69,11 @@ typedef struct CPUTLBDescFast {
+     uintptr_t mask;
+     /* The array of tlb entries itself. */
+     CPUTLBEntry *table;
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    /* Experimental direct index of existing 32-bit, 4KiB translations.
++     * Aligned addend or sentinel 1; never extends the original TLB lifetime. */
++    uintptr_t *boxdroid_flat_read, *boxdroid_flat_write;
++#endif
+ } CPUTLBDescFast QEMU_ALIGNED(2 * sizeof(void *));
+ 
+ #endif /* EXEC_TLB_COMMON_H */
+diff --git a/include/hw/core/cpu.h b/include/hw/core/cpu.h
+index 72dfd1f2a3..fd90432e40 100644
+--- a/include/hw/core/cpu.h
++++ b/include/hw/core/cpu.h
+@@ -201,7 +201,13 @@ struct CPUClass {
+  * Fix the number of mmu modes across all targets.
+  * Current maximum is target/arm/.
+  */
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++/* This runtime builds only i386-softmmu for the fixed Xbox machine. The x86
++ * MMU indices run from 0 through MMU_NESTED_IDX (7); ARM's 22 modes are unused. */
++#define NB_MMU_MODES 8
++#else
+ #define NB_MMU_MODES 22
++#endif
+ typedef uint32_t MMUIdxMap;
+ 
+ /* Use a fully associative victim tlb of 8 entries. */
+diff --git a/include/tcg/tcg.h b/include/tcg/tcg.h
+index bc95069775..f4ee5406cd 100644
+--- a/include/tcg/tcg.h
++++ b/include/tcg/tcg.h
+@@ -388,6 +388,7 @@ struct TCGContext {
+     TCGBar guest_mo;
+     bool boxdroid_ordered_stores, boxdroid_ordered_loads, boxdroid_rcpc;
+ #if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    uint32_t boxdroid_flat_tlb_mask;
+     bool boxdroid_fp_local_requested;
+     bool boxdroid_fp_preserve_requested;
+     bool boxdroid_inline_lookup_requested;
+diff --git a/target/i386/cpu.c b/target/i386/cpu.c
+index 230c3f0228..a4e9493b78 100644
+--- a/target/i386/cpu.c
++++ b/target/i386/cpu.c
+@@ -26,6 +26,8 @@
+ #include "qemu/qemu-print.h"
+ #include "qemu/hw-version.h"
+ #include "cpu.h"
++
++QEMU_BUILD_BUG_ON(MMU_NESTED_IDX >= NB_MMU_MODES);
+ #include "tcg/helper-tcg.h"
+ #include "exec/translation-block.h"
+ #include "system/hvf.h"
+diff --git a/tcg/aarch64/tcg-target.c.inc b/tcg/aarch64/tcg-target.c.inc
+index d01bed8857..2081aef0b6 100644
+--- a/tcg/aarch64/tcg-target.c.inc
++++ b/tcg/aarch64/tcg-target.c.inc
+@@ -1902,6 +1902,45 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
+         ldst->oi = oi;
+         ldst->addr_reg = addr_reg;
+ 
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++        if (addr_type == TCG_TYPE_I32 && s_bits <= MO_64 && a_mask >= s_mask &&
++            (s->boxdroid_flat_tlb_mask & (1u << mem_index))) {
++            int field = is_ld ? offsetof(CPUTLBDescFast, boxdroid_flat_read) :
++                                offsetof(CPUTLBDescFast, boxdroid_flat_write);
++            tcg_debug_assert(TARGET_PAGE_BITS == 12);
++            tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TMP1, TCG_AREG0,
++                       tlb_mask_table_ofs(s, mem_index) + field);
++            tcg_out_ubfm(s, TCG_TYPE_I32, TCG_REG_TMP0, addr_reg, 12, 31);
++            /* Register-offset LDR, S=1: scale the page index by word size. */
++            tcg_out_ldst_r(s, I3312_LDRX | (1u << 12), TCG_REG_TMP1,
++                           TCG_REG_TMP1, TCG_TYPE_I64, TCG_REG_TMP0);
++            if (a_mask) {
++                tcg_out_insn(s, 3510, ORR, TCG_TYPE_I32,
++                             TCG_REG_TMP0, TCG_REG_TMP1, addr_reg);
++                tcg_out_logicali(s, I3404_ANDSI, TCG_TYPE_I32, TCG_REG_XZR,
++                                 TCG_REG_TMP0, a_mask);
++            } else {
++                tcg_out_logicali(s, I3404_ANDSI, TCG_TYPE_PTR, TCG_REG_XZR,
++                                 TCG_REG_TMP1, 1);
++            }
++            ldst->label_ptr[0] = s->code_ptr;
++            tcg_out_insn(s, 3202, B_C, TCG_COND_NE, 0);
++            if (boxdroid_inline_lookup_observe) {
++                extern uint64_t boxdroid_flat_tlb_fast_hits;
++                tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_TMP0,
++                             (intptr_t)&boxdroid_flat_tlb_fast_hits);
++                tcg_out_ld(s, TCG_TYPE_I64, TCG_REG_TMP2, TCG_REG_TMP0, 0);
++                tcg_out_insn(s, 3401, ADDI, TCG_TYPE_I64,
++                             TCG_REG_TMP2, TCG_REG_TMP2, 1);
++                tcg_out_st(s, TCG_TYPE_I64, TCG_REG_TMP2, TCG_REG_TMP0, 0);
++            }
++            h->base = TCG_REG_TMP1;
++            h->index = addr_reg;
++            h->index_ext = addr_type;
++            return ldst;
++        }
++#endif
++
+         /* Load CPUTLBDescFast.{mask,table} into {tmp0,tmp1}. */
+         QEMU_BUILD_BUG_ON(offsetof(CPUTLBDescFast, mask) != 0);
+         QEMU_BUILD_BUG_ON(offsetof(CPUTLBDescFast, table) != 8);

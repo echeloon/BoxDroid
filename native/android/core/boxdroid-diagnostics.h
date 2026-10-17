@@ -84,6 +84,9 @@ void boxdroid_diag_event(BoxDroidDiagnostic event,
 uint64_t boxdroid_diag_record(const char *event, uint64_t a, uint64_t b,
                                 uint64_t c, uint64_t d, uint64_t e,
                                 uint64_t f);
+bool boxdroid_diag_vram_watch_enabled(void);
+bool boxdroid_diag_producers_enabled(void);
+bool boxdroid_diag_timings_enabled(void);
 void boxdroid_diag_vram_sample(const char *boundary, uint64_t start,
                                  uint32_t line_offset, uint32_t pitch,
                                  uint32_t width, uint32_t height, int depth,

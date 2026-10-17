@@ -1,0 +1,270 @@
+# Experiment44 isolated CPU-FPU metadata dead-store elimination. Exact observer/fault/branch boundaries, annotated CPU-only memory and source-audited helpers only; overflow/ambiguous access conservative fallback. fp_meta_dse0 default, unvalidated.
+
+diff --git a/include/tcg/tcg.h b/include/tcg/tcg.h
+index bc95069775..7d28539d07 100644
+--- a/include/tcg/tcg.h
++++ b/include/tcg/tcg.h
+@@ -368,6 +368,12 @@ struct TCGOp {
+ #define TCGOP_FLAGS(X)    (X)->param2
+ #define TCGOP_VECE(X)     (X)->param2
+ 
++static inline const TCGHelperInfo *tcg_op_call_info(const TCGOp *op)
++{
++    return (const TCGHelperInfo *)(uintptr_t)
++        op->args[TCGOP_CALLO(op) + TCGOP_CALLI(op) + 1];
++}
++
+ /* Make sure operands fit in the bitfields above.  */
+ QEMU_BUILD_BUG_ON(NB_OPS > (1 << 8));
+ 
+@@ -388,6 +394,10 @@ struct TCGContext {
+     TCGBar guest_mo;
+     bool boxdroid_ordered_stores, boxdroid_ordered_loads, boxdroid_rcpc;
+ #if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    bool boxdroid_meta_active;
++    uint16_t boxdroid_meta_count;
++    uint16_t boxdroid_meta_head[64], boxdroid_meta_next[256];
++    TCGOp *boxdroid_meta_private[256];
+     bool boxdroid_fp_local_requested;
+     bool boxdroid_fp_preserve_requested;
+     bool boxdroid_inline_lookup_requested;
+diff --git a/target/i386/tcg/translate.c b/target/i386/tcg/translate.c
+index 6ace1c523d..c857485832 100644
+--- a/target/i386/tcg/translate.c
++++ b/target/i386/tcg/translate.c
+@@ -127,6 +127,160 @@ static int g_use_hard_fpu;
+ #include "exec/helper-info.c.inc"
+ #undef  HELPER_H
+ 
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++#include <sys/system_properties.h>
++static bool boxdroid_fp_meta_requested;
++uint64_t boxdroid_fp_meta_removed;
++
++static unsigned boxdroid_meta_hash(const TCGOp *op)
++{
++    return ((uintptr_t)op >> 4) & 63;
++}
++
++static void boxdroid_meta_reset_private(void)
++{
++    TCGContext *ctx = tcg_ctx;
++    ctx->boxdroid_meta_count = 0;
++    memset(ctx->boxdroid_meta_head, 0xff, sizeof(ctx->boxdroid_meta_head));
++}
++
++/* Mark only the CPU-private FPReg/FT0/tag accesses emitted below. No guess
++ * about arbitrary pointer aliases is permitted. Overflow disables this TB.
++ */
++static void boxdroid_meta_mark_private(void)
++{
++    TCGContext *ctx = tcg_ctx;
++    if (ctx->boxdroid_meta_active) {
++        TCGOp *op = tcg_last_op();
++        unsigned index = ctx->boxdroid_meta_count;
++        unsigned bucket = boxdroid_meta_hash(op);
++        if (index == ARRAY_SIZE(ctx->boxdroid_meta_private)) {
++            ctx->boxdroid_meta_active = false;
++            return;
++        }
++        ctx->boxdroid_meta_private[index] = op;
++        ctx->boxdroid_meta_next[index] = ctx->boxdroid_meta_head[bucket];
++        ctx->boxdroid_meta_head[bucket] = index;
++        ctx->boxdroid_meta_count++;
++    }
++}
++
++static bool boxdroid_meta_is_private(const TCGOp *op)
++{
++    TCGContext *ctx = tcg_ctx;
++    for (unsigned index = ctx->boxdroid_meta_head[boxdroid_meta_hash(op)];
++         index != UINT16_MAX; index = ctx->boxdroid_meta_next[index]) {
++        if (ctx->boxdroid_meta_private[index] == op) {
++            return true;
++        }
++    }
++    return false;
++}
++
++static bool boxdroid_meta_safe_call(const TCGOp *op)
++{
++    /* Source-audited CPU-only helpers: none reads/writes last-FPU IP/DP or
++     * selectors, accesses guest memory, or raises a synchronous guest fault.
++     * Re-audit this list if any helper gains such an effect.
++     */
++    const TCGHelperInfo *allowed[] = {
++        &helper_info_boxdroid_fadd, &helper_info_boxdroid_fmul,
++        &helper_info_boxdroid_fsub, &helper_info_boxdroid_fsubr,
++        &helper_info_boxdroid_fdiv, &helper_info_boxdroid_fdivr,
++        &helper_info_boxdroid_fmul53,
++        &helper_info_boxdroid_f32_load, &helper_info_boxdroid_f32_store,
++        &helper_info_fxchg_ST0_STN, &helper_info_fchs_ST0,
++        &helper_info_fabs_ST0, &helper_info_fsqrt,
++        &helper_info_fsin, &helper_info_fcos,
++        &helper_info_fcom_ST0_FT0, &helper_info_fucom_ST0_FT0,
++        &helper_info_fdecstp, &helper_info_fincstp,
++#ifdef CF_BOX_FP_TOP
++        &helper_info_boxdroid_fxchg_top, &helper_info_boxdroid_fchs_top,
++        &helper_info_boxdroid_fabs_top, &helper_info_boxdroid_fsqrt_top,
++        &helper_info_boxdroid_fsin_top, &helper_info_boxdroid_fcos_top,
++#endif
++    };
++    for (unsigned i = 0; i < ARRAY_SIZE(allowed); i++) {
++        if (tcg_op_call_info(op) == allowed[i]) {
++            return true;
++        }
++    }
++    return false;
++}
++
++static void boxdroid_eliminate_fp_metadata(void)
++{
++    const intptr_t offsets[] = {
++        offsetof(CPUX86State, fpcs), offsetof(CPUX86State, fpds),
++        offsetof(CPUX86State, fpip), offsetof(CPUX86State, fpdp),
++    };
++    const unsigned widths[] = {2, 2, sizeof(target_ulong), sizeof(target_ulong)};
++    TCGOp *last[4] = {0};
++    TCGOp *op, *next;
++
++    QTAILQ_FOREACH_SAFE(op, &tcg_ctx->ops, link, next) {
++        unsigned width = 0;
++        bool store = false;
++        switch (op->opc) {
++        case INDEX_op_call:
++            if (!boxdroid_meta_safe_call(op)) {
++                memset(last, 0, sizeof(last));
++            }
++            continue;
++        case INDEX_op_st8: store = true; /* fall through */
++        case INDEX_op_ld8u: case INDEX_op_ld8s: width = 1; break;
++        case INDEX_op_st16: store = true; /* fall through */
++        case INDEX_op_ld16u: case INDEX_op_ld16s: width = 2; break;
++        case INDEX_op_st32: store = true; /* fall through */
++        case INDEX_op_ld32u: case INDEX_op_ld32s: width = 4; break;
++        case INDEX_op_st: store = true; /* fall through */
++        case INDEX_op_ld:
++            switch (TCGOP_TYPE(op)) {
++            case TCG_TYPE_I32: case TCG_TYPE_F32: width = 4; break;
++            case TCG_TYPE_I64: case TCG_TYPE_F64:
++            case TCG_TYPE_V64: width = 8; break;
++            case TCG_TYPE_V128: width = 16; break;
++            case TCG_TYPE_V256: width = 32; break;
++            default: memset(last, 0, sizeof(last)); continue;
++            }
++            break;
++        default:
++            if ((tcg_op_defs[op->opc].flags &
++                 (TCG_OPF_SIDE_EFFECTS | TCG_OPF_BB_END | TCG_OPF_COND_BRANCH)) ||
++                op->opc == INDEX_op_mb || op->opc == INDEX_op_plugin_cb ||
++                op->opc == INDEX_op_plugin_mem_cb) {
++                memset(last, 0, sizeof(last));
++            }
++            continue;
++        }
++        if (boxdroid_meta_is_private(op)) {
++            continue;
++        }
++        if (op->args[1] != tcgv_ptr_arg(tcg_env)) {
++            memset(last, 0, sizeof(last));
++            continue;
++        }
++        intptr_t offset = op->args[2];
++        if (offset < 0 || offset > (intptr_t)(sizeof(CPUX86State) - width)) {
++            memset(last, 0, sizeof(last));
++            continue;
++        }
++        for (unsigned i = 0; i < ARRAY_SIZE(offsets); i++) {
++            if (offset == offsets[i] && width == widths[i] && store) {
++                if (last[i]) {
++                    tcg_op_remove(tcg_ctx, last[i]);
++                    ++boxdroid_fp_meta_removed;
++                }
++                last[i] = op;
++            } else if (offset < offsets[i] + widths[i] &&
++                       offsets[i] < offset + width) {
++                last[i] = NULL;
++            }
++        }
++    }
++}
++#endif
++
+ /* Fixes for Windows namespace pollution.  */
+ #undef IN
+ #undef OUT
+@@ -1624,9 +1778,13 @@ static void gen_exact_f80_move(TCGv_ptr dest, TCGv_ptr source)
+     TCGv_i64 low = tcg_temp_new_i64();
+     TCGv_i32 high = tcg_temp_new_i32();
+     tcg_gen_ld_i64(low, source, offsetof(floatx80, low));
++    boxdroid_meta_mark_private();
+     tcg_gen_ld16u_i32(high, source, offsetof(floatx80, high));
++    boxdroid_meta_mark_private();
+     tcg_gen_st_i64(low, dest, offsetof(floatx80, low));
++    boxdroid_meta_mark_private();
+     tcg_gen_st16_i32(high, dest, offsetof(floatx80, high));
++    boxdroid_meta_mark_private();
+ }
+ #endif
+ 
+@@ -1637,6 +1795,11 @@ static void gen_set_fptag(int offs, int value)
+     tcg_gen_add_ptr(p, tcg_env, p);
+     TCGv_i32 tmp = tcg_constant_i32(value);
+     tcg_gen_st8_i32(tmp, p, offsetof(CPUX86State, fptags[0]) + offs);
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    if (offs == 0) {
++        boxdroid_meta_mark_private();
++    }
++#endif
+ 
+ }
+ 
+@@ -4253,6 +4416,11 @@ static void gen_multi0F(DisasContext *s, X86DecodedInsn *decode)
+ 
+ void tcg_x86_init(void)
+ {
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__) && !defined(BOXDROID_X87_PROFILE) && !defined(TARGET_X86_64)
++    char meta_prop[PROP_VALUE_MAX] = { 0 };
++    boxdroid_fp_meta_requested = __system_property_get(
++        "debug.boxdroid.fp_meta_dse", meta_prop) && !strcmp(meta_prop, "1");
++#endif
+     static const char reg_names[CPU_NB_REGS][4] = {
+ #ifdef TARGET_X86_64
+         [R_EAX] = "rax",
+@@ -4458,6 +4626,10 @@ static void i386_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
+         assert(dc->pc_save == orig_pc_save);
+         dc->base.num_insns--;
+         tcg_remove_ops_after(dc->prev_insn_end);
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++        /* Removed op objects may be recycled for unrelated memory accesses. */
++        boxdroid_meta_reset_private();
++#endif
+         dc->base.insn_start = dc->prev_insn_start;
+         dc->base.is_jmp = DISAS_TOO_MANY;
+         return;
+@@ -4549,9 +4721,25 @@ void x86_translate_code(CPUState *cpu, TranslationBlock *tb,
+     tcg_ctx->boxdroid_lookup_layout.eligible_value = HF_PE_MASK | HF_CS32_MASK;
+     tcg_ctx->boxdroid_lookup_layout.eflags_mask =
+         IOPL_MASK | TF_MASK | RF_MASK | VM_MASK | AC_MASK;
++#endif
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    tcg_ctx->boxdroid_meta_active = boxdroid_fp_meta_requested;
++    if (tcg_ctx->boxdroid_meta_active) {
++        boxdroid_meta_reset_private();
++    }
+ #endif
+     tcg_ctx->disas_ctx = &dc;
+     translator_loop(cpu, tb, max_insns, pc, host_pc, &i386_tr_ops, &dc.base);
++#if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
++    uint32_t cflags = tb_cflags(tb);
++    if (tcg_ctx->boxdroid_meta_active && !g_use_hard_fpu && CODE32(&dc) &&
++        !dc.cs_base && !dc.base.plugin_enabled &&
++        !(cflags & (CF_USE_ICOUNT | CF_PCREL | CF_SINGLE_STEP)) &&
++        !(dc.flags & (HF_RF_MASK | HF_TF_MASK | HF_INHIBIT_IRQ_MASK))) {
++        boxdroid_eliminate_fp_metadata();
++    }
++    tcg_ctx->boxdroid_meta_active = false;
++#endif
+     tcg_ctx->disas_ctx = NULL;
+ }
+ 

@@ -56,7 +56,8 @@ def parse_snapshot(raw):
                 continue
             tid, name, rest = match.groups()
             fields = rest.split()
-            current = {"name": name, "cpu": int(fields[36]), "state": fields[0]}
+            current = {"name": name, "cpu": int(fields[36]), "state": fields[0],
+                       "user_ticks": int(fields[11]), "system_ticks": int(fields[12])}
             sample["threads"][tid] = current
         elif line.startswith("SCHED ") and current is not None:
             values = line.split()[1:]
@@ -80,7 +81,8 @@ def parse_snapshot(raw):
 
 
 def snapshot(pid):
-    script = f"""cat /proc/uptime
+    script = f"""test -r /proc/{pid}/statm || exit 42
+cat /proc/uptime
 for task_dir in /proc/{pid}/task/*; do
     read -r task_stat < "$task_dir/stat"
     read -r task_sched < "$task_dir/schedstat"
@@ -123,7 +125,7 @@ def metrics(line):
     return {key: int(value, 0) for key, value in re.findall(r"(\w+)=(-?0x[0-9a-f]+|-?\d+)", line)}
 
 
-def summarize(samples, log, page_size=4096):
+def summarize(samples, log, page_size=4096, clock_ticks=None):
     duration = samples[-1]["uptime"] - samples[0]["uptime"]
     spacing = [b["uptime"] - a["uptime"] for a, b in zip(samples, samples[1:])]
     threads = []
@@ -139,7 +141,12 @@ def summarize(samples, log, page_size=4096):
                         "scheduler_slices_per_second": (last[tid].get("slices", 0) - first[tid].get("slices", 0)) / duration,
                         "allowed": last[tid].get("allowed"),
                         "sampled_cpus": sorted({s["threads"][tid]["cpu"] for s in samples if tid in s["threads"]})})
+        if clock_ticks and "user_ticks" in first[tid] and "user_ticks" in last[tid]:
+            threads[-1].update(
+                user_cpu_seconds=(last[tid]["user_ticks"] - first[tid]["user_ticks"]) / clock_ticks,
+                system_cpu_seconds=(last[tid]["system_ticks"] - first[tid]["system_ticks"]) / clock_ticks)
     perf, presentation, guest_frames, audio, queues, apu, voices, voice_wait = [], [], [], [], [], [], [], []
+    guest_flip_events = []
     for line in log.splitlines():
         if " PERF mono_us=" in line:
             perf.append(metrics(line))
@@ -147,6 +154,8 @@ def summarize(samples, log, page_size=4096):
             presentation.append(metrics(line))
         elif " GUEST_FRAME mono_us=" in line:
             guest_frames.append(metrics(line))
+        elif " GUEST_FLIP mono_us=" in line:
+            guest_flip_events.append(metrics(line))
         elif " PRESENT_QUEUE submitted=" in line:
             queues.append(metrics(line))
         elif " AUDIO_STATS backend=" in line:
@@ -174,6 +183,23 @@ def summarize(samples, log, page_size=4096):
         intervals = [b["mono_us"] - a["mono_us"] for a, b in zip(guest_frames, guest_frames[1:])]
         timing["unique_frame_interval_us"] = {"p50": percentile(intervals, .50), "p95": percentile(intervals, .95), "p99": percentile(intervals, .99), "max": max(intervals)}
         timing["unique_frame_gaps_over_1s"] = sum(interval > 1000000 for interval in intervals)
+        # Historical "unique frame" intervals are image-change intervals.
+        timing["changed_image_interval_us"] = timing["unique_frame_interval_us"]
+    if len(guest_flip_events) > 1:
+        intervals = [b["mono_us"] - a["mono_us"]
+                     for a, b in zip(guest_flip_events, guest_flip_events[1:])]
+        timing["guest_flip_interval_us"] = {
+            "p50": percentile(intervals, .50), "p95": percentile(intervals, .95),
+            "p99": percentile(intervals, .99), "max": max(intervals)}
+        timing["guest_flip_events"] = len(guest_flip_events)
+        timestamp_span = guest_flip_events[-1]["mono_us"] - guest_flip_events[0]["mono_us"]
+        if timestamp_span > 0:
+            timing["guest_flip_events_per_second"] = (len(guest_flip_events)-1) * 1e6 / timestamp_span
+        timing["guest_flip_event_id_gaps"] = sum(
+            b["guest_flips"] != a["guest_flips"] + 1
+            for a, b in zip(guest_flip_events, guest_flip_events[1:]))
+        timing["guest_flip_interval_scope"] = "NV097 FLIP_INCREMENT_WRITE submission"
+
     if len(successful) > 1:
         intervals = [b["mono_us"] - a["mono_us"] for a, b in zip(successful, successful[1:])]
         timing["completed_presents_per_second"] = (len(successful) - 1) * 1e6 / (successful[-1]["mono_us"] - successful[0]["mono_us"])
@@ -253,6 +279,11 @@ def main():
     parser.add_argument("--duration", type=int, default=60)
     parser.add_argument("--process", default="org.boxdroid:emulator")
     parser.add_argument("--perf", action="store_true", help="also record 500 Hz native CPU samples")
+    parser.add_argument("--pmu-stat", action="store_true",
+                        help="record TCG-thread retired instructions/cycles/branch misses; diagnostic run")
+    parser.add_argument("--pmu-events",
+                        default="cpu-cycles:u,instructions:u,branch-misses:u",
+                        help="simpleperf event group for --pmu-stat; availability is device dependent")
     parser.add_argument("--note", default="", help="scene, game/version, settings and build identity")
     parser.add_argument("--output", type=Path, default=Path("build/performance/deep-optimization"))
     args = parser.parse_args()
@@ -264,10 +295,14 @@ def main():
     directory.mkdir(parents=True, exist_ok=False)
     pid = int(adb("shell", "pidof", args.process))
     page_size = int(adb("shell", "getconf", "PAGESIZE"))
+    clock_ticks = int(adb("shell", "getconf", "CLK_TCK"))
     controls = {name: adb("shell", "getprop", "debug.boxdroid." + name)
-                for name in ("profile", "diagnostics", "async_present", "voice_workers", "voice_apu", "dsp_jit", "tcg_prime", "fast_fpu", "voice_coarse", "tcg_ordered", "voice_audit", "order_audit", "fpu_audit", "sample_pc")}
+                for name in ("profile", "diagnostics", "vram_watch", "diag_producers", "diag_timings", "tlb_cb_scope", "async_present", "voice_workers", "voice_apu", "dsp_jit", "tcg_prime", "fast_fpu", "voice_coarse", "tcg_ordered", "voice_audit", "order_audit", "fpu_audit", "sample_pc", "tcg_dump", "defer_globals", "boot_trace", "read_tlb_cache", "sse_native", "ram_span", "fp_local", "fp_preserve", "jmp_cache2", "inline_lookup", "inline_lookup_count", "lookup_no_bridges", "vector_acquire", "inline_fmul", "inline_fp_preserve", "fmul_shared", "tcg_absolute_pc", "lookup_shared", "lookup_pipeline", "qht_acquire", "fp_top", "fp_values", "fp_meta_dse", "lookup_tail", "flat_tlb", "recovery_uses", "f32_round", "arith_leaf", "phys_lookup", "jmp_epoch", "pin_gp", "fp_ptr_cache", "x87_bits", "page_profile", "branch_fallthrough", "tlb_resident", "tlb_ir")}
     metadata = {"pid": pid, "process": args.process, "note": args.note,
-                "page_size": page_size, "wall_start_epoch": time.time(), "controls": controls}
+                "page_size": page_size, "clock_ticks_per_second": clock_ticks,
+                "wall_start_epoch": time.time(), "controls": controls,
+                "diagnostic_cpu_sampling": args.perf, "diagnostic_pmu_stat": args.pmu_stat,
+                "pmu_events": args.pmu_events if args.pmu_stat else None}
     apk = adb("shell", "pm", "path", "org.boxdroid").splitlines()[0].removeprefix("package:")
     if re.fullmatch(r"/[A-Za-z0-9/_=~.\-]+", apk):
         metadata["installed_apk_path"] = apk
@@ -279,6 +314,20 @@ def main():
     with directory.joinpath("logcat.txt").open("w") as output:
         logger = subprocess.Popen(["adb", "logcat", "-T", "1", "-v", "epoch", f"--pid={pid}"], stdout=output, stderr=subprocess.DEVNULL)
         perf = None
+        pmu = None
+        pmu_output = None
+        if args.pmu_stat:
+            tcg_tids = [tid for tid, entry in snapshot(pid)["threads"].items()
+                        if entry["name"] == "ALL CPUs/TCG"]
+            if len(tcg_tids) != 1:
+                raise RuntimeError("Expected exactly one TCG thread for PMU attribution")
+            metadata["pmu_tcg_tid"] = tcg_tids[0]
+            pmu_output = directory.joinpath("pmu-stat.csv").open("w")
+            pmu = subprocess.Popen(["adb", "shell", "run-as", "org.boxdroid",
+                "simpleperf", "stat", "--csv", "-t", tcg_tids[0],
+                "--no-inherit", "--group", args.pmu_events,
+                "--duration", str(args.duration)],
+                stdout=pmu_output, stderr=subprocess.STDOUT)
         if args.perf:
             perf = subprocess.Popen(["adb", "shell", "run-as", "org.boxdroid", "simpleperf", "record", "-p", str(pid),
                                      "-e", "cpu-clock", "-f", "500", "-g", "--duration", str(args.duration),
@@ -294,16 +343,27 @@ def main():
         finally:
             logger.terminate()
             logger.wait()
+            if pmu:
+                pmu_status = pmu.wait()
+                pmu_output.close()
+                if pmu_status != 0:
+                    raise RuntimeError("PMU counters unavailable/failed; see pmu-stat.csv. This diagnostic capture is invalid.")
             if perf:
                 if perf.wait() != 0:
                     raise RuntimeError("simpleperf capture failed; this run is not a valid native profile")
                 with directory.joinpath("perf.data").open("wb") as perf_output:
                     subprocess.run(["adb", "exec-out", "run-as", "org.boxdroid", "cat", f"files/{args.label}-profile.data"], stdout=perf_output, check=True)
     directory.joinpath("samples.json").write_text(json.dumps(samples, indent=2))
+    final_pid = adb("shell", "pidof", args.process)
+    metadata["final_pid"] = final_pid
+    metadata["process_stable"] = final_pid == str(pid)
+    directory.joinpath("metadata.json").write_text(json.dumps(metadata, indent=2))
+    if not metadata["process_stable"]:
+        raise RuntimeError("Emulator process changed during capture; performance result is invalid")
     io_end = process_io(pid)
     directory.joinpath("process-io.json").write_text(json.dumps({"begin": io_begin, "end": io_end}, indent=2))
     directory.joinpath("device-end.txt").write_text(adb("shell", "dumpsys", "battery") + "\n" + adb("shell", "dumpsys", "thermalservice"))
-    result = summarize(samples, directory.joinpath("logcat.txt").read_text(), page_size)
+    result = summarize(samples, directory.joinpath("logcat.txt").read_text(), page_size, clock_ticks)
     result["process_io"] = summarize_process_io(io_begin, io_end)
     directory.joinpath("summary.json").write_text(json.dumps(result, indent=2))
     print(json.dumps({key: result[key] for key in ("duration_seconds", "timing", "audio", "cpu_frequencies", "battery_temperature_start_tenths_c", "battery_temperature_end_tenths_c")}, indent=2))

@@ -67,6 +67,9 @@ Java_org_boxdroid_MainActivity_nativeXboxStartWithDvd(JNIEnv *, jobject,
 
 static bool performance_profile;
 static bool detailed_diagnostics;
+static bool diagnostic_producers_forced;
+static bool diagnostic_timings_forced;
+bool boxdroid_tcg_diagnostics_active(void);
 extern void boxdroid_android_configure_workers(void);
 bool boxdroid_performance_profile_active(void);
 bool boxdroid_performance_profile_active(void)
@@ -546,7 +549,7 @@ void boxdroid_diag_cpu_store_value(uint64_t address, size_t size,
 /* Single vCPU owns these counters. Logs use host time only once per 4096
  * dispatches. Count dispatches separately from chained guest TBs. */
 static struct {
-    uint64_t dispatches, idle, returns, chains, exits[4], events[4];
+    uint64_t dispatches, idle, returns, chains, exits[4], events[5];
     uint64_t reads, writes, samples, execution_us;
     int64_t sample_begin, report_us;
     bool decoded;
@@ -556,6 +559,34 @@ void boxdroid_tcg_event(unsigned kind)
 {
     if (!detailed_diagnostics) return;
     if (kind < G_N_ELEMENTS(x87_exec.events)) ++x87_exec.events[kind];
+}
+
+bool boxdroid_tcg_diagnostics_active(void)
+{
+    return detailed_diagnostics;
+}
+
+bool boxdroid_diag_vram_watch_enabled(void)
+{
+    char property[PROP_VALUE_MAX] = { 0 };
+    bool forced = __system_property_get("debug.boxdroid.vram_watch", property) &&
+                  strcmp(property, "1") == 0;
+    bool enabled = detailed_diagnostics || forced;
+
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "BOXDROID_VRAM_CPU_WATCH enabled=%d diagnostics=%d forced=%d",
+        enabled, detailed_diagnostics, forced);
+    return enabled;
+}
+
+bool boxdroid_diag_producers_enabled(void)
+{
+    return detailed_diagnostics || diagnostic_producers_forced;
+}
+
+bool boxdroid_diag_timings_enabled(void)
+{
+    return detailed_diagnostics || diagnostic_timings_forced;
 }
 
 /* Sample indirect-chain lookups as well as outer C dispatches. The latter
@@ -650,13 +681,17 @@ static void x87_tb_profile(CPUState *cpu, uint64_t pc)
             !cpu_memory_rw_debug(cpu, env->regs[R_EBX] + 0x2c, bytes, 4, false);
         if (next_ok) next = ldl_le_p(bytes);
         __android_log_print(ANDROID_LOG_INFO, "BoxDroid4",
-            "EXEC_WINDOW mono_us=%lld elapsed_us=%lld dispatch=%llu idle=%llu returns=%llu chain_returns=%llu exit0=%llu exit1=%llu requested=%llu lookup_hit=%llu lookup_miss=%llu mmio_reads=%llu mmio_writes=%llu samples=%llu execution_us=%llu pc=0x%llx queue_addr=0x%llx queue=0x%x queue_ok=%d next_addr=0x%llx next=0x%x next_ok=%d eflags=0x%x hflags=0x%x",
+            "EXEC_WINDOW mono_us=%lld elapsed_us=%lld dispatch=%llu idle=%llu returns=%llu chain_returns=%llu exit0=%llu exit1=%llu requested=%llu lookup_hit=%llu lookup_miss=%llu jc_primary=%llu jc_secondary=%llu qht_fallback=%llu mmio_reads=%llu mmio_writes=%llu samples=%llu execution_us=%llu pc=0x%llx queue_addr=0x%llx queue=0x%x queue_ok=%d next_addr=0x%llx next=0x%x next_ok=%d eflags=0x%x hflags=0x%x",
             (long long)now, (long long)(now-x87_exec.report_us),
             (unsigned long long)x87_exec.dispatches, (unsigned long long)x87_exec.idle,
             (unsigned long long)x87_exec.returns, (unsigned long long)x87_exec.chains,
             (unsigned long long)x87_exec.exits[0], (unsigned long long)x87_exec.exits[1],
             (unsigned long long)x87_exec.exits[3], (unsigned long long)x87_exec.events[0],
-            (unsigned long long)x87_exec.events[1], (unsigned long long)x87_exec.reads,
+            (unsigned long long)x87_exec.events[1],
+            (unsigned long long)x87_exec.events[2],
+            (unsigned long long)x87_exec.events[4],
+            (unsigned long long)x87_exec.events[3],
+            (unsigned long long)x87_exec.reads,
             (unsigned long long)x87_exec.writes, (unsigned long long)x87_exec.samples,
             (unsigned long long)x87_exec.execution_us, (unsigned long long)pc,
             (unsigned long long)env->regs[R_EBP], queue, queue_ok,
@@ -1452,6 +1487,12 @@ Java_org_boxdroid_PerformanceActivity_nativeUniqueFrames(JNIEnv *env, jobject se
     return __atomic_load_n(&timing_unique, __ATOMIC_RELAXED);
 }
 extern uint64_t boxdroid_guest_flips(void);
+#ifdef BOXDROID_XBOX_RUNTIME
+extern bool boxdroid_inline_lookup_observe;
+extern uint64_t boxdroid_inline_lookup_hits[2], boxdroid_inline_lookup_fallbacks;
+extern uint64_t boxdroid_inline_fmul_requests, boxdroid_inline_fmul_hits;
+extern uint64_t boxdroid_fmul53_slow_calls;
+#endif
 static void timing_report(int64_t now)
 {
     if (!performance_profile) return;
@@ -1473,6 +1514,20 @@ static void timing_report(int64_t now)
         timing_conversion_us, timing_present_us, g_nv2a->pramdac.video_clock_coeff,
         v->cr[0],v->cr[6],v->cr[7],v->cr[0x25],v->sr[1],v->msr,
         g_nv2a->pramdac.fp_hcrtc,g_nv2a->pramdac.fp_vcrtc,g_nv2a->pcrtc.start);
+#ifdef BOXDROID_XBOX_RUNTIME
+    if (boxdroid_inline_lookup_observe) {
+        __android_log_print(ANDROID_LOG_INFO, "BoxDroid3",
+            "TCG_INLINE_COUNTS lookup_primary=%" PRIu64 " lookup_secondary=%" PRIu64
+            " lookup_fallback=%" PRIu64 " fmul_requests=%" PRIu64
+            " fmul_hits=%" PRIu64 " fmul_slow_calls=%" PRIu64,
+            qatomic_read(&boxdroid_inline_lookup_hits[0]),
+            qatomic_read(&boxdroid_inline_lookup_hits[1]),
+            qatomic_read(&boxdroid_inline_lookup_fallbacks),
+            qatomic_read(&boxdroid_inline_fmul_requests),
+            qatomic_read(&boxdroid_inline_fmul_hits),
+            qatomic_read(&boxdroid_fmul53_slow_calls));
+    }
+#endif
     last_unique=timing_unique; last_flips=flips; timing_report_us=now;
     timing_frames=timing_green=timing_refreshes=0;
     timing_period_us=timing_scanout_us=timing_bql_us=timing_refresh_us=0;
@@ -2982,6 +3037,16 @@ static void *run_xbox(void *unused)
                           strcmp(property, "1") == 0;
     detailed_diagnostics = __system_property_get("debug.boxdroid.diagnostics", property) &&
                            strcmp(property, "1") == 0;
+    diagnostic_producers_forced =
+        __system_property_get("debug.boxdroid.diag_producers", property) &&
+        strcmp(property, "1") == 0;
+    diagnostic_timings_forced =
+        __system_property_get("debug.boxdroid.diag_timings", property) &&
+        strcmp(property, "1") == 0;
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "BOXDROID_DIAGNOSTIC_WORK producers=%d timings=%d diagnostics=%d",
+        boxdroid_diag_producers_enabled(), boxdroid_diag_timings_enabled(),
+        detailed_diagnostics);
     pthread_setname_np(pthread_self(), "boxdroid-main");
     boxdroid_android_configure_workers();
     if (!detailed_diagnostics) {

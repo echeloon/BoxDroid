@@ -1,0 +1,4 @@
+fixed writable guest GPR bindings: 2
+after step eip=10003 fpstt=0 exception=-1 hflags=200000b0 cr0=1
+/Users/maverick/Documents/BoxDroid/BoxDroid/scripts/tests/tcg-state-recovery.c:1201: void test_on_cpu(CPUState *, run_on_cpu_data): assertion "env->fpregs[0].mmx.MMX_Q(0) == value" failed
+Aborted 

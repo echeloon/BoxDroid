@@ -1,0 +1,549 @@
+{
+  "tcg_weight": 19120000000,
+  "mapped_jit_weight": 9806000000,
+  "unmapped_jit_weight": 2000000,
+  "host_blocks": 176406,
+  "guest_blocks": 175952,
+  "top": [
+    {
+      "host": "0x6ea8422500",
+      "guest_pc": "0xffffffce",
+      "guest_count": 1,
+      "host_bytes": 440,
+      "tcg_fraction": 0.07531380753138076,
+      "guest_bytes_available": true,
+      "guest_bytes": 8
+    },
+    {
+      "host": "0x6eaeb30000",
+      "guest_pc": "0x18d0bf",
+      "guest_count": 62,
+      "host_bytes": 5536,
+      "tcg_fraction": 0.004916317991631799,
+      "guest_bytes_available": true,
+      "guest_bytes": 227
+    },
+    {
+      "host": "0x6ead0f2040",
+      "guest_pc": "0x15f23b",
+      "guest_count": 6,
+      "host_bytes": 692,
+      "tcg_fraction": 0.0042887029288702925,
+      "guest_bytes_available": true,
+      "guest_bytes": 20
+    },
+    {
+      "host": "0x6eae6cce40",
+      "guest_pc": "0x33c2c0",
+      "guest_count": 24,
+      "host_bytes": 1560,
+      "tcg_fraction": 0.0041841004184100415,
+      "guest_bytes_available": true,
+      "guest_bytes": 81
+    },
+    {
+      "host": "0x6ead213ec0",
+      "guest_pc": "0x162173",
+      "guest_count": 15,
+      "host_bytes": 1332,
+      "tcg_fraction": 0.0037656903765690376,
+      "guest_bytes_available": true,
+      "guest_bytes": 48
+    },
+    {
+      "host": "0x6eacbf0900",
+      "guest_pc": "0x25120",
+      "guest_count": 45,
+      "host_bytes": 5088,
+      "tcg_fraction": 0.0035564853556485356,
+      "guest_bytes_available": true,
+      "guest_bytes": 104
+    },
+    {
+      "host": "0x6eac490a40",
+      "guest_pc": "0x608f0",
+      "guest_count": 80,
+      "host_bytes": 4528,
+      "tcg_fraction": 0.0033472803347280333,
+      "guest_bytes_available": true,
+      "guest_bytes": 295
+    },
+    {
+      "host": "0x6ead35d9c0",
+      "guest_pc": "0x2310de",
+      "guest_count": 7,
+      "host_bytes": 476,
+      "tcg_fraction": 0.0032426778242677823,
+      "guest_bytes_available": true,
+      "guest_bytes": 25
+    },
+    {
+      "host": "0x6ead1f3f40",
+      "guest_pc": "0x15b35e",
+      "guest_count": 34,
+      "host_bytes": 3196,
+      "tcg_fraction": 0.0030334728033472804,
+      "guest_bytes_available": true,
+      "guest_bytes": 199
+    },
+    {
+      "host": "0x6eaea2e840",
+      "guest_pc": "0x18c914",
+      "guest_count": 39,
+      "host_bytes": 4620,
+      "tcg_fraction": 0.0030334728033472804,
+      "guest_bytes_available": true,
+      "guest_bytes": 109
+    },
+    {
+      "host": "0x6eabc83140",
+      "guest_pc": "0x4391d",
+      "guest_count": 8,
+      "host_bytes": 568,
+      "tcg_fraction": 0.0028242677824267784,
+      "guest_bytes_available": true,
+      "guest_bytes": 22
+    },
+    {
+      "host": "0x6eae8e0480",
+      "guest_pc": "0x10b236",
+      "guest_count": 93,
+      "host_bytes": 11508,
+      "tcg_fraction": 0.0028242677824267784,
+      "guest_bytes_available": true,
+      "guest_bytes": 293
+    },
+    {
+      "host": "0x6eae4ed9c0",
+      "guest_pc": "0xebc87",
+      "guest_count": 4,
+      "host_bytes": 200,
+      "tcg_fraction": 0.002719665271966527,
+      "guest_bytes_available": true,
+      "guest_bytes": 12
+    },
+    {
+      "host": "0x6eaead72c0",
+      "guest_pc": "0x2b1368",
+      "guest_count": 39,
+      "host_bytes": 4784,
+      "tcg_fraction": 0.002615062761506276,
+      "guest_bytes_available": true,
+      "guest_bytes": 108
+    },
+    {
+      "host": "0x6eae4ede80",
+      "guest_pc": "0xd6960",
+      "guest_count": 7,
+      "host_bytes": 484,
+      "tcg_fraction": 0.002510460251046025,
+      "guest_bytes_available": true,
+      "guest_bytes": 15
+    },
+    {
+      "host": "0x6eacbeec00",
+      "guest_pc": "0x250a0",
+      "guest_count": 50,
+      "host_bytes": 5704,
+      "tcg_fraction": 0.002405857740585774,
+      "guest_bytes_available": true,
+      "guest_bytes": 116
+    },
+    {
+      "host": "0x6ead35e240",
+      "guest_pc": "0x231083",
+      "guest_count": 6,
+      "host_bytes": 488,
+      "tcg_fraction": 0.0020920502092050207,
+      "guest_bytes_available": true,
+      "guest_bytes": 24
+    },
+    {
+      "host": "0x6eabf7fe00",
+      "guest_pc": "0x2fa4e8",
+      "guest_count": 12,
+      "host_bytes": 956,
+      "tcg_fraction": 0.0020920502092050207,
+      "guest_bytes_available": true,
+      "guest_bytes": 35
+    },
+    {
+      "host": "0x6eabc82c00",
+      "guest_pc": "0x43933",
+      "guest_count": 5,
+      "host_bytes": 548,
+      "tcg_fraction": 0.0019874476987447698,
+      "guest_bytes_available": true,
+      "guest_bytes": 14
+    },
+    {
+      "host": "0x6eac492b40",
+      "guest_pc": "0x70280",
+      "guest_count": 72,
+      "host_bytes": 10364,
+      "tcg_fraction": 0.0018828451882845188,
+      "guest_bytes_available": true,
+      "guest_bytes": 183
+    },
+    {
+      "host": "0x6eabc82f00",
+      "guest_pc": "0x43941",
+      "guest_count": 5,
+      "host_bytes": 360,
+      "tcg_fraction": 0.0017782426778242678,
+      "guest_bytes_available": true,
+      "guest_bytes": 15
+    },
+    {
+      "host": "0x6eab698a00",
+      "guest_pc": "0x2fb4a6",
+      "guest_count": 3,
+      "host_bytes": 208,
+      "tcg_fraction": 0.0015690376569037657,
+      "guest_bytes_available": true,
+      "guest_bytes": 8
+    },
+    {
+      "host": "0x6eaeb001c0",
+      "guest_pc": "0x18cc54",
+      "guest_count": 32,
+      "host_bytes": 3232,
+      "tcg_fraction": 0.0015690376569037657,
+      "guest_bytes_available": true,
+      "guest_bytes": 98
+    },
+    {
+      "host": "0x6ead35e840",
+      "guest_pc": "0x231105",
+      "guest_count": 9,
+      "host_bytes": 680,
+      "tcg_fraction": 0.0014644351464435147,
+      "guest_bytes_available": true,
+      "guest_bytes": 36
+    },
+    {
+      "host": "0x6eaeacfd80",
+      "guest_pc": "0x29c370",
+      "guest_count": 42,
+      "host_bytes": 4316,
+      "tcg_fraction": 0.0014644351464435147,
+      "guest_bytes_available": true,
+      "guest_bytes": 123
+    },
+    {
+      "host": "0x6ead35cd40",
+      "guest_pc": "0x231064",
+      "guest_count": 10,
+      "host_bytes": 660,
+      "tcg_fraction": 0.0013598326359832635,
+      "guest_bytes_available": true,
+      "guest_bytes": 31
+    },
+    {
+      "host": "0x6eac94dbc0",
+      "guest_pc": "0x60490",
+      "guest_count": 74,
+      "host_bytes": 3956,
+      "tcg_fraction": 0.0013598326359832635,
+      "guest_bytes_available": true,
+      "guest_bytes": 272
+    },
+    {
+      "host": "0x6eac9518c0",
+      "guest_pc": "0x62560",
+      "guest_count": 37,
+      "host_bytes": 2364,
+      "tcg_fraction": 0.0013598326359832635,
+      "guest_bytes_available": true,
+      "guest_bytes": 130
+    },
+    {
+      "host": "0x6eae4efd80",
+      "guest_pc": "0xebd50",
+      "guest_count": 13,
+      "host_bytes": 772,
+      "tcg_fraction": 0.0012552301255230125,
+      "guest_bytes_available": true,
+      "guest_bytes": 52
+    },
+    {
+      "host": "0x6eabc81b00",
+      "guest_pc": "0x2d147",
+      "guest_count": 4,
+      "host_bytes": 216,
+      "tcg_fraction": 0.0011506276150627616,
+      "guest_bytes_available": true,
+      "guest_bytes": 7
+    },
+    {
+      "host": "0x6eab698f40",
+      "guest_pc": "0x2fb4c8",
+      "guest_count": 7,
+      "host_bytes": 272,
+      "tcg_fraction": 0.0011506276150627616,
+      "guest_bytes_available": true,
+      "guest_bytes": 12
+    },
+    {
+      "host": "0x6ead362640",
+      "guest_pc": "0x22cf71",
+      "guest_count": 24,
+      "host_bytes": 1120,
+      "tcg_fraction": 0.0011506276150627616,
+      "guest_bytes_available": true,
+      "guest_bytes": 72
+    },
+    {
+      "host": "0x6eab7aa880",
+      "guest_pc": "0x33e690",
+      "guest_count": 68,
+      "host_bytes": 4812,
+      "tcg_fraction": 0.0011506276150627616,
+      "guest_bytes_available": true,
+      "guest_bytes": 250
+    },
+    {
+      "host": "0x6eae55ef00",
+      "guest_pc": "0xe3060",
+      "guest_count": 17,
+      "host_bytes": 2332,
+      "tcg_fraction": 0.0011506276150627616,
+      "guest_bytes_available": true,
+      "guest_bytes": 52
+    },
+    {
+      "host": "0x6eaeaf6dc0",
+      "guest_pc": "0x2bbd3c",
+      "guest_count": 64,
+      "host_bytes": 7448,
+      "tcg_fraction": 0.0011506276150627616,
+      "guest_bytes_available": true,
+      "guest_bytes": 193
+    },
+    {
+      "host": "0x6eabc818c0",
+      "guest_pc": "0x2d140",
+      "guest_count": 6,
+      "host_bytes": 312,
+      "tcg_fraction": 0.0010460251046025104,
+      "guest_bytes_available": true,
+      "guest_bytes": 14
+    },
+    {
+      "host": "0x6eae270f80",
+      "guest_pc": "0xa9054",
+      "guest_count": 2,
+      "host_bytes": 192,
+      "tcg_fraction": 0.0010460251046025104,
+      "guest_bytes_available": true,
+      "guest_bytes": 13
+    },
+    {
+      "host": "0x6eae7b5d80",
+      "guest_pc": "0x33d2bd",
+      "guest_count": 7,
+      "host_bytes": 856,
+      "tcg_fraction": 0.0010460251046025104,
+      "guest_bytes_available": true,
+      "guest_bytes": 26
+    },
+    {
+      "host": "0x6eabc83480",
+      "guest_pc": "0x43950",
+      "guest_count": 7,
+      "host_bytes": 588,
+      "tcg_fraction": 0.0010460251046025104,
+      "guest_bytes_available": true,
+      "guest_bytes": 19
+    },
+    {
+      "host": "0x6eae607800",
+      "guest_pc": "0xeb3b0",
+      "guest_count": 3,
+      "host_bytes": 284,
+      "tcg_fraction": 0.0010460251046025104,
+      "guest_bytes_available": true,
+      "guest_bytes": 10
+    },
+    {
+      "host": "0x6eae8ffb00",
+      "guest_pc": "0x10ba3d",
+      "guest_count": 34,
+      "host_bytes": 2040,
+      "tcg_fraction": 0.0010460251046025104,
+      "guest_bytes_available": true,
+      "guest_bytes": 108
+    },
+    {
+      "host": "0x6eaeb377c0",
+      "guest_pc": "0x18d1d5",
+      "guest_count": 52,
+      "host_bytes": 8744,
+      "tcg_fraction": 0.0010460251046025104,
+      "guest_bytes_available": true,
+      "guest_bytes": 228
+    },
+    {
+      "host": "0x6eab7ade80",
+      "guest_pc": "0x338af0",
+      "guest_count": 12,
+      "host_bytes": 1156,
+      "tcg_fraction": 0.0010460251046025104,
+      "guest_bytes_available": true,
+      "guest_bytes": 38
+    },
+    {
+      "host": "0x6eac49a140",
+      "guest_pc": "0xd0dd0",
+      "guest_count": 40,
+      "host_bytes": 6220,
+      "tcg_fraction": 0.0010460251046025104,
+      "guest_bytes_available": true,
+      "guest_bytes": 111
+    },
+    {
+      "host": "0x6eac94a740",
+      "guest_pc": "0x605f0",
+      "guest_count": 113,
+      "host_bytes": 9352,
+      "tcg_fraction": 0.0010460251046025104,
+      "guest_bytes_available": true,
+      "guest_bytes": 708
+    },
+    {
+      "host": "0x6ead35de80",
+      "guest_pc": "0x231116",
+      "guest_count": 5,
+      "host_bytes": 408,
+      "tcg_fraction": 0.0010460251046025104,
+      "guest_bytes_available": true,
+      "guest_bytes": 19
+    },
+    {
+      "host": "0x6ea84cf540",
+      "guest_pc": "0x8001fad1",
+      "guest_count": 12,
+      "host_bytes": 540,
+      "tcg_fraction": 0.0009414225941422594,
+      "guest_bytes_available": true,
+      "guest_bytes": 38
+    },
+    {
+      "host": "0x6eae557c00",
+      "guest_pc": "0xf03b1",
+      "guest_count": 7,
+      "host_bytes": 552,
+      "tcg_fraction": 0.0009414225941422594,
+      "guest_bytes_available": true,
+      "guest_bytes": 26
+    },
+    {
+      "host": "0x6ead35d0c0",
+      "guest_pc": "0x23108f",
+      "guest_count": 3,
+      "host_bytes": 228,
+      "tcg_fraction": 0.0009414225941422594,
+      "guest_bytes_available": true,
+      "guest_bytes": 12
+    },
+    {
+      "host": "0x6eab518dc0",
+      "guest_pc": "0x2fd0b8",
+      "guest_count": 19,
+      "host_bytes": 1524,
+      "tcg_fraction": 0.0009414225941422594,
+      "guest_bytes_available": true,
+      "guest_bytes": 59
+    },
+    {
+      "host": "0x6eac5f6d40",
+      "guest_pc": "0x2fa4ad",
+      "guest_count": 3,
+      "host_bytes": 512,
+      "tcg_fraction": 0.0009414225941422594,
+      "guest_bytes_available": true,
+      "guest_bytes": 9
+    },
+    {
+      "host": "0x6eae60ab80",
+      "guest_pc": "0xe9d69",
+      "guest_count": 20,
+      "host_bytes": 2440,
+      "tcg_fraction": 0.0009414225941422594,
+      "guest_bytes_available": true,
+      "guest_bytes": 48
+    },
+    {
+      "host": "0x6eaeab3a80",
+      "guest_pc": "0x2dd791",
+      "guest_count": 81,
+      "host_bytes": 10064,
+      "tcg_fraction": 0.0009414225941422594,
+      "guest_bytes_available": true,
+      "guest_bytes": 318
+    },
+    {
+      "host": "0x6eaeab8f00",
+      "guest_pc": "0x2d5169",
+      "guest_count": 38,
+      "host_bytes": 4852,
+      "tcg_fraction": 0.0009414225941422594,
+      "guest_bytes_available": true,
+      "guest_bytes": 99
+    },
+    {
+      "host": "0x6eaeaba380",
+      "guest_pc": "0x2d51cc",
+      "guest_count": 58,
+      "host_bytes": 7348,
+      "tcg_fraction": 0.0009414225941422594,
+      "guest_bytes_available": true,
+      "guest_bytes": 157
+    },
+    {
+      "host": "0x6eaeaf3f80",
+      "guest_pc": "0x2bbcb0",
+      "guest_count": 43,
+      "host_bytes": 5312,
+      "tcg_fraction": 0.0009414225941422594,
+      "guest_bytes_available": true,
+      "guest_bytes": 140
+    },
+    {
+      "host": "0x6eac6f6280",
+      "guest_pc": "0x156a12",
+      "guest_count": 3,
+      "host_bytes": 204,
+      "tcg_fraction": 0.0008368200836820083,
+      "guest_bytes_available": true,
+      "guest_bytes": 7
+    },
+    {
+      "host": "0x6eac5f7140",
+      "guest_pc": "0x2fa4a8",
+      "guest_count": 2,
+      "host_bytes": 312,
+      "tcg_fraction": 0.0008368200836820083,
+      "guest_bytes_available": true,
+      "guest_bytes": 5
+    },
+    {
+      "host": "0x6eabfa7800",
+      "guest_pc": "0x11000",
+      "guest_count": 1,
+      "host_bytes": 132,
+      "tcg_fraction": 0.0008368200836820083,
+      "guest_bytes_available": true,
+      "guest_bytes": 1
+    },
+    {
+      "host": "0x6ead11ec40",
+      "guest_pc": "0x15f2fc",
+      "guest_count": 50,
+      "host_bytes": 4208,
+      "tcg_fraction": 0.0008368200836820083,
+      "guest_bytes_available": true,
+      "guest_bytes": 255
+    }
+  ]
+}

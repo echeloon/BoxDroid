@@ -1,0 +1,34 @@
+{
+  "experiment": 32,
+  "status": "rejected",
+  "purpose": "Bounded forward-branch translation regions",
+  "variants": {
+    "32a": {
+      "selection": "Initially included backward encodings due unsigned comparison",
+      "on": 10.511111434723647,
+      "off": 11.564395414683204
+    },
+    "32b": {
+      "selection": "Signed forward-only, up to4 generic side exits",
+      "on": 10.941048976188508,
+      "off": 11.588568967569007,
+      "pmu_instructions_per_flip_on": 473384331.5011398,
+      "pmu_instructions_per_flip_off": 436297821.53206813,
+      "pmu_cycles_per_flip_on": 235908718.3850548,
+      "pmu_cycles_per_flip_off": 222487438.124452
+    },
+    "32c": {
+      "selection": "One directly chained same-page side exit plus static preferred terminal direct link",
+      "on": 11.502153154908875,
+      "off": 11.788982317518386,
+      "pmu_instructions_on": 442317390.471956,
+      "pmu_cycles_on": 223356290.56334886,
+      "off_pmu": {
+        "instructions": 434781684.7439583,
+        "cycles": 218898160.36070514
+      }
+    }
+  },
+  "correctness": "Complete focused suites PASS; exact architectural EFLAGS/full-state, fault, software trap, STI/TF, backward/PCREL/icount exclusion, MMIO, in-region SMC, virtual code aliases and concurrent interrupt visibility. No runtime semantic fix required. Not a universal proof.",
+  "reason": "All three variants regressed actual guest cadence. For32c warmer disabled-control is2.49% faster; no retained runtime gain. Remove complete group. Preserve tests and diagnostics."
+}

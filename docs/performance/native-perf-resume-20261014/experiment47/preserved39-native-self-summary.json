@@ -1,0 +1,2827 @@
+{
+  "total_tcg_weight": 19120000000,
+  "exact_elf": "build/native-perf-run/retained-after-values-20261015/libboxdroid.so",
+  "provenance_matches_original39": true,
+  "functions": [
+    {
+      "name": "<generated JIT>",
+      "fraction": 0.5129707112970712,
+      "weight": 9808000000,
+      "anchor": null
+    },
+    {
+      "name": "seqlock_read_begin",
+      "fraction": 0.028661087866108787,
+      "weight": 548000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/qemu/seqlock.h:74"
+    },
+    {
+      "name": "boxdroid_f80_double53",
+      "fraction": 0.022280334728033473,
+      "weight": 426000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/boxdroid-floatx80.h:0"
+    },
+    {
+      "name": "helper_boxdroid_f32_store",
+      "fraction": 0.01914225941422594,
+      "weight": 366000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:687"
+    },
+    {
+      "name": "helper_boxdroid_f32_load",
+      "fraction": 0.017468619246861924,
+      "weight": 334000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:666"
+    },
+    {
+      "name": "save_exception_flags",
+      "fraction": 0.01684100418410042,
+      "weight": 322000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:515"
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff97936836f4]",
+      "fraction": 0.015585774058577405,
+      "weight": 298000000,
+      "anchor": null
+    },
+    {
+      "name": "tb_lookup_cmp",
+      "fraction": 0.012343096234309623,
+      "weight": 236000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cpu-exec.c:179"
+    },
+    {
+      "name": "helper_boxdroid_fmul",
+      "fraction": 0.012238493723849372,
+      "weight": 234000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:1091"
+    },
+    {
+      "name": "__kernel_clock_gettime",
+      "fraction": 0.010878661087866108,
+      "weight": 208000000,
+      "anchor": null
+    },
+    {
+      "name": "do_ld_4",
+      "fraction": 0.010878661087866108,
+      "weight": 208000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/ldst_atomicity.c.inc:0"
+    },
+    {
+      "name": "boxdroid_sse_mulps",
+      "fraction": 0.009623430962343096,
+      "weight": 184000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:4076"
+    },
+    {
+      "name": "fpu_set_exception",
+      "fraction": 0.009205020920502092,
+      "weight": 176000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:431"
+    },
+    {
+      "name": "boxdroid_f32_round_normal",
+      "fraction": 0.009100418410041842,
+      "weight": 174000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:652"
+    },
+    {
+      "name": "tlb_reset_dirty_range_locked",
+      "fraction": 0.008158995815899581,
+      "weight": 156000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:904"
+    },
+    {
+      "name": "tlb_set_dirty1_locked",
+      "fraction": 0.007740585774058577,
+      "weight": 148000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:958"
+    },
+    {
+      "name": "find_next_bit",
+      "fraction": 0.007217573221757322,
+      "weight": 138000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/util/bitops.c:34"
+    },
+    {
+      "name": "boxdroid_f80_arithmetic",
+      "fraction": 0.007112970711297071,
+      "weight": 136000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/boxdroid-floatx80.h:825"
+    },
+    {
+      "name": "helper_boxdroid_fadd",
+      "fraction": 0.0066945606694560665,
+      "weight": 128000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:1090"
+    },
+    {
+      "name": "do_ld8_mmu.llvm.15150316615889503850",
+      "fraction": 0.00596234309623431,
+      "weight": 114000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:2413"
+    },
+    {
+      "name": "qemu_spin_lock",
+      "fraction": 0.005543933054393306,
+      "weight": 106000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/qemu/thread.h:276"
+    },
+    {
+      "name": "floatx80_mul_slow",
+      "fraction": 0.005439330543933054,
+      "weight": 104000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:2245"
+    },
+    {
+      "name": "[linker]tlsdesc_resolver_dynamic",
+      "fraction": 0.005334728033472803,
+      "weight": 102000000,
+      "anchor": null
+    },
+    {
+      "name": "mmu_lookup1",
+      "fraction": 0.005125523012552301,
+      "weight": 98000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:0"
+    },
+    {
+      "name": "floatx80_addsub_slow",
+      "fraction": 0.004916317991631799,
+      "weight": 94000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:2105"
+    },
+    {
+      "name": "mmu_translate",
+      "fraction": 0.004707112970711297,
+      "weight": 90000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/system/excp_helper.c:407"
+    },
+    {
+      "name": "helper_boxdroid_fsub",
+      "fraction": 0.004497907949790795,
+      "weight": 86000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:1092"
+    },
+    {
+      "name": "save_arithmetic_exception_flags",
+      "fraction": 0.004393305439330544,
+      "weight": 84000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:528"
+    },
+    {
+      "name": "boxdroid_use_fast_fpu",
+      "fraction": 0.004393305439330544,
+      "weight": 84000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/boxdroid-floatx80.h:44"
+    },
+    {
+      "name": "tb_tc_cmp",
+      "fraction": 0.0040794979079497905,
+      "weight": 78000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/tcg/region.c:169"
+    },
+    {
+      "name": "tb_lookup",
+      "fraction": 0.0039748953974895395,
+      "weight": 76000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cpu-exec.c:299"
+    },
+    {
+      "name": "boxdroid_f80_precision",
+      "fraction": 0.0039748953974895395,
+      "weight": 76000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/boxdroid-floatx80.h:90"
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9794a262bc]",
+      "fraction": 0.0036610878661087866,
+      "weight": 70000000,
+      "anchor": null
+    },
+    {
+      "name": "tlb_hit_page",
+      "fraction": 0.0035564853556485356,
+      "weight": 68000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:1235"
+    },
+    {
+      "name": "merge_exception_flags",
+      "fraction": 0.0035564853556485356,
+      "weight": 68000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:546"
+    },
+    {
+      "name": "__aarch64_ldset8_acq_rel",
+      "fraction": 0.0033472803347280333,
+      "weight": 64000000,
+      "anchor": "/checkout/library/compiler-builtins/compiler-builtins/./lib/builtins/aarch64/lse.S:252"
+    },
+    {
+      "name": "helper_fxchg_ST0_STN",
+      "fraction": 0.0033472803347280333,
+      "weight": 64000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:1003"
+    },
+    {
+      "name": "float32_gen2",
+      "fraction": 0.0032426778242677823,
+      "weight": 62000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:0"
+    },
+    {
+      "name": "g_tree_find_node",
+      "fraction": 0.0031380753138075313,
+      "weight": 60000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/m2/tools/vcpkg/buildtrees/glib/arm64-android-api33-rel/../src/glib-2-85f794b129.clean/glib/gtree.c:1509"
+    },
+    {
+      "name": "boxdroid_f80_identity",
+      "fraction": 0.0031380753138075313,
+      "weight": 60000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/boxdroid-floatx80.h:418"
+    },
+    {
+      "name": "physical_memory_get_dirty",
+      "fraction": 0.0029288702928870294,
+      "weight": 56000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/physmem.c:0"
+    },
+    {
+      "name": "probe_access_internal.llvm.15150316615889503850",
+      "fraction": 0.0029288702928870294,
+      "weight": 56000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:0"
+    },
+    {
+      "name": "boxdroid_vram_access_callback.llvm.15669267023501580952",
+      "fraction": 0.0029288702928870294,
+      "weight": 56000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/hw/xbox/nv2a/nv2a.c:49"
+    },
+    {
+      "name": "mem_check_access_callback_ramaddr",
+      "fraction": 0.0028242677824267784,
+      "weight": 54000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/physmem.c:935"
+    },
+    {
+      "name": "get_ptr_rcu_reader",
+      "fraction": 0.002719665271966527,
+      "weight": 52000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/util/rcu.c:72"
+    },
+    {
+      "name": "helper_cc_compute_c",
+      "fraction": 0.002615062761506276,
+      "weight": 50000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/cc_helper.c:216"
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793694044]",
+      "fraction": 0.002405857740585774,
+      "weight": 46000000,
+      "anchor": null
+    },
+    {
+      "name": "mem_access_callback_address_matches",
+      "fraction": 0.002405857740585774,
+      "weight": 46000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/physmem.c:861"
+    },
+    {
+      "name": "memset",
+      "fraction": 0.002301255230125523,
+      "weight": 44000000,
+      "anchor": null
+    },
+    {
+      "name": "do_st4_mmu.llvm.15150316615889503850",
+      "fraction": 0.002301255230125523,
+      "weight": 44000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:2813"
+    },
+    {
+      "name": "__aarch64_swp4_acq_rel",
+      "fraction": 0.002196652719665272,
+      "weight": 42000000,
+      "anchor": "/checkout/library/compiler-builtins/compiler-builtins/./lib/builtins/aarch64/lse.S:208"
+    },
+    {
+      "name": "floatx80_do_compare.llvm.8440649966256431142",
+      "fraction": 0.002196652719665272,
+      "weight": 42000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:4699"
+    },
+    {
+      "name": "mmu_lookup.llvm.15150316615889503850",
+      "fraction": 0.002196652719665272,
+      "weight": 42000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:1773"
+    },
+    {
+      "name": "helper_addps_xmm",
+      "fraction": 0.002196652719665272,
+      "weight": 42000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/ops_sse.h:542"
+    },
+    {
+      "name": "qht_do_lookup",
+      "fraction": 0.0020920502092050207,
+      "weight": 40000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/util/qht.c:563"
+    },
+    {
+      "name": "tlb_set_page_full",
+      "fraction": 0.0020920502092050207,
+      "weight": 40000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:1038"
+    },
+    {
+      "name": "float_raise",
+      "fraction": 0.0018828451882845188,
+      "weight": 36000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/fpu/softfloat.h:106"
+    },
+    {
+      "name": "rcu_read_lock",
+      "fraction": 0.0017782426778242678,
+      "weight": 34000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/qemu/rcu.h:83"
+    },
+    {
+      "name": "do_ld4_mmu.llvm.15150316615889503850",
+      "fraction": 0.0017782426778242678,
+      "weight": 34000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:2392"
+    },
+    {
+      "name": "floatx80_mul",
+      "fraction": 0.0017782426778242678,
+      "weight": 34000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:0"
+    },
+    {
+      "name": "helper_lookup_tb_ptr",
+      "fraction": 0.0014644351464435147,
+      "weight": 28000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cpu-exec.c:492"
+    },
+    {
+      "name": "rcu_read_unlock",
+      "fraction": 0.0014644351464435147,
+      "weight": 28000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/qemu/rcu.h:101"
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793694018]",
+      "fraction": 0.0013598326359832635,
+      "weight": 26000000,
+      "anchor": null
+    },
+    {
+      "name": "helper_ldub_mmu",
+      "fraction": 0.0013598326359832635,
+      "weight": 26000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/ldst_common.c.inc:19"
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793694028]",
+      "fraction": 0.0012552301255230125,
+      "weight": 24000000,
+      "anchor": null
+    },
+    {
+      "name": "cpu_test_interrupt",
+      "fraction": 0.0012552301255230125,
+      "weight": 24000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/hw/core/cpu.h:1015"
+    },
+    {
+      "name": "qht_lookup_custom",
+      "fraction": 0.0012552301255230125,
+      "weight": 24000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/util/qht.c:604"
+    },
+    {
+      "name": "tlb_set_dirty",
+      "fraction": 0.0012552301255230125,
+      "weight": 24000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:973"
+    },
+    {
+      "name": "cpu_exec_loop",
+      "fraction": 0.0012552301255230125,
+      "weight": 24000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cpu-exec.c:1090"
+    },
+    {
+      "name": "do_ld_8.llvm.15150316615889503850",
+      "fraction": 0.0012552301255230125,
+      "weight": 24000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:2328"
+    },
+    {
+      "name": "helper_fcom_ST0_FT0",
+      "fraction": 0.0012552301255230125,
+      "weight": 24000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:1018"
+    },
+    {
+      "name": "victim_tlb_hit",
+      "fraction": 0.0012552301255230125,
+      "weight": 24000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:1346"
+    },
+    {
+      "name": "boxdroid_f80_compare",
+      "fraction": 0.0012552301255230125,
+      "weight": 24000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/boxdroid-floatx80.h:73"
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979369401c]",
+      "fraction": 0.0011506276150627616,
+      "weight": 22000000,
+      "anchor": null
+    },
+    {
+      "name": "do_st_8.llvm.15150316615889503850",
+      "fraction": 0.0011506276150627616,
+      "weight": 22000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:2768"
+    },
+    {
+      "name": "required_atomicity",
+      "fraction": 0.0011506276150627616,
+      "weight": 22000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/ldst_atomicity.c.inc:100"
+    },
+    {
+      "name": "boxdroid_i64_widen",
+      "fraction": 0.0011506276150627616,
+      "weight": 22000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/boxdroid-floatx80.h:861"
+    },
+    {
+      "name": "boxdroid_f80_regular",
+      "fraction": 0.0011506276150627616,
+      "weight": 22000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/boxdroid-floatx80.h:64"
+    },
+    {
+      "name": "boxdroid_f80_scaled",
+      "fraction": 0.0010460251046025104,
+      "weight": 20000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/boxdroid-floatx80.h:0"
+    },
+    {
+      "name": "physical_memory_get_dirty_flag",
+      "fraction": 0.0010460251046025104,
+      "weight": 20000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/physmem.c:1054"
+    },
+    {
+      "name": "tlb_hit_page_mask_anyprot",
+      "fraction": 0.0010460251046025104,
+      "weight": 20000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:457"
+    },
+    {
+      "name": "f32_addsubmul_post",
+      "fraction": 0.0009414225941422594,
+      "weight": 18000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:1982"
+    },
+    {
+      "name": "notdirty_write.llvm.15150316615889503850",
+      "fraction": 0.0009414225941422594,
+      "weight": 18000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:1375"
+    },
+    {
+      "name": "boxdroid_f80_narrow.llvm.8440649966256431142",
+      "fraction": 0.0009414225941422594,
+      "weight": 18000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/boxdroid-floatx80.h:0"
+    },
+    {
+      "name": "boxdroid_f64_scaled",
+      "fraction": 0.0009414225941422594,
+      "weight": 18000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/boxdroid-floatx80.h:160"
+    },
+    {
+      "name": "address_space_translate_for_iotlb",
+      "fraction": 0.0009414225941422594,
+      "weight": 18000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/physmem.c:699"
+    },
+    {
+      "name": "helper_cc_compute_all",
+      "fraction": 0.0009414225941422594,
+      "weight": 18000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/cc_helper.c:79"
+    },
+    {
+      "name": "tlb_fill_align",
+      "fraction": 0.0009414225941422594,
+      "weight": 18000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:1260"
+    },
+    {
+      "name": "do_ld_2",
+      "fraction": 0.0008368200836820083,
+      "weight": 16000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/ldst_atomicity.c.inc:0"
+    },
+    {
+      "name": "floatx80_chs",
+      "fraction": 0.0008368200836820083,
+      "weight": 16000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/fpu/softfloat.h:994"
+    },
+    {
+      "name": "ctz64",
+      "fraction": 0.0008368200836820083,
+      "weight": 16000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/qemu/host-utils.h:261"
+    },
+    {
+      "name": "sigsetjmp",
+      "fraction": 0.0008368200836820083,
+      "weight": 16000000,
+      "anchor": null
+    },
+    {
+      "name": "section_covers_addr",
+      "fraction": 0.0008368200836820083,
+      "weight": 16000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/physmem.c:318"
+    },
+    {
+      "name": "address_space_translate_internal.llvm.13492951030277666353",
+      "fraction": 0.0008368200836820083,
+      "weight": 16000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/physmem.c:395"
+    },
+    {
+      "name": "floatx80_add",
+      "fraction": 0.0008368200836820083,
+      "weight": 16000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:2134"
+    },
+    {
+      "name": "object_dynamic_cast_assert",
+      "fraction": 0.0008368200836820083,
+      "weight": 16000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/qom/object.c:907"
+    },
+    {
+      "name": "helper_fildl_ST0",
+      "fraction": 0.0008368200836820083,
+      "weight": 16000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:776"
+    },
+    {
+      "name": "floatx80_addsub",
+      "fraction": 0.0008368200836820083,
+      "weight": 16000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:2128"
+    },
+    {
+      "name": "floatx80_sub",
+      "fraction": 0.0008368200836820083,
+      "weight": 16000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:2138"
+    },
+    {
+      "name": "get_page_addr_code_hostp",
+      "fraction": 0.0008368200836820083,
+      "weight": 16000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:1563"
+    },
+    {
+      "name": "__aarch64_cas2_acq",
+      "fraction": 0.0007322175732217573,
+      "weight": 14000000,
+      "anchor": null
+    },
+    {
+      "name": "tb_jmp_cache_hash_func",
+      "fraction": 0.0007322175732217573,
+      "weight": 14000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/tb-hash.h:50"
+    },
+    {
+      "name": "tlb_reset_dirty",
+      "fraction": 0.0007322175732217573,
+      "weight": 14000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:941"
+    },
+    {
+      "name": "tlb_entry_index",
+      "fraction": 0.0007322175732217573,
+      "weight": 14000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/exec/tlb-common.h:56"
+    },
+    {
+      "name": "address_space_lookup_region",
+      "fraction": 0.0007322175732217573,
+      "weight": 14000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/physmem.c:0"
+    },
+    {
+      "name": "address_space_to_flatview",
+      "fraction": 0.0007322175732217573,
+      "weight": 14000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/system/memory.h:0"
+    },
+    {
+      "name": "float32_add",
+      "fraction": 0.0007322175732217573,
+      "weight": 14000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:2011"
+    },
+    {
+      "name": "helper_minss",
+      "fraction": 0.0007322175732217573,
+      "weight": 14000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/ops_sse.h:546"
+    },
+    {
+      "name": "physical_memory_set_dirty_range",
+      "fraction": 0.0007322175732217573,
+      "weight": 14000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/physmem.c:1198"
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793694064]",
+      "fraction": 0.0006276150627615063,
+      "weight": 12000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979369b8b0]",
+      "fraction": 0.0006276150627615063,
+      "weight": 12000000,
+      "anchor": null
+    },
+    {
+      "name": "cos",
+      "fraction": 0.0006276150627615063,
+      "weight": 12000000,
+      "anchor": null
+    },
+    {
+      "name": "get_mmuidx",
+      "fraction": 0.0006276150627615063,
+      "weight": 12000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/exec/memopidx.h:53"
+    },
+    {
+      "name": "memop_tlb_alignment_bits",
+      "fraction": 0.0006276150627615063,
+      "weight": 12000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/exec/memop.h:191"
+    },
+    {
+      "name": "helper_stl_mmu",
+      "fraction": 0.0006276150627615063,
+      "weight": 12000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/ldst_common.c.inc:98"
+    },
+    {
+      "name": "do_st8_mmu.llvm.15150316615889503850",
+      "fraction": 0.0006276150627615063,
+      "weight": 12000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:2834"
+    },
+    {
+      "name": "helper_maxss",
+      "fraction": 0.0006276150627615063,
+      "weight": 12000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/ops_sse.h:547"
+    },
+    {
+      "name": "helper_fildll_ST0",
+      "fraction": 0.0006276150627615063,
+      "weight": 12000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:797"
+    },
+    {
+      "name": "floatx80_to_int64_scalbn.llvm.8440649966256431142",
+      "fraction": 0.0006276150627615063,
+      "weight": 12000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:3419"
+    },
+    {
+      "name": "memory_region_access_valid",
+      "fraction": 0.0006276150627615063,
+      "weight": 12000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/memory.c:1410"
+    },
+    {
+      "name": "mmu_watch_or_dirty",
+      "fraction": 0.0006276150627615063,
+      "weight": 12000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:1719"
+    },
+    {
+      "name": "@plt",
+      "fraction": 0.0005230125523012552,
+      "weight": 10000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9794a26304]",
+      "fraction": 0.0005230125523012552,
+      "weight": 10000000,
+      "anchor": null
+    },
+    {
+      "name": "__memcpy",
+      "fraction": 0.0005230125523012552,
+      "weight": 10000000,
+      "anchor": null
+    },
+    {
+      "name": "g_tree_insert_internal",
+      "fraction": 0.0005230125523012552,
+      "weight": 10000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/m2/tools/vcpkg/buildtrees/glib/arm64-android-api33-rel/../src/glib-2-85f794b129.clean/glib/gtree.c:597"
+    },
+    {
+      "name": "boxdroid_jmp_cache_pc",
+      "fraction": 0.0005230125523012552,
+      "weight": 10000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/tb-jmp-cache.h:45"
+    },
+    {
+      "name": "helper_boxdroid_fdivr",
+      "fraction": 0.0005230125523012552,
+      "weight": 10000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:1095"
+    },
+    {
+      "name": "can_use_fpu",
+      "fraction": 0.0005230125523012552,
+      "weight": 10000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:235"
+    },
+    {
+      "name": "cpu_tb_exec",
+      "fraction": 0.0005230125523012552,
+      "weight": 10000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cpu-exec.c:560"
+    },
+    {
+      "name": "tlb_index",
+      "fraction": 0.0005230125523012552,
+      "weight": 10000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:142"
+    },
+    {
+      "name": "helper_ldul_mmu",
+      "fraction": 0.0005230125523012552,
+      "weight": 10000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/ldst_common.c.inc:31"
+    },
+    {
+      "name": "load_atom_8",
+      "fraction": 0.0005230125523012552,
+      "weight": 10000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/ldst_atomicity.c.inc:503"
+    },
+    {
+      "name": "helper_boxdroid_fsubr",
+      "fraction": 0.0005230125523012552,
+      "weight": 10000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:1093"
+    },
+    {
+      "name": "helper_mulps_xmm",
+      "fraction": 0.0005230125523012552,
+      "weight": 10000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/ops_sse.h:544"
+    },
+    {
+      "name": "bitmap_set_atomic",
+      "fraction": 0.0005230125523012552,
+      "weight": 10000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/util/bitmap.c:186"
+    },
+    {
+      "name": "boxdroid_fp_nearest",
+      "fraction": 0.0005230125523012552,
+      "weight": 10000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/boxdroid-floatx80.h:193"
+    },
+    {
+      "name": "int64_to_floatx80",
+      "fraction": 0.0005230125523012552,
+      "weight": 10000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:4221"
+    },
+    {
+      "name": "memory_region_dispatch_write",
+      "fraction": 0.0005230125523012552,
+      "weight": 10000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/memory.c:1546"
+    },
+    {
+      "name": "x86_cpu_tlb_fill",
+      "fraction": 0.0005230125523012552,
+      "weight": 10000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/system/excp_helper.c:677"
+    },
+    {
+      "name": "helper_fucom_ST0_FT0",
+      "fraction": 0.0005230125523012552,
+      "weight": 10000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:1024"
+    },
+    {
+      "name": "x86_asidx_from_attrs",
+      "fraction": 0.00041841004184100416,
+      "weight": 8000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/cpu.h:2611"
+    },
+    {
+      "name": "prop_area::find_prop_bt(prop_bt*, char const*, unsigned int, bool)",
+      "fraction": 0.00041841004184100416,
+      "weight": 8000000,
+      "anchor": null
+    },
+    {
+      "name": "cpu_asidx_from_attrs",
+      "fraction": 0.00041841004184100416,
+      "weight": 8000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/hw/core/cpu-system.c:87"
+    },
+    {
+      "name": "load_atom_extract_al8x2",
+      "fraction": 0.00041841004184100416,
+      "weight": 8000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/ldst_atomicity.c.inc:262"
+    },
+    {
+      "name": "boxdroid_profile_page_size",
+      "fraction": 0.00041841004184100416,
+      "weight": 8000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/system/excp_helper.c:58"
+    },
+    {
+      "name": "helper_fcos",
+      "fraction": 0.00041841004184100416,
+      "weight": 8000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:3106"
+    },
+    {
+      "name": "boxdroid_host_op",
+      "fraction": 0.00041841004184100416,
+      "weight": 8000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/boxdroid-floatx80.h:226"
+    },
+    {
+      "name": "qemu_spin_unlock",
+      "fraction": 0.00041841004184100416,
+      "weight": 8000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/qemu/thread.h:308"
+    },
+    {
+      "name": "helper_fistll_ST0",
+      "fraction": 0.00041841004184100416,
+      "weight": 8000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:867"
+    },
+    {
+      "name": "helper_fsqrt",
+      "fraction": 0.00041841004184100416,
+      "weight": 8000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:3005"
+    },
+    {
+      "name": "helper_subss",
+      "fraction": 0.00041841004184100416,
+      "weight": 8000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/ops_sse.h:543"
+    },
+    {
+      "name": "boxdroid_diag_tb_exec",
+      "fraction": 0.00041841004184100416,
+      "weight": 8000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/boxdroid-xbox-runtime.c:692"
+    },
+    {
+      "name": "floatx80_div",
+      "fraction": 0.00041841004184100416,
+      "weight": 8000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:2689"
+    },
+    {
+      "name": "floatx80_to_float64",
+      "fraction": 0.00041841004184100416,
+      "weight": 8000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:3076"
+    },
+    {
+      "name": "boxdroid_f80_to_int.llvm.8440649966256431142",
+      "fraction": 0.00041841004184100416,
+      "weight": 8000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/boxdroid-floatx80.h:0"
+    },
+    {
+      "name": "qemu_ram_block_from_host",
+      "fraction": 0.00041841004184100416,
+      "weight": 8000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/physmem.c:2944"
+    },
+    {
+      "name": "tb_htable_lookup_common.llvm.14782526641097360090",
+      "fraction": 0.00041841004184100416,
+      "weight": 8000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cpu-exec.c:214"
+    },
+    {
+      "name": "ScopedTrace::ScopedTrace(char const*)",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793694020]",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793694030]",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979382c0a0]",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793a834d0]",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": null
+    },
+    {
+      "name": "helper_ldq_mmu",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/ldst_common.c.inc:38"
+    },
+    {
+      "name": "memory_region_get_ram_addr",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/memory.c:2551"
+    },
+    {
+      "name": "floatx80_compare_quiet",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:4708"
+    },
+    {
+      "name": "seqlock_read_retry",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/qemu/seqlock.h:82"
+    },
+    {
+      "name": "reachable_code_pass",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/tcg/tcg.c:3793"
+    },
+    {
+      "name": "cpu_exec_longjmp_cleanup",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cpu-exec.c:662"
+    },
+    {
+      "name": "do_ld1_mmu",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:2353"
+    },
+    {
+      "name": "compute_all_subl",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/cc_helper_template.h.inc:103"
+    },
+    {
+      "name": "helper_fchs_ST0",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:1338"
+    },
+    {
+      "name": "helper_ret_protected",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/seg_helper.c:2087"
+    },
+    {
+      "name": "qemu_mutex_lock_impl",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/util/qemu-thread-posix.c:92"
+    },
+    {
+      "name": "float32_input_flush2",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:163"
+    },
+    {
+      "name": "iotlb_to_section",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/physmem.c:764"
+    },
+    {
+      "name": "tcg_optimize",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/tcg/optimize.c:3128"
+    },
+    {
+      "name": "tcg_emit_op",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/tcg/tcg.c:3732"
+    },
+    {
+      "name": "opcode_args_ct",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/tcg/tcg.c:3628"
+    },
+    {
+      "name": "cpu_handle_interrupt",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cpu-exec.c:1002"
+    },
+    {
+      "name": "is_mmu_index_user",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/cpu.h:0"
+    },
+    {
+      "name": "access_ptr",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/access.c:58"
+    },
+    {
+      "name": "compute_all_logicb",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/cc_helper_template.h.inc:0"
+    },
+    {
+      "name": "x86_get_tb_cpu_state.llvm.11225724537926788727",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/tcg-cpu.c:63"
+    },
+    {
+      "name": "parts64_mul",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat-parts.c.inc:553"
+    },
+    {
+      "name": "boxdroid_f80_integer_magnitude",
+      "fraction": 0.00031380753138075313,
+      "weight": 6000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/boxdroid-floatx80.h:945"
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793680e08]",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793680e34]",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793680e40]",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff97936814a4]",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979378eab0]",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff97938b1c60]",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793a76f64]",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9794a2613c]",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": null
+    },
+    {
+      "name": "__aarch64_swp2_rel",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": null
+    },
+    {
+      "name": "__errno",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": null
+    },
+    {
+      "name": "__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": null
+    },
+    {
+      "name": "__system_property_serial",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": null
+    },
+    {
+      "name": "_longjmp",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": null
+    },
+    {
+      "name": "tcg_out_helper_add_mov",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/tcg/tcg.c:6659"
+    },
+    {
+      "name": "tb_htable_lookup",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cpu-exec.c:233"
+    },
+    {
+      "name": "check_for_breakpoints",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cpu-exec.c:447"
+    },
+    {
+      "name": "page_find_alloc",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/tb-maint.c:232"
+    },
+    {
+      "name": "trace_memory_notdirty_write_access",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/trace/trace-accel_tcg.h:117"
+    },
+    {
+      "name": "helper_outb",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/system/misc_helper.c:32"
+    },
+    {
+      "name": "pic_irq_request.llvm.11373143364172095051",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/hw/i386/x86-cpu.c:47"
+    },
+    {
+      "name": "int32_to_floatx80",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:4225"
+    },
+    {
+      "name": "helper_fnstsw",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:1437"
+    },
+    {
+      "name": "helper_emms",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:4021"
+    },
+    {
+      "name": "set_x86_rounding_mode",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:0"
+    },
+    {
+      "name": "decode_op",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/decode-new.c.inc:0"
+    },
+    {
+      "name": "user_read",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/hw/xbox/nv2a/user.c:26"
+    },
+    {
+      "name": "boxdroid_diag_vram_write",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/boxdroid-xbox-runtime.c:450"
+    },
+    {
+      "name": "qemu_mutex_unlock_impl",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/util/qemu-thread-posix.c:117"
+    },
+    {
+      "name": "XXH3_mix16B",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/subprojects/xxHash-0.8.3/xxhash.h:4759"
+    },
+    {
+      "name": "g_hash_table_remove_all",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/m2/tools/vcpkg/buildtrees/glib/arm64-android-api33-rel/../src/glib-2-85f794b129.clean/glib/ghash.c:1876"
+    },
+    {
+      "name": "pic_update_irq",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/hw/intc/i8259.c:105"
+    },
+    {
+      "name": "memory_region_read_accessor.llvm.16189988779011059849",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/memory.c:440"
+    },
+    {
+      "name": "replay_mutex_unlock",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/replay/replay-internal.c:268"
+    },
+    {
+      "name": "tcg_reg_alloc_op",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/tcg/tcg.c:5731"
+    },
+    {
+      "name": "liveness_pass_0",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/tcg/tcg.c:4065"
+    },
+    {
+      "name": "liveness_pass_1",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/tcg/tcg.c:4503"
+    },
+    {
+      "name": "tcg_reg_alloc",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/tcg/tcg.c:4890"
+    },
+    {
+      "name": "qemu_xxhash8",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/qemu/xxhash.h:0"
+    },
+    {
+      "name": "rol32",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/qemu/bitops.h:440"
+    },
+    {
+      "name": "curr_cflags",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cpu-exec-common.c:49"
+    },
+    {
+      "name": "boxdroid_tcg_event",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/boxdroid-xbox-runtime.c:558"
+    },
+    {
+      "name": "boxdroid_tcg_memory_mode",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/translate-all.c:27"
+    },
+    {
+      "name": "tb_gen_code",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/translate-all.c:434"
+    },
+    {
+      "name": "tlb_read_idx",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:128"
+    },
+    {
+      "name": "physical_memory_is_clean",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/physmem.c:1061"
+    },
+    {
+      "name": "do_ld2_mmu.llvm.15150316615889503850",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:2367"
+    },
+    {
+      "name": "load_atom_4",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/ldst_atomicity.c.inc:447"
+    },
+    {
+      "name": "do_st_4",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:2740"
+    },
+    {
+      "name": "tlb_flush_vtlb_page_mask_locked",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:507"
+    },
+    {
+      "name": "do_st_mmio_leN.llvm.15150316615889503850",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:0"
+    },
+    {
+      "name": "cpu_check_watchpoint",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/watchpoint.c:70"
+    },
+    {
+      "name": "probe_access_full_mmu",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:1461"
+    },
+    {
+      "name": "gsi_handler",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/hw/i386/x86-common.c:459"
+    },
+    {
+      "name": "access_ldw",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/access.c:98"
+    },
+    {
+      "name": "compute_c_subl",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/cc_helper_template.h.inc:111"
+    },
+    {
+      "name": "floatx80_compare",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:4703"
+    },
+    {
+      "name": "float32_is_zero_or_denormal",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/fpu/softfloat.h:662"
+    },
+    {
+      "name": "helper_cmpneqss",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/ops_sse.h:1082"
+    },
+    {
+      "name": "do_xsave_fpu",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:3306"
+    },
+    {
+      "name": "helper_divl_EAX",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/int_helper.c:108"
+    },
+    {
+      "name": "disas_insn",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/decode-new.c.inc:0"
+    },
+    {
+      "name": "gen_load",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/emit.c.inc:247"
+    },
+    {
+      "name": "qht_remove",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/util/qht.c:807"
+    },
+    {
+      "name": "g_get_monotonic_time",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/m2/tools/vcpkg/buildtrees/glib/arm64-android-api33-rel/../src/glib-2-85f794b129.clean/glib/gmain.c:3351"
+    },
+    {
+      "name": "float32_is_zero_or_normal",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/fpu/softfloat.h:677"
+    },
+    {
+      "name": "parts64_float_to_sint",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat-parts.c.inc:1257"
+    },
+    {
+      "name": "floatx80_to_int32_scalbn.llvm.8440649966256431142",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:3403"
+    },
+    {
+      "name": "parts64_round_to_int_normal.llvm.8440649966256431142",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat-parts.c.inc:1070"
+    },
+    {
+      "name": "set_bql_locked.llvm.16535893995645581373",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/cpus.c:525"
+    },
+    {
+      "name": "get_bql_locked.llvm.16535893995645581373",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/cpus.c:525"
+    },
+    {
+      "name": "access_with_adjusted_size.llvm.16189988779011059849",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/memory.c:579"
+    },
+    {
+      "name": "phys_page_find",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/physmem.c:331"
+    },
+    {
+      "name": "qemu_ram_ptr_length.llvm.13492951030277666353",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/physmem.c:0"
+    },
+    {
+      "name": "flatview_do_translate",
+      "fraction": 0.00020920502092050208,
+      "weight": 4000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/physmem.c:513"
+    },
+    {
+      "name": "ContextsSerialized::GetPropAreaForName(char const*)",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "SystemProperties::Get(char const*, char*)",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793680df8]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793680dfc]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793680e18]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793680e54]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff97936889a0]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793694000]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793694004]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff97936a92fc]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff97936fece8]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff97936fecfc]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979371d688]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979371d740]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793766dc4]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff97937753a8]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979378a278]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979378ae88]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979378bdb0]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979378bdbc]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979378c0d0]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979378c0f4]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979378dae8]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979378db10]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979378e7a8]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979378e800]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979378e928]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979378e930]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979378eb3c]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979378ec54]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979378f1b4]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979382eb1c]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979382ee60]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff97938572a8]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979387492c]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979387b83c]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff97938b1d60]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff97938b8610]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff97938b8644]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff97938d8be0]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff97938db5b0]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979390aac4]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff979393ee08]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793a5e6b8]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793a7ba74]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793a7c200]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793a803f0]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793ab1df0]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793abbd88]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9793b76f80]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9794a03c78]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9794a0eeb0]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9794a0fa38]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9794a1f6f0]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9794a1f710]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "[kernel.kallsyms][+ffffff9794a20058]",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "__aarch64_ldadd4_relax",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "__kernel_cos",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "__write_chk",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "clock_gettime",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "free",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "replay_has_exception",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/replay/replay.c:223"
+    },
+    {
+      "name": "init_arguments",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/tcg/optimize.c:0"
+    },
+    {
+      "name": "temp_idx",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/tcg/tcg.h:543"
+    },
+    {
+      "name": "clrsb64",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/qemu/host-utils.h:301"
+    },
+    {
+      "name": "ts_is_copy",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/tcg/optimize.c:117"
+    },
+    {
+      "name": "fold_tcg_ld_memcopy",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/tcg/optimize.c:2995"
+    },
+    {
+      "name": "fold_add",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/tcg/optimize.c:1251"
+    },
+    {
+      "name": "tcg_tb_insert",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/tcg/region.c:224"
+    },
+    {
+      "name": "tcg_out_pool_finalize",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/tcg/tcg.c:839"
+    },
+    {
+      "name": "tcg_pool_reset",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/tcg/tcg.c:1382"
+    },
+    {
+      "name": "tcg_out_ldst_finalize",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/tcg/tcg.c:0"
+    },
+    {
+      "name": "la_bb_end",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/tcg/tcg.c:3925"
+    },
+    {
+      "name": "la_reset_pref",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/tcg/tcg.c:3900"
+    },
+    {
+      "name": "la_cross_call",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/tcg/tcg.c:4023"
+    },
+    {
+      "name": "is_limm",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/tcg/aarch64/tcg-target.c.inc:183"
+    },
+    {
+      "name": "tcg_out_qemu_ld_direct",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/tcg/aarch64/tcg-target.c.inc:2081"
+    },
+    {
+      "name": "temp_sync",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/tcg/tcg.c:4830"
+    },
+    {
+      "name": "tcg_out_mov",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/tcg/aarch64/tcg-target.c.inc:1228"
+    },
+    {
+      "name": "tcg_gen_ext_i32",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/tcg/tcg-op-ldst.c:810"
+    },
+    {
+      "name": "get_page_addr_code",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/internal-common.h:109"
+    },
+    {
+      "name": "inv_tb_lookup_cmp.llvm.14782526641097360090",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cpu-exec.c:242"
+    },
+    {
+      "name": "cpu_exec",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cpu-exec.c:1145"
+    },
+    {
+      "name": "tb_add_jump",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cpu-exec.c:750"
+    },
+    {
+      "name": "trace_exec_tb",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/./trace/trace-accel_tcg.h:72"
+    },
+    {
+      "name": "align_clocks",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cpu-exec.c:91"
+    },
+    {
+      "name": "page_find_alloc.llvm.2100612584059713701",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/tb-maint.c:224"
+    },
+    {
+      "name": "tb_remove",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/tb-maint.c:759"
+    },
+    {
+      "name": "page_trylock_add",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/tb-maint.c:574"
+    },
+    {
+      "name": "cpu_unwind_data_from_tb.llvm.5942175089689512067",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/translate-all.c:255"
+    },
+    {
+      "name": "encode_search",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/translate-all.c:0"
+    },
+    {
+      "name": "encode_sleb128",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/translate-all.c:149"
+    },
+    {
+      "name": "tb_code_hash_func",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/accel/tcg/tb-code-hash.h:24"
+    },
+    {
+      "name": "do_ld_1",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:2279"
+    },
+    {
+      "name": "cpu_ld_code",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/accel/tcg/tb-code-hash.h:18"
+    },
+    {
+      "name": "translator_ld.llvm.5660995293683209742",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/translator.c:252"
+    },
+    {
+      "name": "tb_jmp_cache_clear_page",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:172"
+    },
+    {
+      "name": "tlb_add_large_page",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:991"
+    },
+    {
+      "name": "tlb_n_used_entries_inc",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:326"
+    },
+    {
+      "name": "probe_access",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:1499"
+    },
+    {
+      "name": "cpu_mmu_index",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/accel/tcg/cpu-mmu-index.h:37"
+    },
+    {
+      "name": "qemu_ram_addr_from_host",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/physmem.c:3002"
+    },
+    {
+      "name": "do_ld16_mmu",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:2435"
+    },
+    {
+      "name": "do_st2_mmu.llvm.15150316615889503850",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:2804"
+    },
+    {
+      "name": "env_cpu_const",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/exec/cpu-common.h:229"
+    },
+    {
+      "name": "helper_stq_mmu",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/ldst_common.c.inc:105"
+    },
+    {
+      "name": "tlb_mmu_resize_locked",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:227"
+    },
+    {
+      "name": "tlb_flush_entry_mask_locked",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:481"
+    },
+    {
+      "name": "memop_size",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/exec/memop.h:168"
+    },
+    {
+      "name": "tlb_hit",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:1246"
+    },
+    {
+      "name": "bql_lock_impl",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/cpus.c:586"
+    },
+    {
+      "name": "io_prepare",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/accel/tcg/cputlb.c:0"
+    },
+    {
+      "name": "cpu_is_stopped",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/cpus.c:79"
+    },
+    {
+      "name": "is_mmu_index_32",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/cpu.h:2682"
+    },
+    {
+      "name": "get_pg_mode",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/seg_helper.c:103"
+    },
+    {
+      "name": "ptw_translate",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/system/excp_helper.c:135"
+    },
+    {
+      "name": "helper_write_crN",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/system/misc_helper.c:77"
+    },
+    {
+      "name": "cpu_x86_update_cr0",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/helper.c:167"
+    },
+    {
+      "name": "cpu_svm_check_intercept_param",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/system/svm_helper.c:652"
+    },
+    {
+      "name": "cpu_get_pic_interrupt",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/hw/i386/x86-cpu.c:85"
+    },
+    {
+      "name": "x86_cpu_pending_interrupt",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/cpu.c:9878"
+    },
+    {
+      "name": "access_stw",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/access.c:147"
+    },
+    {
+      "name": "compute_all_logicl",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/cc_helper_template.h.inc:142"
+    },
+    {
+      "name": "compute_all_decl",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/cc_helper_template.h.inc:168"
+    },
+    {
+      "name": "check_exception",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/excp_helper.c:69"
+    },
+    {
+      "name": "helper_fldl_FT0",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:713"
+    },
+    {
+      "name": "floatx80_to_int64",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:3503"
+    },
+    {
+      "name": "helper_boxdroid_fdiv",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:1094"
+    },
+    {
+      "name": "usub64_borrow",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/qemu/host-utils.h:682"
+    },
+    {
+      "name": "helper_fsin",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:3097"
+    },
+    {
+      "name": "helper_fxsave",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:3426"
+    },
+    {
+      "name": "do_xsave_sse",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:3359"
+    },
+    {
+      "name": "access_prepare_mmu",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/access.c:21"
+    },
+    {
+      "name": "do_xrstor_sse",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/fpu_helper.c:3576"
+    },
+    {
+      "name": "helper_pmulhw_mmx",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/ops_sse.h:310"
+    },
+    {
+      "name": "helper_mulss",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/ops_sse.h:544"
+    },
+    {
+      "name": "float32_is_denormal",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/fpu/softfloat.h:672"
+    },
+    {
+      "name": "float32_hs_compare",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:4567"
+    },
+    {
+      "name": "helper_rsqrtss",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/ops_sse.h:872"
+    },
+    {
+      "name": "helper_punpckldq_xmm",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/ops_sse.h:1306"
+    },
+    {
+      "name": "qemu_loglevel_mask",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/qemu/log-for-trace.h:0"
+    },
+    {
+      "name": "do_interrupt_all",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/seg_helper.c:0"
+    },
+    {
+      "name": "x86_mmu_index_kernel_pl",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/seg_helper.c:0"
+    },
+    {
+      "name": "cpu_x86_load_seg_cache",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/cpu.h:2522"
+    },
+    {
+      "name": "helper_iret_protected",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/seg_helper.c:2278"
+    },
+    {
+      "name": "get_seg_limit",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/seg_helper.c:184"
+    },
+    {
+      "name": "i386_tr_insn_start",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/translate.c:4422"
+    },
+    {
+      "name": "i386_tr_tb_stop",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/translate.c:4490"
+    },
+    {
+      "name": "decode_root",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/decode-new.c.inc:1892"
+    },
+    {
+      "name": "gen_prepare_eflags_z",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/translate.c:1142"
+    },
+    {
+      "name": "advance_pc",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/target/i386/tcg/translate.c:2251"
+    },
+    {
+      "name": "apic_get_interrupt",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/hw/intc/apic.c:712"
+    },
+    {
+      "name": "pmc_read",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/hw/xbox/nv2a/pmc.c:26"
+    },
+    {
+      "name": "pgraph_write",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/hw/xbox/nv2a/pgraph/pgraph.c:144"
+    },
+    {
+      "name": "pgraph_reg_w",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/hw/xbox/nv2a/pgraph/pgraph.h:312"
+    },
+    {
+      "name": "vp_read.llvm.12070988644948026722",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/hw/xbox/mcpx/apu/vp/vp.c:684"
+    },
+    {
+      "name": "vp_write.llvm.12070988644948026722",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/hw/xbox/mcpx/apu/vp/vp.c:707"
+    },
+    {
+      "name": "qcow2_add_task",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/block/qcow2.c:2400"
+    },
+    {
+      "name": "boxdroid_diag_cpu_store_value",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/boxdroid-xbox-runtime.c:544"
+    },
+    {
+      "name": "timing_video_mode_probe",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/boxdroid-xbox-runtime.c:0"
+    },
+    {
+      "name": "boxdroid_diag_device_access",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/boxdroid-xbox-runtime.c:858"
+    },
+    {
+      "name": "qht_map_to_bucket",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/util/qht.c:308"
+    },
+    {
+      "name": "qht_insert",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/util/qht.c:695"
+    },
+    {
+      "name": "qht_insert__locked.llvm.16548180010660818781",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/util/qht.c:0"
+    },
+    {
+      "name": "seqlock_write_end",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/qemu/seqlock.h:46"
+    },
+    {
+      "name": "interval_tree_insert",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/util/interval-tree.c:737"
+    },
+    {
+      "name": "XXH3_64bits_internal.llvm.1739355160454699689",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/subprojects/xxHash-0.8.3/xxhash.h:6172"
+    },
+    {
+      "name": "g_malloc",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/m2/tools/vcpkg/buildtrees/glib/arm64-android-api33-rel/../src/glib-2-85f794b129.clean/glib/gmem.c:95"
+    },
+    {
+      "name": "g_free",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/m2/tools/vcpkg/buildtrees/glib/arm64-android-api33-rel/../src/glib-2-85f794b129.clean/glib/gmem.c:208"
+    },
+    {
+      "name": "g_tree_new_full",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/m2/tools/vcpkg/buildtrees/glib/arm64-android-api33-rel/../src/glib-2-85f794b129.clean/glib/gtree.c:185"
+    },
+    {
+      "name": "g_tree_destroy",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/m2/tools/vcpkg/buildtrees/glib/arm64-android-api33-rel/../src/glib-2-85f794b129.clean/glib/gtree.c:421"
+    },
+    {
+      "name": "g_tree_insert",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/m2/tools/vcpkg/buildtrees/glib/arm64-android-api33-rel/../src/glib-2-85f794b129.clean/glib/gtree.c:497"
+    },
+    {
+      "name": "g_tree_lookup",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/m2/tools/vcpkg/buildtrees/glib/arm64-android-api33-rel/../src/glib-2-85f794b129.clean/glib/gtree.c:1065"
+    },
+    {
+      "name": "g_tree_node_rotate_left",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/m2/tools/vcpkg/buildtrees/glib/arm64-android-api33-rel/../src/glib-2-85f794b129.clean/glib/gtree.c:0"
+    },
+    {
+      "name": "__udivti3",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/rustc/ac68faa20c58cbccd01ee7208bf3b6e93a7d7f96/library/compiler-builtins/compiler-builtins/src/macros.rs:478"
+    },
+    {
+      "name": "_RNvNtNtCssejvtl1cyC_17compiler_builtins3int19specialized_div_rem12u128_div_rem",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/rustc/ac68faa20c58cbccd01ee7208bf3b6e93a7d7f96/library/compiler-builtins/compiler-builtins/src/int/specialized_div_rem/trifecta.rs:70"
+    },
+    {
+      "name": "cpu_exec_end",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/cpu-common.c:314"
+    },
+    {
+      "name": "process_queued_cpu_work",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/cpu-common.c:358"
+    },
+    {
+      "name": "float32_mul",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:2194"
+    },
+    {
+      "name": "floatx80_round_pack_canonical",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:1863"
+    },
+    {
+      "name": "parts128_div",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat-parts.c.inc:758"
+    },
+    {
+      "name": "floatx80_unpack_canonical.llvm.8440649966256431142",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:1830"
+    },
+    {
+      "name": "float64_to_floatx80",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:3106"
+    },
+    {
+      "name": "boxdroid_f64_widen",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/boxdroid-floatx80.h:853"
+    },
+    {
+      "name": "floatx80_sqrt",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat.c:4903"
+    },
+    {
+      "name": "parts64_pick_nan",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/softfloat-parts.c.inc:46"
+    },
+    {
+      "name": "boxdroid_f80_wide_integer",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/fpu/boxdroid-floatx80.h:578"
+    },
+    {
+      "name": "ide_bus_exec_cmd",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/hw/ide/core.c:2201"
+    },
+    {
+      "name": "pic_read_irq",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/hw/intc/i8259.c:177"
+    },
+    {
+      "name": "pic_get_irq",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/hw/intc/i8259.c:79"
+    },
+    {
+      "name": "qemu_set_irq",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/hw/core/irq.c:34"
+    },
+    {
+      "name": "pic_ioport_write",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/hw/intc/i8259.c:260"
+    },
+    {
+      "name": "trace_object_dynamic_cast_assert",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/./trace/trace-qom.h:24"
+    },
+    {
+      "name": "ohci_mem_read.llvm.12184694046895392258",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/hw/usb/hcd-ohci.c:1529"
+    },
+    {
+      "name": "memory_region_dispatch_read",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/memory.c:1479"
+    },
+    {
+      "name": "memory_region_shift_write_access",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/memory.c:402"
+    },
+    {
+      "name": "trace_memory_region_subpage_write",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/trace/trace-system.h:294"
+    },
+    {
+      "name": "memory_region_clear_dirty_bitmap",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/memory.c:2403"
+    },
+    {
+      "name": "memory_region_get_ram_ptr",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/memory.c:2533"
+    },
+    {
+      "name": "memory_region_get_iommu",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/system/memory.h:1854"
+    },
+    {
+      "name": "offset_in_ramblock",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/system/ramblock.h:124"
+    },
+    {
+      "name": "address_space_stb",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/android-arm64/../source/xemu/system/memory_ldst.c.inc:370"
+    },
+    {
+      "name": "pow2floor",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": "/Users/maverick/Documents/BoxDroid/BoxDroid/build/native/source/xemu/include/qemu/host-utils.h:728"
+    },
+    {
+      "name": "pthread_mutex_lock",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "pthread_mutex_unlock",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "scudo::Allocator<scudo::AndroidConfig, &scudo_malloc_postinit>::allocate(unsigned long, scudo::Chunk::Origin, unsigned long, bool)",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "scudo::Allocator<scudo::AndroidConfig, &scudo_malloc_postinit>::deallocate(void*, scudo::Chunk::Origin, unsigned long, unsigned long)",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "scudo::Allocator<scudo::AndroidConfig, &scudo_malloc_postinit>::quarantineOrDeallocateChunk(scudo::Options, void*, scudo::Chunk::UnpackedHeader*, unsigned long)",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "sin",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "syscall",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    },
+    {
+      "name": "trace_begin_internal(char const*)",
+      "fraction": 0.00010460251046025104,
+      "weight": 2000000,
+      "anchor": null
+    }
+  ]
+}

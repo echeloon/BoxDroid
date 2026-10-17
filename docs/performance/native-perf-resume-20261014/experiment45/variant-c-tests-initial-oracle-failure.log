@@ -1,0 +1,38 @@
+actual TCG MMX load/register/EMMS execution PASS
+after step eip=10003 fpstt=0 exception=-1 hflags=200000b0 cr0=1
+x87 helper/control/env-save/restore/branches/memory:480 full-state cases PASS
+guarded x87 TOP all PC/RM/fullstate/MMIO/#PF: regions=23 fallback_delta=758 PASS
+SQRT/SIN/COS original-helper fullstate/special/PC/RM/mask oracle: 9216 cases PASS
+captured62-instruction x87 hot region: 96 full-state/memory cases PASS
+metadata DSE unmasked invalid/FWAIT #MF precise FIP/PC/status:96 cases PASS
+virtual TB cache generation: stale-key rejection and wrap clear PASS
+actual jump cache collision/SMC/page/full invalidation PASS, secondary active=1
+actual indirect chained lookup: primary=271 secondary=15 fallbacks=0
+shared lookup generated entries=1, cflags=ff080000 PASS
+discarded duplicate TB: shared-code publication rollback PASS
+actual indirect full-state/flags/breakpoint/SMC/flush/CS/mode checks PASS
+virtual code aliases: CALL PC, direct chains, physical SMC/flush PASS
+TB cache CR3 remap/reload, SMC, code-cache flush, code-page faults PASS
+visibility observer: samples=553758 violations=0 pass=0 result=65537
+indirect-chain device-visible store ordering/interrupt resume: samples=553758 violations=0 interrupt=0 PASS
+visibility observer: samples=2145 violations=0 pass=1 result=65538
+indirect-chain device-visible store ordering/interrupt resume: samples=2145 violations=0 interrupt=1 PASS
+actual SSE pair reads: concurrent half atomicity/warm alignment PASS
+MMX full-state comparisons: 2048 PASS
+x87 stack/register full-state comparisons: 12288 PASS
+actual TCG arithmetic full-state differential: 147456 cases PASS
+actual FMUL bits/full-state/flags/aliases/refresh: 16384 cases, 0 fast hits PASS
+actual inline FP live GPR/flags/stack/RAM common+fallback: 256 blocks, 0 slow helper calls PASS
+forced live-I64 pressure, full64 common/fallback preservation: 0 slow helper calls PASS
+actual TCG mixed GPR/EFLAGS/x87 residency: 512 multi-instruction cases PASS
+actual TCG scalar RAM/flags differential: 512 blocks PASS
+REP result edi=46000 ecx=0 esp=4fffc eip=10016
+actual TCG REP STOSD loop-state regression PASS
+actual TCG REP MOVS/STOS/CMPS forward/backward differential: 108 cases PASS
+affine RAM reads, widths/page boundaries/full-state: 256 cases PASS, 0 selected blocks
+packed MULPS original scalar oracle, bits/status/aliases: 65536 cases PASS
+normal F32 rounding all exponents/signs/PC/RM/ties/carry/status: 170688 cases PASS; fast=146452
+shared FMUL ABI X9-X15 full64, common and conservative paths PASS
+actual helper ABI X9-X15 full64 preservation, normal/special paths PASS
+/Users/maverick/Documents/BoxDroid/BoxDroid/scripts/tests/tcg-state-recovery.c:2649: void test_on_cpu(CPUState *, run_on_cpu_data): assertion "!memcmp(&direct_value, &expected, sizeof(expected))" failed
+Aborted 

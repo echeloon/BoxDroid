@@ -1,0 +1,139 @@
+
+build/native-perf-run/fp-value-residency-convert-20261015/libboxdroid.so:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+0000000001090d30 <helper_boxdroid_value_load32>:
+ 1090d30:      	ubfx	w8, w1, #23, #8
+ 1090d34:      	cmp	w8, #0xff
+ 1090d38:      	b.eq	0x1090d40 <helper_boxdroid_value_load32+0x10>
+ 1090d3c:      	cbnz	w8, 0x1090d64 <helper_boxdroid_value_load32+0x34>
+ 1090d40:      	tst	w1, #0x7fffffff
+ 1090d44:      	b.eq	0x1090d64 <helper_boxdroid_value_load32+0x34>
+ 1090d48:      	mov	x8, #0x0                // =0
+ 1090d4c:      	mov	x9, #0x0                // =0
+ 1090d50:      	mov	x10, #0x0               // =0
+ 1090d54:      	mov	x11, #0x0               // =0
+ 1090d58:      	mov	x12, #0x0               // =0
+ 1090d5c:      	mov	x13, #0x0               // =0
+ 1090d60:      	b	0x1090dc4 <boxdroid_value_load32_slow>
+ 1090d64:      	mov	w10, #0x3f80            // =16256
+ 1090d68:      	ldrh	w9, [x0, #0x18c]
+ 1090d6c:      	ldrh	w11, [x0, #0x18e]
+ 1090d70:      	lsr	w12, w1, #31
+ 1090d74:      	add	w10, w8, w10
+ 1090d78:      	cmp	w8, #0x0
+ 1090d7c:      	lsl	x13, x1, #40
+ 1090d80:      	csel	w10, wzr, w10, eq
+ 1090d84:      	bic	w11, w9, w11
+ 1090d88:      	orr	w1, w10, w12, lsl #15
+ 1090d8c:      	tst	w11, #0x3f
+ 1090d90:      	orr	x10, x13, #0x8000000000000000
+ 1090d94:      	b.eq	0x1090da0 <helper_boxdroid_value_load32+0x70>
+ 1090d98:      	orr	w9, w9, #0x80808080
+ 1090d9c:      	strh	w9, [x0, #0x18c]
+ 1090da0:      	cmp	w8, #0x0
+ 1090da4:      	mov	x8, #0x0                // =0
+ 1090da8:      	mov	x9, #0x0                // =0
+ 1090dac:      	csel	x0, xzr, x10, eq
+ 1090db0:      	mov	x10, #0x0               // =0
+ 1090db4:      	mov	x11, #0x0               // =0
+ 1090db8:      	mov	x12, #0x0               // =0
+ 1090dbc:      	mov	x13, #0x0               // =0
+ 1090dc0:      	ret
+
+0000000001090df4 <helper_boxdroid_value_store32>:
+ 1090df4:      	ands	w8, w3, #0x8000
+ 1090df8:      	and	w11, w3, #0x7fff
+ 1090dfc:      	cset	w12, eq
+ 1090e00:      	cbnz	x2, 0x1090e2c <helper_boxdroid_value_store32+0x38>
+ 1090e04:      	cbnz	w11, 0x1090e2c <helper_boxdroid_value_store32+0x38>
+ 1090e08:      	ldrh	w9, [x0, #0x18c]
+ 1090e0c:      	ldrh	w10, [x0, #0x18e]
+ 1090e10:      	bic	w10, w9, w10
+ 1090e14:      	tst	w10, #0x3f
+ 1090e18:      	b.eq	0x1090e24 <helper_boxdroid_value_store32+0x30>
+ 1090e1c:      	orr	w9, w9, #0x80808080
+ 1090e20:      	strh	w9, [x0, #0x18c]
+ 1090e24:      	lsl	w0, w8, #16
+ 1090e28:      	b	0x1090f4c <helper_boxdroid_value_store32+0x158>
+ 1090e2c:      	tbz	x2, #0x3f, 0x1090edc <helper_boxdroid_value_store32+0xe8>
+ 1090e30:      	mov	w9, #-0x407f            // =-16511
+ 1090e34:      	add	w9, w11, w9
+ 1090e38:      	cmn	w9, #0xfe
+ 1090e3c:      	b.lo	0x1090edc <helper_boxdroid_value_store32+0xe8>
+ 1090e40:      	lsr	x9, x2, #40
+ 1090e44:      	mov	w10, #-0x3f80           // =-16256
+ 1090e48:      	ands	x13, x2, #0xffffffffff
+ 1090e4c:      	add	w10, w11, w10
+ 1090e50:      	b.eq	0x1090e88 <helper_boxdroid_value_store32+0x94>
+ 1090e54:      	adrp	x14, 0x1808000 <l1_map.llvm.5215719424762956960+0xfd28>
+ 1090e58:      	add	x14, x14, #0xc7b
+ 1090e5c:      	ldrb	w14, [x14]
+ 1090e60:      	tbz	w14, #0x0, 0x1090edc <helper_boxdroid_value_store32+0xe8>
+ 1090e64:      	ldrb	w14, [x0, #0x23a]
+ 1090e68:      	cmp	w14, #0x1
+ 1090e6c:      	b.gt	0x1090e90 <helper_boxdroid_value_store32+0x9c>
+ 1090e70:      	cbz	w14, 0x1090ea8 <helper_boxdroid_value_store32+0xb4>
+ 1090e74:      	cmp	w14, #0x1
+ 1090e78:      	b.ne	0x1090edc <helper_boxdroid_value_store32+0xe8>
+ 1090e7c:      	cmp	w8, #0x0
+ 1090e80:      	cset	w12, ne
+ 1090e84:      	b	0x1090ec4 <helper_boxdroid_value_store32+0xd0>
+ 1090e88:      	mov	w11, wzr
+ 1090e8c:      	b	0x1090f18 <helper_boxdroid_value_store32+0x124>
+ 1090e90:      	cmp	w14, #0x2
+ 1090e94:      	b.eq	0x1090ec4 <helper_boxdroid_value_store32+0xd0>
+ 1090e98:      	cmp	w14, #0x3
+ 1090e9c:      	b.ne	0x1090edc <helper_boxdroid_value_store32+0xe8>
+ 1090ea0:      	mov	w12, wzr
+ 1090ea4:      	b	0x1090ec4 <helper_boxdroid_value_store32+0xd0>
+ 1090ea8:      	mov	x12, #0x8000000000      // =549755813888
+ 1090eac:      	cmp	x13, x12
+ 1090eb0:      	b.ls	0x1090ebc <helper_boxdroid_value_store32+0xc8>
+ 1090eb4:      	mov	w12, #0x1               // =1
+ 1090eb8:      	b	0x1090ec4 <helper_boxdroid_value_store32+0xd0>
+ 1090ebc:      	cset	w12, eq
+ 1090ec0:      	and	w12, w12, w9
+ 1090ec4:      	add	w9, w12, w9
+ 1090ec8:      	mov	w12, #0x1000000         // =16777216
+ 1090ecc:      	cmp	w9, w12
+ 1090ed0:      	b.ne	0x1090f08 <helper_boxdroid_value_store32+0x114>
+ 1090ed4:      	cmp	w10, #0xfe
+ 1090ed8:      	b.ne	0x1090efc <helper_boxdroid_value_store32+0x108>
+ 1090edc:      	mov	x8, #0x0                // =0
+ 1090ee0:      	mov	x9, #0x0                // =0
+ 1090ee4:      	mov	x10, #0x0               // =0
+ 1090ee8:      	mov	x11, #0x0               // =0
+ 1090eec:      	mov	x12, #0x0               // =0
+ 1090ef0:      	mov	x13, #0x0               // =0
+ 1090ef4:      	mov	x14, #0x0               // =0
+ 1090ef8:      	b	0x1090f6c <boxdroid_value_store32_slow>
+ 1090efc:      	mov	w9, #-0x3f7f            // =-16255
+ 1090f00:      	add	w10, w11, w9
+ 1090f04:      	mov	w9, #0x800000           // =8388608
+ 1090f08:      	ldrh	w11, [x0, #0x238]
+ 1090f0c:      	orr	w11, w11, #0x10
+ 1090f10:      	strh	w11, [x0, #0x238]
+ 1090f14:      	mov	w11, #0x20              // =32
+ 1090f18:      	ldrh	w12, [x0, #0x18c]
+ 1090f1c:      	ldrh	w13, [x0, #0x18e]
+ 1090f20:      	orr	w11, w12, w11
+ 1090f24:      	bic	w12, w11, w13
+ 1090f28:      	strh	w11, [x0, #0x18c]
+ 1090f2c:      	tst	w12, #0x3f
+ 1090f30:      	b.eq	0x1090f3c <helper_boxdroid_value_store32+0x148>
+ 1090f34:      	orr	w11, w11, #0x80808080
+ 1090f38:      	strh	w11, [x0, #0x18c]
+ 1090f3c:      	lsl	w10, w10, #23
+ 1090f40:      	and	w9, w9, #0x7fffff
+ 1090f44:      	orr	w8, w10, w8, lsl #16
+ 1090f48:      	orr	w0, w8, w9
+ 1090f4c:      	mov	x8, #0x0                // =0
+ 1090f50:      	mov	x9, #0x0                // =0
+ 1090f54:      	mov	x10, #0x0               // =0
+ 1090f58:      	mov	x11, #0x0               // =0
+ 1090f5c:      	mov	x12, #0x0               // =0
+ 1090f60:      	mov	x13, #0x0               // =0
+ 1090f64:      	mov	x14, #0x0               // =0
+ 1090f68:      	ret

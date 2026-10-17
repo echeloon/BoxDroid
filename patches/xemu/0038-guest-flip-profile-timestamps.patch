@@ -1,0 +1,29 @@
+# Preserve profile-only NV097 guest-flip timestamps and prototype.
+# Disabled outside performance profiling; cadence evidence, not simulation time.
+# Device validation of this latest instrumentation remains pending.
+
+diff --git a/hw/xbox/nv2a/pgraph/pgraph.c b/hw/xbox/nv2a/pgraph/pgraph.c
+index 4c9d25f9a4..d7e3d134c6 100644
+--- a/hw/xbox/nv2a/pgraph/pgraph.c
++++ b/hw/xbox/nv2a/pgraph/pgraph.c
+@@ -106,6 +106,8 @@ uint64_t pgraph_read(void *opaque, hwaddr addr, unsigned int size)
+ #ifdef BOXDROID_RUNTIME
+ #include <android/log.h>
+ static uint64_t guest_flips;
++uint64_t boxdroid_guest_flips(void);
++extern bool boxdroid_performance_profile_active(void);
+ uint64_t boxdroid_guest_flips(void)
+ {
+     return qatomic_read(&guest_flips);
+@@ -945,6 +947,11 @@ DEF_METHOD(NV097, FLIP_INCREMENT_WRITE)
+     pg->frame_time++;
+ #ifdef BOXDROID_RUNTIME
+     qatomic_inc(&guest_flips);
++    if (boxdroid_performance_profile_active()) {
++        __android_log_print(ANDROID_LOG_INFO, "BoxDroid3",
++            "GUEST_FLIP mono_us=%" PRId64 " guest_flips=%" PRIu64,
++            g_get_monotonic_time(), qatomic_read(&guest_flips));
++    }
+ #endif
+ }
+ 

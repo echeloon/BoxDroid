@@ -44,6 +44,7 @@ pin and update the gitlink only through an explicit baseline update.
 | 0034 | TCG jump cache size scaling (16K entries) and pc-retention invalidation. |
 | 0035 | Android custom Vulkan driver support via libadrenotools. |
 | 0036 | Ordered ARM64 RAM lowering using acquire/release accesses, with conservative helper/MMIO/exception transitions and original guest TSO requirements. |
+| 0061 | Vulkan camera-motion frame pacing, dynamic stencil state, persistent SPIR-V and pipeline cache, scanout starvation elimination, 64-byte vertex tracking, and transient surface reuse. |
 
 The Vulkan renderer owns download buffers and completion, and the APU owns
 voice dispatch and DSP state. These paths cannot be changed safely from an

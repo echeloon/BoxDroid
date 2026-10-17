@@ -1,0 +1,578 @@
+{
+  "env_offsets": [
+    {
+      "offset": "-0x10",
+      "mnemonic": "ldur",
+      "weight": 1038000000,
+      "mapped_jit_fraction": 0.1392914653784219
+    },
+    {
+      "offset": "0x0",
+      "mnemonic": "str",
+      "weight": 262000000,
+      "mapped_jit_fraction": 0.03515834675254965
+    },
+    {
+      "offset": "0x4",
+      "mnemonic": "str",
+      "weight": 118000000,
+      "mapped_jit_fraction": 0.01583467525496511
+    },
+    {
+      "offset": "-0x70",
+      "mnemonic": "ldp",
+      "weight": 98000000,
+      "mapped_jit_fraction": 0.013150831991411701
+    },
+    {
+      "offset": "0x8",
+      "mnemonic": "str",
+      "weight": 80000000,
+      "mapped_jit_fraction": 0.010735373054213635
+    },
+    {
+      "offset": "0x10",
+      "mnemonic": "str",
+      "weight": 62000000,
+      "mapped_jit_fraction": 0.008319914117015567
+    },
+    {
+      "offset": "-0xc",
+      "mnemonic": "sturb",
+      "weight": 58000000,
+      "mapped_jit_fraction": 0.0077831454643048845
+    },
+    {
+      "offset": "0x222",
+      "mnemonic": "strh",
+      "weight": 58000000,
+      "mapped_jit_fraction": 0.0077831454643048845
+    },
+    {
+      "offset": "0x0",
+      "mnemonic": "ldr",
+      "weight": 52000000,
+      "mapped_jit_fraction": 0.006977992485238862
+    },
+    {
+      "offset": "0x188",
+      "mnemonic": "ldr",
+      "weight": 44000000,
+      "mapped_jit_fraction": 0.005904455179817499
+    },
+    {
+      "offset": "0x18",
+      "mnemonic": "ldr",
+      "weight": 44000000,
+      "mapped_jit_fraction": 0.005904455179817499
+    },
+    {
+      "offset": "0x4",
+      "mnemonic": "ldr",
+      "weight": 42000000,
+      "mapped_jit_fraction": 0.005636070853462158
+    },
+    {
+      "offset": "0x28",
+      "mnemonic": "str",
+      "weight": 42000000,
+      "mapped_jit_fraction": 0.005636070853462158
+    },
+    {
+      "offset": "0x224",
+      "mnemonic": "strh",
+      "weight": 40000000,
+      "mapped_jit_fraction": 0.005367686527106817
+    },
+    {
+      "offset": "0x14",
+      "mnemonic": "str",
+      "weight": 38000000,
+      "mapped_jit_fraction": 0.005099302200751476
+    },
+    {
+      "offset": "0x8",
+      "mnemonic": "ldr",
+      "weight": 36000000,
+      "mapped_jit_fraction": 0.004830917874396135
+    },
+    {
+      "offset": "0xc",
+      "mnemonic": "str",
+      "weight": 34000000,
+      "mapped_jit_fraction": 0.004562533548040795
+    },
+    {
+      "offset": "0x1c",
+      "mnemonic": "str",
+      "weight": 28000000,
+      "mapped_jit_fraction": 0.003757380568974772
+    },
+    {
+      "offset": "0x20",
+      "mnemonic": "str",
+      "weight": 24000000,
+      "mapped_jit_fraction": 0.00322061191626409
+    },
+    {
+      "offset": "0x4f0",
+      "mnemonic": "str",
+      "weight": 22000000,
+      "mapped_jit_fraction": 0.0029522275899087494
+    },
+    {
+      "offset": "0x1c",
+      "mnemonic": "ldr",
+      "weight": 22000000,
+      "mapped_jit_fraction": 0.0029522275899087494
+    },
+    {
+      "offset": "0x18",
+      "mnemonic": "str",
+      "weight": 20000000,
+      "mapped_jit_fraction": 0.0026838432635534087
+    },
+    {
+      "offset": "0x34",
+      "mnemonic": "str",
+      "weight": 20000000,
+      "mapped_jit_fraction": 0.0026838432635534087
+    },
+    {
+      "offset": "0x54",
+      "mnemonic": "ldr",
+      "weight": 16000000,
+      "mapped_jit_fraction": 0.0021470746108427268
+    },
+    {
+      "offset": "0x14",
+      "mnemonic": "ldr",
+      "weight": 14000000,
+      "mapped_jit_fraction": 0.001878690284487386
+    },
+    {
+      "offset": "0x10",
+      "mnemonic": "ldr",
+      "weight": 14000000,
+      "mapped_jit_fraction": 0.001878690284487386
+    },
+    {
+      "offset": "0x64",
+      "mnemonic": "ldr",
+      "weight": 14000000,
+      "mapped_jit_fraction": 0.001878690284487386
+    },
+    {
+      "offset": "0x188",
+      "mnemonic": "str",
+      "weight": 14000000,
+      "mapped_jit_fraction": 0.001878690284487386
+    },
+    {
+      "offset": "0x4b0",
+      "mnemonic": "str",
+      "weight": 10000000,
+      "mapped_jit_fraction": 0.0013419216317767043
+    },
+    {
+      "offset": "0x2c",
+      "mnemonic": "str",
+      "weight": 10000000,
+      "mapped_jit_fraction": 0.0013419216317767043
+    },
+    {
+      "offset": "0x2b0",
+      "mnemonic": "str",
+      "weight": 8000000,
+      "mapped_jit_fraction": 0.0010735373054213634
+    },
+    {
+      "offset": "0x228",
+      "mnemonic": "str",
+      "weight": 8000000,
+      "mapped_jit_fraction": 0.0010735373054213634
+    },
+    {
+      "offset": "0x230",
+      "mnemonic": "str",
+      "weight": 8000000,
+      "mapped_jit_fraction": 0.0010735373054213634
+    },
+    {
+      "offset": "0xc",
+      "mnemonic": "ldr",
+      "weight": 6000000,
+      "mapped_jit_fraction": 0.0008051529790660225
+    },
+    {
+      "offset": "0x30",
+      "mnemonic": "ldr",
+      "weight": 6000000,
+      "mapped_jit_fraction": 0.0008051529790660225
+    },
+    {
+      "offset": "0x3b0",
+      "mnemonic": "str",
+      "weight": 4000000,
+      "mapped_jit_fraction": 0.0005367686527106817
+    },
+    {
+      "offset": "0x330",
+      "mnemonic": "str",
+      "weight": 4000000,
+      "mapped_jit_fraction": 0.0005367686527106817
+    },
+    {
+      "offset": "0x74",
+      "mnemonic": "ldr",
+      "weight": 4000000,
+      "mapped_jit_fraction": 0.0005367686527106817
+    },
+    {
+      "offset": "0x3f0",
+      "mnemonic": "str",
+      "weight": 4000000,
+      "mapped_jit_fraction": 0.0005367686527106817
+    },
+    {
+      "offset": "0x88",
+      "mnemonic": "ldr",
+      "weight": 2000000,
+      "mapped_jit_fraction": 0.00026838432635534085
+    }
+  ],
+  "sampled": {
+    "total_weight": 7452000000,
+    "mnemonics": [
+      [
+        "and",
+        1320000000,
+        17.713
+      ],
+      [
+        "add",
+        1074000000,
+        14.412
+      ],
+      [
+        "ldur",
+        1038000000,
+        13.929
+      ],
+      [
+        "str",
+        968000000,
+        12.99
+      ],
+      [
+        "ldr",
+        536000000,
+        7.193
+      ],
+      [
+        "cbz",
+        438000000,
+        5.878
+      ],
+      [
+        "cbnz",
+        334000000,
+        4.482
+      ],
+      [
+        "mov",
+        256000000,
+        3.435
+      ],
+      [
+        "tbnz",
+        210000000,
+        2.818
+      ],
+      [
+        "ldp",
+        192000000,
+        2.576
+      ],
+      [
+        "adrp",
+        166000000,
+        2.228
+      ],
+      [
+        "cmp",
+        142000000,
+        1.906
+      ],
+      [
+        "b",
+        122000000,
+        1.637
+      ],
+      [
+        "strh",
+        102000000,
+        1.369
+      ],
+      [
+        "sub",
+        74000000,
+        0.993
+      ],
+      [
+        "ldrh",
+        72000000,
+        0.966
+      ],
+      [
+        "sxtw",
+        68000000,
+        0.913
+      ],
+      [
+        "sturb",
+        58000000,
+        0.778
+      ],
+      [
+        "b.ne",
+        36000000,
+        0.483
+      ],
+      [
+        "lsl",
+        34000000,
+        0.456
+      ],
+      [
+        "ldapr",
+        32000000,
+        0.429
+      ],
+      [
+        "strb",
+        26000000,
+        0.349
+      ],
+      [
+        "movk",
+        26000000,
+        0.349
+      ],
+      [
+        "blr",
+        22000000,
+        0.295
+      ],
+      [
+        "stlr",
+        16000000,
+        0.215
+      ],
+      [
+        "sxtb",
+        14000000,
+        0.188
+      ],
+      [
+        "lsr",
+        12000000,
+        0.161
+      ],
+      [
+        "bfxil",
+        8000000,
+        0.107
+      ],
+      [
+        "movi",
+        8000000,
+        0.107
+      ],
+      [
+        "bl",
+        8000000,
+        0.107
+      ]
+    ],
+    "env_memory": {
+      "str": 828000000,
+      "ldr": 320000000,
+      "ldur": 1038000000,
+      "mov": 54000000,
+      "add": 186000000,
+      "strh": 98000000,
+      "sturb": 58000000,
+      "strb": 24000000,
+      "ldp": 98000000,
+      "b": 2000000
+    }
+  },
+  "preceding": {
+    "total_weight": 6410000000,
+    "mnemonics": [
+      [
+        "ldp",
+        1238000000,
+        19.314
+      ],
+      [
+        "ldr",
+        1190000000,
+        18.565
+      ],
+      [
+        "ldapr",
+        1158000000,
+        18.066
+      ],
+      [
+        "b.ne",
+        428000000,
+        6.677
+      ],
+      [
+        "add",
+        338000000,
+        5.273
+      ],
+      [
+        "str",
+        274000000,
+        4.275
+      ],
+      [
+        "dmb",
+        242000000,
+        3.775
+      ],
+      [
+        "and",
+        214000000,
+        3.339
+      ],
+      [
+        "ldur",
+        210000000,
+        3.276
+      ],
+      [
+        "stlr",
+        180000000,
+        2.808
+      ],
+      [
+        "mov",
+        146000000,
+        2.278
+      ],
+      [
+        "ldaprb",
+        110000000,
+        1.716
+      ],
+      [
+        "b",
+        110000000,
+        1.716
+      ],
+      [
+        "cbnz",
+        90000000,
+        1.404
+      ],
+      [
+        "adrp",
+        50000000,
+        0.78
+      ],
+      [
+        "sturb",
+        40000000,
+        0.624
+      ],
+      [
+        "cmp",
+        40000000,
+        0.624
+      ],
+      [
+        "sxtw",
+        40000000,
+        0.624
+      ],
+      [
+        "strb",
+        38000000,
+        0.593
+      ],
+      [
+        "tbnz",
+        38000000,
+        0.593
+      ],
+      [
+        "ldaprh",
+        36000000,
+        0.562
+      ],
+      [
+        "sub",
+        34000000,
+        0.53
+      ],
+      [
+        "cbz",
+        30000000,
+        0.468
+      ],
+      [
+        "lsl",
+        26000000,
+        0.406
+      ],
+      [
+        "strh",
+        22000000,
+        0.343
+      ],
+      [
+        "movk",
+        20000000,
+        0.312
+      ],
+      [
+        "blr",
+        12000000,
+        0.187
+      ],
+      [
+        "orr",
+        10000000,
+        0.156
+      ],
+      [
+        "stlrh",
+        10000000,
+        0.156
+      ],
+      [
+        "ld1r",
+        10000000,
+        0.156
+      ]
+    ],
+    "env_memory": {
+      "ldr": 258000000,
+      "ldur": 210000000,
+      "str": 248000000,
+      "sturb": 40000000,
+      "ldp": 134000000,
+      "add": 68000000,
+      "strh": 20000000,
+      "strb": 20000000,
+      "mov": 22000000,
+      "b.ne": 4000000
+    }
+  }
+}
