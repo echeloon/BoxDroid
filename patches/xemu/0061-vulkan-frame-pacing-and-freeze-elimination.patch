@@ -1,5 +1,3 @@
-# Vulkan frame pacing, camera motion freeze elimination, persistent caching, and transient surface reuse
-
 diff --git a/hw/display/vga.c b/hw/display/vga.c
 index 90b89cf404..ddd3432249 100644
 --- a/hw/display/vga.c
@@ -36,7 +34,7 @@ index 10f3a79e57..4f04ea87cb 100644
  
  static void nv2a_init_memory(NV2AState *d, MemoryRegion *ram)
 diff --git a/hw/xbox/nv2a/pfifo.c b/hw/xbox/nv2a/pfifo.c
-index ff4625c258..884c8bd543 100644
+index ff4625c258..3dfd46de08 100644
 --- a/hw/xbox/nv2a/pfifo.c
 +++ b/hw/xbox/nv2a/pfifo.c
 @@ -132,6 +132,11 @@ static bool pfifo_stall_for_flip(NV2AState *d)
@@ -51,13 +49,15 @@ index ff4625c258..884c8bd543 100644
          }
          qemu_mutex_unlock(&d->pgraph.lock);
      }
-@@ -292,6 +297,10 @@ static void pfifo_run_pusher(NV2AState *d)
+@@ -292,6 +297,12 @@ static void pfifo_run_pusher(NV2AState *d)
      uint8_t *dma = nv_dma_map(d, dma_instance, &dma_len);
  
      while (!pfifo_pusher_should_stall(d)) {
-+        pgraph_process_pending(d);
-+        if (pfifo_pusher_should_stall(d)) {
-+            break;
++        if (GET_MASK(*dma_state, NV_PFIFO_CACHE1_DMA_STATE_METHOD_COUNT) == 0) {
++            pgraph_process_pending(d);
++            if (pfifo_pusher_should_stall(d)) {
++                break;
++            }
 +        }
          uint32_t dma_get_v = *dma_get;
          uint32_t dma_put_v = *dma_put;
@@ -193,10 +193,10 @@ index 0e9fc9a2ee..ad04b2c872 100644
      r->in_aux_command_buffer = false;
  }
 diff --git a/hw/xbox/nv2a/pgraph/vk/draw.c b/hw/xbox/nv2a/pgraph/vk/draw.c
-index 956c50a72c..bd87801725 100644
+index 956c50a72c..faa5052b06 100644
 --- a/hw/xbox/nv2a/pgraph/vk/draw.c
 +++ b/hw/xbox/nv2a/pgraph/vk/draw.c
-@@ -289,19 +289,90 @@ static bool pipeline_cache_entry_compare(Lru *lru, LruNode *node,
+@@ -289,19 +289,91 @@ static bool pipeline_cache_entry_compare(Lru *lru, LruNode *node,
      return memcmp(&snode->key, key, sizeof(PipelineKey));
  }
  
@@ -210,16 +210,17 @@ index 956c50a72c..bd87801725 100644
 +{
 +    PipelineCacheSaveJob *job = (PipelineCacheSaveJob *)arg;
 +    const char *final_path = "/data/data/org.boxdroid/cache/vk_pipeline_cache.bin";
-+    const char *tmp_path = "/data/data/org.boxdroid/cache/vk_pipeline_cache.bin.tmp";
++    gchar *tmp_path = g_strdup_printf("/data/data/org.boxdroid/cache/vk_pipeline_cache.bin.tmp.%" G_GINT64_FORMAT, g_get_monotonic_time());
 +    FILE *f = fopen(tmp_path, "wb");
 +    if (f) {
-+        if (fwrite(job->data, 1, job->size, f) == job->size && fclose(f) == 0) {
++        bool ok = (fwrite(job->data, 1, job->size, f) == job->size);
++        if (fclose(f) == 0 && ok) {
 +            rename(tmp_path, final_path);
 +        } else {
-+            fclose(f);
 +            unlink(tmp_path);
 +        }
 +    }
++    g_free(tmp_path);
 +    g_free(job->data);
 +    g_free(job);
 +    return NULL;
@@ -291,7 +292,7 @@ index 956c50a72c..bd87801725 100644
  
      const size_t pipeline_cache_size = 2048;
      lru_init(&r->pipeline_cache);
-@@ -321,6 +392,11 @@ static void finalize_pipeline_cache(PGRAPHState *pg)
+@@ -321,6 +393,11 @@ static void finalize_pipeline_cache(PGRAPHState *pg)
  {
      PGRAPHVkState *r = pg->vk_renderer_state;
  
@@ -303,7 +304,7 @@ index 956c50a72c..bd87801725 100644
      lru_flush(&r->pipeline_cache);
      g_free(r->pipeline_cache_entries);
      r->pipeline_cache_entries = NULL;
-@@ -780,6 +856,8 @@ static void create_clear_pipeline(PGRAPHState *pg)
+@@ -780,6 +857,8 @@ static void create_clear_pipeline(PGRAPHState *pg)
      snode->layout = layout;
      snode->render_pass = pipeline_info.renderPass;
      snode->draw_time = pg->draw_time;
@@ -312,7 +313,7 @@ index 956c50a72c..bd87801725 100644
  
      r->pipeline_binding = snode;
      r->pipeline_binding_changed = true;
-@@ -799,26 +877,76 @@ static bool check_render_pass_dirty(PGRAPHState *pg)
+@@ -799,26 +878,76 @@ static bool check_render_pass_dirty(PGRAPHState *pg)
                    sizeof(state)) != 0;
  }
  
@@ -401,7 +402,7 @@ index 956c50a72c..bd87801725 100644
      }
  
      // FIXME: Use dirty bits instead
-@@ -826,10 +954,21 @@ static bool check_pipeline_dirty(PGRAPHState *pg)
+@@ -826,10 +955,21 @@ static bool check_pipeline_dirty(PGRAPHState *pg)
                 r->pipeline_binding->key.attribute_descriptions,
                 r->num_active_vertex_attribute_descriptions *
                     sizeof(r->vertex_attribute_descriptions[0])) ||
@@ -424,7 +425,7 @@ index 956c50a72c..bd87801725 100644
          return true;
      }
  
-@@ -852,17 +991,7 @@ static void init_pipeline_key(PGRAPHState *pg, PipelineKey *key)
+@@ -852,17 +992,7 @@ static void init_pipeline_key(PGRAPHState *pg, PipelineKey *key)
             sizeof(key->attribute_descriptions[0]) *
                 r->num_active_vertex_attribute_descriptions);
  
@@ -443,7 +444,7 @@ index 956c50a72c..bd87801725 100644
  }
  
  static void create_pipeline(PGRAPHState *pg)
-@@ -1007,8 +1136,10 @@ static void create_pipeline(PGRAPHState *pg)
+@@ -1007,8 +1137,10 @@ static void create_pipeline(PGRAPHState *pg)
          depth_stencil.depthCompareOp = pgraph_depth_func_vk_map[depth_func];
      }
  
@@ -454,7 +455,7 @@ index 956c50a72c..bd87801725 100644
          uint32_t stencil_func = GET_MASK(pgraph_reg_r(pg, NV_PGRAPH_CONTROL_1),
                                           NV_PGRAPH_CONTROL_1_STENCIL_FUNC);
          uint32_t stencil_ref = GET_MASK(pgraph_reg_r(pg, NV_PGRAPH_CONTROL_1),
-@@ -1054,10 +1185,11 @@ static void create_pipeline(PGRAPHState *pg)
+@@ -1054,10 +1186,11 @@ static void create_pipeline(PGRAPHState *pg)
          .colorWriteMask = write_mask,
      };
  
@@ -467,7 +468,7 @@ index 956c50a72c..bd87801725 100644
  
          uint32_t sfactor =
              GET_MASK(pgraph_reg_r(pg, NV_PGRAPH_BLEND), NV_PGRAPH_BLEND_SFACTOR);
-@@ -1082,9 +1214,6 @@ static void create_pipeline(PGRAPHState *pg)
+@@ -1082,9 +1215,6 @@ static void create_pipeline(PGRAPHState *pg)
              pgraph_blend_equation_vk_map[equation];
          color_blend_attachment.alphaBlendOp =
              pgraph_blend_equation_vk_map[equation];
@@ -477,7 +478,7 @@ index 956c50a72c..bd87801725 100644
      }
  
      VkPipelineColorBlendStateCreateInfo color_blending = {
-@@ -1093,13 +1222,9 @@ static void create_pipeline(PGRAPHState *pg)
+@@ -1093,13 +1223,9 @@ static void create_pipeline(PGRAPHState *pg)
          .logicOp = VK_LOGIC_OP_COPY,
          .attachmentCount = r->color_binding ? 1 : 0,
          .pAttachments = r->color_binding ? &color_blend_attachment : NULL,
@@ -492,7 +493,7 @@ index 956c50a72c..bd87801725 100644
                                           VK_DYNAMIC_STATE_SCISSOR };
      int num_dynamic_states = 2;
  
-@@ -1112,6 +1237,17 @@ static void create_pipeline(PGRAPHState *pg)
+@@ -1112,6 +1238,17 @@ static void create_pipeline(PGRAPHState *pg)
      if (snode->has_dynamic_line_width) {
          dynamic_states[num_dynamic_states++] = VK_DYNAMIC_STATE_LINE_WIDTH;
      }
@@ -510,7 +511,7 @@ index 956c50a72c..bd87801725 100644
  
      VkPipelineDynamicStateCreateInfo dynamic_state = {
          .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-@@ -1182,13 +1318,14 @@ static void create_pipeline(PGRAPHState *pg)
+@@ -1182,13 +1319,14 @@ static void create_pipeline(PGRAPHState *pg)
      };
      VkPipeline pipeline;
      {
@@ -529,7 +530,7 @@ index 956c50a72c..bd87801725 100644
  #endif
      }
  
-@@ -1324,24 +1461,32 @@ static void flush_memory_buffer(PGRAPHState *pg, VkCommandBuffer cmd)
+@@ -1324,24 +1462,32 @@ static void flush_memory_buffer(PGRAPHState *pg, VkCommandBuffer cmd)
  {
      PGRAPHVkState *r = pg->vk_renderer_state;
  
@@ -578,7 +579,7 @@ index 956c50a72c..bd87801725 100644
  }
  
  static void begin_render_pass(PGRAPHState *pg)
-@@ -1486,14 +1631,14 @@ void pgraph_vk_finish(PGRAPHState *pg, FinishReason finish_reason)
+@@ -1486,14 +1632,14 @@ void pgraph_vk_finish(PGRAPHState *pg, FinishReason finish_reason)
          };
          nv2a_profile_inc_counter(NV2A_PROF_QUEUE_SUBMIT);
          vkResetFences(r->device, 1, &r->command_buffer_fence);
@@ -597,7 +598,7 @@ index 956c50a72c..bd87801725 100644
  #endif
  #ifdef BOXDROID_XBOX_RUNTIME
          if (boxdroid_target_draw_queued) {
-@@ -1532,13 +1677,16 @@ void pgraph_vk_finish(PGRAPHState *pg, FinishReason finish_reason)
+@@ -1532,13 +1678,16 @@ void pgraph_vk_finish(PGRAPHState *pg, FinishReason finish_reason)
              check_budget = true;
          }
  
@@ -618,7 +619,7 @@ index 956c50a72c..bd87801725 100644
  #endif
          VK_CHECK(fence_result);
  #ifdef BOXDROID_XBOX_RUNTIME
-@@ -1786,6 +1934,24 @@ static void begin_draw(PGRAPHState *pg)
+@@ -1786,6 +1935,24 @@ static void begin_draw(PGRAPHState *pg)
      }
  
      if (!pg->clearing) {
@@ -643,7 +644,7 @@ index 956c50a72c..bd87801725 100644
          bind_descriptor_sets(pg);
          push_vertex_attr_values(pg);
      }
-@@ -1868,10 +2034,14 @@ static void sync_vertex_ram_buffer(PGRAPHState *pg)
+@@ -1868,10 +2035,14 @@ static void sync_vertex_ram_buffer(PGRAPHState *pg)
          return;
      }
  
@@ -658,7 +659,7 @@ index 956c50a72c..bd87801725 100644
          NV2A_VK_DPRINTF("Need to sync vertex memory @%" HWADDR_PRIx
                          ", %" HWADDR_PRIx " bytes",
                          r->vertex_ram_buffer_syncs[i].addr,
-@@ -1937,6 +2107,22 @@ static void sync_vertex_ram_buffer(PGRAPHState *pg)
+@@ -1937,6 +2108,22 @@ static void sync_vertex_ram_buffer(PGRAPHState *pg)
          }
      }
  
@@ -681,7 +682,7 @@ index 956c50a72c..bd87801725 100644
      r->num_vertex_ram_buffer_syncs = 0;
  
      NV2A_VK_DGROUP_END();
-@@ -1954,6 +2140,7 @@ void pgraph_vk_clear_surface(NV2AState *d, uint32_t parameter)
+@@ -1954,6 +2141,7 @@ void pgraph_vk_clear_surface(NV2AState *d, uint32_t parameter)
          (parameter & (NV097_CLEAR_SURFACE_Z | NV097_CLEAR_SURFACE_STENCIL));
  
      pg->clearing = true;
@@ -689,7 +690,7 @@ index 956c50a72c..bd87801725 100644
  
      // FIXME: If doing a full surface clear, mark the surface for full clear
      // and we can just do the clear as part of the surface load.
-@@ -1966,8 +2153,6 @@ void pgraph_vk_clear_surface(NV2AState *d, uint32_t parameter)
+@@ -1966,8 +2154,6 @@ void pgraph_vk_clear_surface(NV2AState *d, uint32_t parameter)
          return;
      }
  
@@ -698,11 +699,25 @@ index 956c50a72c..bd87801725 100644
      uint32_t clearrectx = pgraph_reg_r(pg, NV_PGRAPH_CLEARRECTX);
      uint32_t clearrecty = pgraph_reg_r(pg, NV_PGRAPH_CLEARRECTY);
  
+@@ -2148,9 +2334,10 @@ void pgraph_vk_set_surface_dirty(PGRAPHState *pg, bool color, bool zeta,
+ 
+     PGRAPHVkState *r = pg->vk_renderer_state;
+ 
+-    /* FIXME: Does this apply to CLEARs too? */
+-    color = color && pgraph_color_write_enabled(pg);
+-    zeta = zeta && pgraph_zeta_write_enabled(pg);
++    if (!is_clear) {
++        color = color && pgraph_color_write_enabled(pg);
++        zeta = zeta && pgraph_zeta_write_enabled(pg);
++    }
+     pg->surface_color.draw_dirty |= color;
+     pg->surface_zeta.draw_dirty |= zeta;
+ 
 diff --git a/hw/xbox/nv2a/pgraph/vk/glsl.c b/hw/xbox/nv2a/pgraph/vk/glsl.c
-index d7aef1b590..49be5afb73 100644
+index d7aef1b590..10a74363ba 100644
 --- a/hw/xbox/nv2a/pgraph/vk/glsl.c
 +++ b/hw/xbox/nv2a/pgraph/vk/glsl.c
-@@ -143,6 +143,25 @@ void pgraph_vk_finalize_glsl_compiler(void)
+@@ -143,6 +143,26 @@ void pgraph_vk_finalize_glsl_compiler(void)
  GByteArray *pgraph_vk_compile_glsl_to_spv(glslang_stage_t stage,
                                            const char *glsl_source)
  {
@@ -719,7 +734,8 @@ index d7aef1b590..49be5afb73 100644
 +    gchar *cached_data = NULL;
 +    gsize cached_len = 0;
 +    if (g_file_get_contents(cache_path, &cached_data, &cached_len, NULL) &&
-+        cached_len > 0 && (cached_len % sizeof(uint32_t)) == 0) {
++        cached_len >= 20 && (cached_len % sizeof(uint32_t)) == 0 &&
++        ((const uint32_t *)cached_data)[0] == 0x07230203) {
 +        return g_byte_array_new_take((guint8 *)cached_data, cached_len);
 +    }
 +    g_free(cached_data);
@@ -728,7 +744,7 @@ index d7aef1b590..49be5afb73 100644
      const glslang_input_t input = {
          .language = GLSLANG_SOURCE_GLSL,
          .stage = stage,
-@@ -206,7 +225,8 @@ GByteArray *pgraph_vk_compile_glsl_to_spv(glslang_stage_t stage,
+@@ -206,7 +226,8 @@ GByteArray *pgraph_vk_compile_glsl_to_spv(glslang_stage_t stage,
      }
  
      glslang_spv_options_t spv_options = {
@@ -738,21 +754,21 @@ index d7aef1b590..49be5afb73 100644
      };
  
      if (g_config.display.vulkan.debug_shaders) {
-@@ -239,6 +259,23 @@ GByteArray *pgraph_vk_compile_glsl_to_spv(glslang_stage_t stage,
+@@ -239,6 +260,23 @@ GByteArray *pgraph_vk_compile_glsl_to_spv(glslang_stage_t stage,
      glslang_program_delete(program);
      glslang_shader_delete(shader);
  
 +#ifdef __ANDROID__
 +    {
-+        char tmp_path[272];
-+        snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", cache_path);
++        char tmp_path[300];
++        snprintf(tmp_path, sizeof(tmp_path), "%s.tmp.%" G_GINT64_FORMAT,
++                 cache_path, g_get_monotonic_time());
 +        FILE *f = fopen(tmp_path, "wb");
 +        if (f) {
-+            if (fwrite(data, 1, num_program_bytes, f) == num_program_bytes &&
-+                fclose(f) == 0) {
++            bool ok = (fwrite(data, 1, num_program_bytes, f) == num_program_bytes);
++            if (fclose(f) == 0 && ok) {
 +                rename(tmp_path, cache_path);
 +            } else {
-+                fclose(f);
 +                unlink(tmp_path);
 +            }
 +        }
@@ -763,14 +779,14 @@ index d7aef1b590..49be5afb73 100644
  }
  
 diff --git a/hw/xbox/nv2a/pgraph/vk/renderer.c b/hw/xbox/nv2a/pgraph/vk/renderer.c
-index 1dde9dc4be..4f02ab4ffa 100644
+index 1dde9dc4be..c15807b4ba 100644
 --- a/hw/xbox/nv2a/pgraph/vk/renderer.c
 +++ b/hw/xbox/nv2a/pgraph/vk/renderer.c
 @@ -135,6 +135,9 @@ static void pgraph_vk_sync(NV2AState *d)
  static void pgraph_vk_process_pending(NV2AState *d)
  {
      PGRAPHVkState *r = d->pgraph.vk_renderer_state;
-+    if (r->in_draw) {
++    if (r->in_draw || d->pgraph.primitive_mode != PRIM_TYPE_INVALID) {
 +        return;
 +    }
  
@@ -791,7 +807,7 @@ index 1dde9dc4be..4f02ab4ffa 100644
 -        }
 -        if (qatomic_read(&d->pgraph.flush_pending)) {
 -            pgraph_vk_flush(d);
-+        if (!r->in_draw) {
++        if (!r->in_draw && d->pgraph.primitive_mode == PRIM_TYPE_INVALID) {
 +            if (qatomic_read(&r->downloads_pending)) {
 +                pgraph_vk_process_pending_downloads(d);
 +            }
@@ -1002,7 +1018,7 @@ index df5a527946..85fb2ac4af 100644
  
  static void shader_module_cache_entry_post_evict(Lru *lru, LruNode *node)
 diff --git a/hw/xbox/nv2a/pgraph/vk/surface.c b/hw/xbox/nv2a/pgraph/vk/surface.c
-index 56ce09ae4a..1157bea664 100644
+index 56ce09ae4a..39d19d1c87 100644
 --- a/hw/xbox/nv2a/pgraph/vk/surface.c
 +++ b/hw/xbox/nv2a/pgraph/vk/surface.c
 @@ -34,8 +34,11 @@
@@ -1066,7 +1082,7 @@ index 56ce09ae4a..1157bea664 100644
      if (surface == r->color_binding) {
          assert(d->pgraph.surface_color.buffer_dirty);
          unbind_surface(d, true);
-@@ -1094,6 +1095,59 @@ static bool check_surfaces_overlap(const SurfaceBinding *surface,
+@@ -1094,6 +1095,63 @@ static bool check_surfaces_overlap(const SurfaceBinding *surface,
                                          other_surface->size);
  }
  
@@ -1118,6 +1134,10 @@ index 56ce09ae4a..1157bea664 100644
 +    if (!is_full_surface_clear(pg, new_surface)) {
 +        return false;
 +    }
++    if (!new_surface->swizzle &&
++        new_surface->pitch != new_surface->width * new_surface->fmt.bytes_per_pixel) {
++        return false;
++    }
 +    return new_surface->vram_addr <= old_surface->vram_addr &&
 +           (new_surface->vram_addr + new_surface->size) >=
 +               (old_surface->vram_addr + old_surface->size);
@@ -1126,7 +1146,7 @@ index 56ce09ae4a..1157bea664 100644
  static void invalidate_overlapping_surfaces(NV2AState *d,
                                              SurfaceBinding const *surface)
  {
-@@ -1114,7 +1168,13 @@ static void invalidate_overlapping_surfaces(NV2AState *d,
+@@ -1114,7 +1172,13 @@ static void invalidate_overlapping_surfaces(NV2AState *d,
                      surface->vram_addr, surface->vram_addr + surface->size, 0);
              }
  #endif
@@ -1141,7 +1161,7 @@ index 56ce09ae4a..1157bea664 100644
              invalidate_surface(d, other_surface);
          }
      }
-@@ -1304,6 +1364,7 @@ static void migrate_surface_image(SurfaceBinding *dst, SurfaceBinding *src)
+@@ -1304,6 +1368,7 @@ static void migrate_surface_image(SurfaceBinding *dst, SurfaceBinding *src)
      dst->image_scratch = src->image_scratch;
      dst->image_scratch_current_layout = src->image_scratch_current_layout;
      dst->allocation_scratch = src->allocation_scratch;
@@ -1149,7 +1169,7 @@ index 56ce09ae4a..1157bea664 100644
  
      src->image = VK_NULL_HANDLE;
      src->image_view = VK_NULL_HANDLE;
-@@ -1350,7 +1411,9 @@ get_any_compatible_invalid_surface(PGRAPHVkState *r, SurfaceBinding *target)
+@@ -1350,7 +1415,9 @@ get_any_compatible_invalid_surface(PGRAPHVkState *r, SurfaceBinding *target)
  {
      SurfaceBinding *surface, *next;
      QTAILQ_FOREACH_SAFE(surface, &r->invalid_surfaces, entry, next) {
@@ -1160,7 +1180,7 @@ index 56ce09ae4a..1157bea664 100644
              QTAILQ_REMOVE(&r->invalid_surfaces, surface, entry);
              return surface;
          }
-@@ -1366,7 +1429,9 @@ static void prune_invalid_surfaces(PGRAPHVkState *r, int keep)
+@@ -1366,7 +1433,9 @@ static void prune_invalid_surfaces(PGRAPHVkState *r, int keep)
      SurfaceBinding *surface, *next;
      QTAILQ_FOREACH_SAFE(surface, &r->invalid_surfaces, entry, next) {
          num_surfaces += 1;
@@ -1171,7 +1191,7 @@ index 56ce09ae4a..1157bea664 100644
              QTAILQ_REMOVE(&r->invalid_surfaces, surface, entry);
              destroy_surface_image(r, surface);
              g_free(surface);
-@@ -1424,9 +1489,23 @@ void pgraph_vk_upload_surface_data(NV2AState *d, SurfaceBinding *surface,
+@@ -1424,9 +1493,23 @@ void pgraph_vk_upload_surface_data(NV2AState *d, SurfaceBinding *surface,
          return;
      }
  
@@ -1196,7 +1216,7 @@ index 56ce09ae4a..1157bea664 100644
  
      trace_nv2a_pgraph_surface_upload(
                   surface->color ? "COLOR" : "ZETA",
-@@ -1489,16 +1568,13 @@ void pgraph_vk_upload_surface_data(NV2AState *d, SurfaceBinding *surface,
+@@ -1489,16 +1572,13 @@ void pgraph_vk_upload_surface_data(NV2AState *d, SurfaceBinding *surface,
      StorageBuffer *copy_buffer = &r->storage_buffers[BUFFER_STAGING_SRC];
      size_t uploaded_image_size = surface->height * surface->width *
                                   surface->fmt.bytes_per_pixel;
@@ -1214,7 +1234,7 @@ index 56ce09ae4a..1157bea664 100644
      bool no_conversion_necessary =
          surface->color || surface->host_fmt.vk_format == VK_FORMAT_D16_UNORM ||
          use_compute_to_convert_depth_stencil_format;
-@@ -1508,7 +1584,8 @@ void pgraph_vk_upload_surface_data(NV2AState *d, SurfaceBinding *surface,
+@@ -1508,7 +1588,8 @@ void pgraph_vk_upload_surface_data(NV2AState *d, SurfaceBinding *surface,
                   surface->width * surface->fmt.bytes_per_pixel, surface->pitch,
                   surface->height);
  
@@ -1224,7 +1244,7 @@ index 56ce09ae4a..1157bea664 100644
      vmaUnmapMemory(r->allocator, copy_buffer->allocation);
  
      VkCommandBuffer cmd = pgraph_vk_begin_single_time_commands(pg);
-@@ -1760,6 +1837,8 @@ void pgraph_vk_upload_surface_data(NV2AState *d, SurfaceBinding *surface,
+@@ -1760,6 +1841,8 @@ void pgraph_vk_upload_surface_data(NV2AState *d, SurfaceBinding *surface,
      nv2a_profile_inc_counter(NV2A_PROF_QUEUE_SUBMIT_2);
      pgraph_vk_end_debug_marker(r, cmd);
      pgraph_vk_end_single_time_commands(pg, cmd);
@@ -1233,7 +1253,7 @@ index 56ce09ae4a..1157bea664 100644
  
      surface->initialized = true;
  }
-@@ -1856,7 +1935,7 @@ static void populate_surface_binding_target_sized(NV2AState *d, bool color,
+@@ -1856,7 +1939,7 @@ static void populate_surface_binding_target_sized(NV2AState *d, bool color,
      target->dma_addr = dma.address;
      target->dma_len = dma.limit;
      target->frame_time = pg->frame_time;
@@ -1242,7 +1262,7 @@ index 56ce09ae4a..1157bea664 100644
      target->cleared = false;
  
      target->initialized = false;
-@@ -2017,7 +2096,12 @@ static void update_surface_part(NV2AState *d, bool upload, bool color)
+@@ -2017,7 +2100,12 @@ static void update_surface_part(NV2AState *d, bool upload, bool color)
                  trace_nv2a_pgraph_surface_evict_reason(
                      "incompatible", surface->vram_addr);
                  compare_surfaces(surface, &target);
@@ -1256,7 +1276,7 @@ index 56ce09ae4a..1157bea664 100644
                  invalidate_surface(d, surface);
              }
          }
-@@ -2138,6 +2222,27 @@ static void update_surface_part(NV2AState *d, bool upload, bool color)
+@@ -2138,6 +2226,27 @@ static void update_surface_part(NV2AState *d, bool upload, bool color)
      }
  }
  
@@ -1284,7 +1304,7 @@ index 56ce09ae4a..1157bea664 100644
  // FIXME: Move to common?
  void pgraph_vk_surface_update(NV2AState *d, bool upload, bool color_write,
                                bool zeta_write)
-@@ -2197,7 +2302,19 @@ void pgraph_vk_surface_update(NV2AState *d, bool upload, bool color_write,
+@@ -2197,7 +2306,19 @@ void pgraph_vk_surface_update(NV2AState *d, bool upload, bool color_write,
      if (r->color_binding) {
          r->color_binding->frame_time = pg->frame_time;
          if (upload) {
@@ -1305,7 +1325,7 @@ index 56ce09ae4a..1157bea664 100644
              r->color_binding->draw_time = pg->draw_time;
              r->color_binding->swizzle = swizzle;
          }
-@@ -2206,7 +2323,26 @@ void pgraph_vk_surface_update(NV2AState *d, bool upload, bool color_write,
+@@ -2206,7 +2327,26 @@ void pgraph_vk_surface_update(NV2AState *d, bool upload, bool color_write,
      if (r->zeta_binding) {
          r->zeta_binding->frame_time = pg->frame_time;
          if (upload) {
@@ -1333,7 +1353,7 @@ index 56ce09ae4a..1157bea664 100644
              r->zeta_binding->draw_time = pg->draw_time;
              r->zeta_binding->swizzle = swizzle;
          }
-@@ -2318,6 +2454,9 @@ void pgraph_vk_surface_flush(NV2AState *d)
+@@ -2318,6 +2458,9 @@ void pgraph_vk_surface_flush(NV2AState *d)
          pgraph_vk_surface_download_if_dirty(d, s);
          invalidate_surface(d, s);
      }
@@ -1407,10 +1427,10 @@ index 5647275520..6fcc3acb5e 100644
      r->texture_bindings_changed = true;
      update_timestamps(r);
 diff --git a/hw/xbox/nv2a/pgraph/vk/vertex.c b/hw/xbox/nv2a/pgraph/vk/vertex.c
-index 1e84101f9f..d7676fa56e 100644
+index 1e84101f9f..bae25ff573 100644
 --- a/hw/xbox/nv2a/pgraph/vk/vertex.c
 +++ b/hw/xbox/nv2a/pgraph/vk/vertex.c
-@@ -49,21 +49,48 @@ void pgraph_vk_update_vertex_ram_buffer(PGRAPHState *pg, hwaddr offset,
+@@ -49,21 +49,71 @@ void pgraph_vk_update_vertex_ram_buffer(PGRAPHState *pg, hwaddr offset,
  
      pgraph_vk_download_surfaces_in_range_if_dirty(pg, offset, size);
  
@@ -1423,6 +1443,22 @@ index 1e84101f9f..d7676fa56e 100644
 -        // Vertex data changed while building the draw list. Finish drawing
 -        // before updating RAM buffer.
 -        pgraph_vk_finish(pg, VK_FINISH_REASON_VERTEX_BUFFER_DIRTY);
++    uint8_t *mapped_base = (uint8_t *)r->storage_buffers[BUFFER_VERTEX_RAM].mapped;
++
++    if (size >= 1024 * 1024) {
++        nv2a_profile_inc_counter(NV2A_PROF_GEOM_BUFFER_UPDATE_1);
++        memcpy(mapped_base + offset, data, size);
++        if (offset < r->vertex_ram_min_dirty) {
++            r->vertex_ram_min_dirty = offset;
++        }
++        if (offset + size > r->vertex_ram_max_dirty) {
++            r->vertex_ram_max_dirty = offset + size;
++        }
++        return;
+     }
+ 
+-    nv2a_profile_inc_counter(NV2A_PROF_GEOM_BUFFER_UPDATE_1);
+-    memcpy(r->storage_buffers[BUFFER_VERTEX_RAM].mapped + offset, data, size);
 +    size_t start_bit = offset >> NV2A_VERTEX_RAM_BLOCK_SHIFT;
 +    size_t end_bit = (offset + size + NV2A_VERTEX_RAM_BLOCK_SIZE - 1) >>
 +                     NV2A_VERTEX_RAM_BLOCK_SHIFT;
@@ -1431,7 +1467,6 @@ index 1e84101f9f..d7676fa56e 100644
 +    }
 +    size_t nbits = end_bit > start_bit ? end_bit - start_bit : 0;
 +
-+    uint8_t *mapped_base = (uint8_t *)r->storage_buffers[BUFFER_VERTEX_RAM].mapped;
 +    const uint8_t *src_base = (const uint8_t *)data - offset;
 +
 +    if (r->in_command_buffer && nbits > 0) {
@@ -1454,18 +1489,27 @@ index 1e84101f9f..d7676fa56e 100644
 +            // Finish drawing before updating RAM buffer.
 +            pgraph_vk_finish(pg, VK_FINISH_REASON_VERTEX_BUFFER_DIRTY);
 +        }
-     }
- 
-     nv2a_profile_inc_counter(NV2A_PROF_GEOM_BUFFER_UPDATE_1);
--    memcpy(r->storage_buffers[BUFFER_VERTEX_RAM].mapped + offset, data, size);
-+    memcpy(mapped_base + offset, data, size);
++    }
  
 -    bitmap_set(r->uploaded_bitmap, start_bit, nbits);
-+    if (offset < r->vertex_ram_min_dirty) {
-+        r->vertex_ram_min_dirty = offset;
-+    }
-+    if (offset + size > r->vertex_ram_max_dirty) {
-+        r->vertex_ram_max_dirty = offset + size;
++    for (size_t bit = start_bit; bit < end_bit; bit++) {
++        hwaddr blk_off = (hwaddr)bit << NV2A_VERTEX_RAM_BLOCK_SHIFT;
++        hwaddr cmp_start = MAX(offset, blk_off);
++        hwaddr cmp_end = MIN(offset + size, blk_off + NV2A_VERTEX_RAM_BLOCK_SIZE);
++        if (cmp_end <= cmp_start) {
++            continue;
++        }
++        hwaddr cmp_len = cmp_end - cmp_start;
++        if (memcmp(mapped_base + cmp_start, src_base + cmp_start, cmp_len) != 0) {
++            nv2a_profile_inc_counter(NV2A_PROF_GEOM_BUFFER_UPDATE_1);
++            memcpy(mapped_base + cmp_start, src_base + cmp_start, cmp_len);
++            if (cmp_start < r->vertex_ram_min_dirty) {
++                r->vertex_ram_min_dirty = cmp_start;
++            }
++            if (cmp_end > r->vertex_ram_max_dirty) {
++                r->vertex_ram_max_dirty = cmp_end;
++            }
++        }
 +    }
  }
  
