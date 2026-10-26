@@ -1,0 +1,101 @@
+From: BoxDroid downstream
+Subject: [PATCH] mcpx/apu: hand off frame lock to queued DSP writers
+
+diff --git a/hw/xbox/mcpx/apu/apu.c b/hw/xbox/mcpx/apu/apu.c
+index a9aff63..ef565d8 100644
+--- a/hw/xbox/mcpx/apu/apu.c
++++ b/hw/xbox/mcpx/apu/apu.c
+@@ -358,6 +358,16 @@ static void *mcpx_apu_frame_thread(void *arg)
+
+         throttle(d);
+         se_frame(d);
++        /* An overloaded DSP may never reach a throttle wait. Its frame lock
++         * would then exclude GP/EP MMIO writes indefinitely, stalling the
++         * vCPU while it holds the BQL. Admit queued writers after a complete
++         * frame, retaining the original voice/mix/GP/EP ordering. The writer
++         * announces itself before taking lock and signals cond before release.
++         */
++        while (qatomic_read(&d->dsp_write_waiters) &&
++               !qatomic_read(&d->exiting)) {
++            qemu_cond_wait(&d->cond, &d->lock);
++        }
+ #ifdef BOXDROID_RUNTIME
+         /* Bionic's mutex lets this busy worker reacquire repeatedly while a
+          * guest VOICE_LOCK writer waits with the BQL. Yield the APU lock to
+diff --git a/hw/xbox/mcpx/apu/apu_int.h b/hw/xbox/mcpx/apu/apu_int.h
+index b58c44e..21afb48 100644
+--- a/hw/xbox/mcpx/apu/apu_int.h
++++ b/hw/xbox/mcpx/apu/apu_int.h
+@@ -87,6 +87,8 @@ typedef struct MCPXAPUState {
+     QemuMutex lock;
+     QemuCond cond;
+     QemuCond idle_cond;
++    /* Host-side requests waiting to update a DSP at a frame boundary. */
++    unsigned int dsp_write_waiters;
+     bool pause_requested;
+     bool is_idle;
+
+diff --git a/hw/xbox/mcpx/apu/dsp/gp_ep.c b/hw/xbox/mcpx/apu/dsp/gp_ep.c
+index 15354f3..62ef1a2 100644
+--- a/hw/xbox/mcpx/apu/dsp/gp_ep.c
++++ b/hw/xbox/mcpx/apu/dsp/gp_ep.c
+@@ -295,6 +295,23 @@ static void proc_rst_write(DSPState *dsp, uint32_t oldval, uint32_t val)
+     }
+ }
+
++/* Announce requests before waiting: a busy frame thread need not throttle and
++ * must explicitly hand over the mutex at a complete audio-frame boundary.
++ * MMIO remains ordered by the BQL and all DSP state stays under d->lock.
++ */
++static void dsp_write_lock(MCPXAPUState *d)
++{
++    qatomic_inc(&d->dsp_write_waiters);
++    qemu_mutex_lock(&d->lock);
++    qatomic_dec(&d->dsp_write_waiters);
++}
++
++static void dsp_write_unlock(MCPXAPUState *d)
++{
++    qemu_cond_signal(&d->cond);
++    qemu_mutex_unlock(&d->lock);
++}
++
+ /* Global Processor - programmable DSP */
+ static uint64_t gp_read(void *opaque, hwaddr addr, unsigned int size)
+ {
+@@ -342,7 +359,7 @@ static void gp_write(void *opaque, hwaddr addr, uint64_t val, unsigned int size)
+ {
+     MCPXAPUState *d = opaque;
+
+-    qemu_mutex_lock(&d->lock);
++    dsp_write_lock(d);
+
+     assert(size == 4);
+     assert(addr % 4 == 0);
+@@ -383,7 +400,7 @@ static void gp_write(void *opaque, hwaddr addr, uint64_t val, unsigned int size)
+         break;
+     }
+
+-    qemu_mutex_unlock(&d->lock);
++    dsp_write_unlock(d);
+ }
+
+ const MemoryRegionOps gp_ops = {
+@@ -432,7 +449,7 @@ static void ep_write(void *opaque, hwaddr addr, uint64_t val, unsigned int size)
+ {
+     MCPXAPUState *d = opaque;
+
+-    qemu_mutex_lock(&d->lock);
++    dsp_write_lock(d);
+
+     assert(size == 4);
+     assert(addr % 4 == 0);
+@@ -468,7 +485,7 @@ static void ep_write(void *opaque, hwaddr addr, uint64_t val, unsigned int size)
+         break;
+     }
+
+-    qemu_mutex_unlock(&d->lock);
++    dsp_write_unlock(d);
+ }
+
+ const MemoryRegionOps ep_ops = {

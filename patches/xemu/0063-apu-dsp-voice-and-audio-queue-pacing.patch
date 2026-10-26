@@ -1,0 +1,1745 @@
+# Experimental preservation checkpoint; acceptance pending.
+
+diff --git a/accel/tcg/cpu-exec.c b/accel/tcg/cpu-exec.c
+index c42207e..2a8b228 100644
+--- a/accel/tcg/cpu-exec.c
++++ b/accel/tcg/cpu-exec.c
+@@ -50,6 +50,8 @@
+ #include "internal-common.h"
+ #ifdef BOXDROID_XBOX_RUNTIME
+ #include "system/boxdroid-diagnostics.h"
++extern bool detailed_diagnostics;
++extern uint32_t timing_av_entry;
+ #endif
+ #if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
+ #include <sys/system_properties.h>
+@@ -492,7 +494,9 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
+     tb = tb_lookup(cpu, s);
+     if (tb == NULL) {
+ #ifdef BOXDROID_RUNTIME
+-        boxdroid_tcg_event(1);
++        if (unlikely(detailed_diagnostics)) {
++            boxdroid_tcg_event(1);
++        }
+ #endif
+         return tcg_code_gen_epilogue;
+     }
+@@ -502,7 +506,9 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
+     }
+ 
+ #ifdef BOXDROID_RUNTIME
+-    boxdroid_lookup_pc(s.pc);
++    if (unlikely(detailed_diagnostics)) {
++        boxdroid_lookup_pc(s.pc);
++    }
+ #endif
+ #if defined(BOXDROID_XBOX_RUNTIME) && defined(__aarch64__)
+     if (unlikely(boxdroid_order_audit_active)) {
+@@ -541,8 +547,11 @@ cpu_tb_exec(CPUState *cpu, TranslationBlock *itb, int *tb_exit)
+     const void *tb_ptr = itb->tc.ptr;
+ 
+ #ifdef BOXDROID_XBOX_RUNTIME
+-    boxdroid_diag_tb_exec(cpu, log_pc(cpu, itb),
+-                             (uintptr_t)tb_ptr, itb->icount);
++    if (unlikely(detailed_diagnostics || !timing_av_entry ||
++                 log_pc(cpu, itb) == timing_av_entry)) {
++        boxdroid_diag_tb_exec(cpu, log_pc(cpu, itb),
++                              (uintptr_t)tb_ptr, itb->icount);
++    }
+ #endif
+ 
+     if (qemu_loglevel_mask(CPU_LOG_TB_CPU | CPU_LOG_EXEC)) {
+@@ -572,7 +581,9 @@ cpu_tb_exec(CPUState *cpu, TranslationBlock *itb, int *tb_exit)
+     *tb_exit = ret & TB_EXIT_MASK;
+ 
+ #ifdef BOXDROID_RUNTIME
+-    boxdroid_tb_return(last_tb != itb, *tb_exit);
++    if (unlikely(detailed_diagnostics)) {
++        boxdroid_tb_return(last_tb != itb, *tb_exit);
++    }
+ #endif
+     trace_exec_tb_exit(last_tb, *tb_exit);
+ 
+diff --git a/hw/xbox/mcpx/apu/apu.c b/hw/xbox/mcpx/apu/apu.c
+index ef565d8..c7c6983 100644
+--- a/hw/xbox/mcpx/apu/apu.c
++++ b/hw/xbox/mcpx/apu/apu.c
+@@ -21,6 +21,10 @@
+ 
+ #include "apu_int.h"
+ 
++#if defined(__ANDROID__) && defined(BOXDROID_AUDIO)
++#include "boxdroid-audio.h"
++#endif
++
+ MCPXAPUState *g_state; // Used via debug handlers
+ 
+ static void update_irq(MCPXAPUState *d)
+@@ -147,7 +151,7 @@ static void throttle_publish_debug(MCPXAPUState *d)
+     d->throttle.queued_bytes_count = 0;
+ }
+ 
+-#if !defined(__ANDROID__)
++#if !defined(__ANDROID__) || defined(BOXDROID_AUDIO)
+ static void throttle_record_queue(MCPXAPUState *d, int queued_bytes)
+ {
+     if (d->throttle.queued_bytes_count == 0) {
+@@ -179,6 +183,19 @@ static void throttle(MCPXAPUState *d)
+     throttle_update_debug(d, start_us);
+     int queued_bytes = -1;
+ 
++#if defined(__ANDROID__) && defined(BOXDROID_AUDIO)
++    queued_bytes = boxdroid_audio_queued_bytes();
++    if (queued_bytes >= 0) {
++        throttle_record_queue(d, queued_bytes);
++    }
++    while (!d->pause_requested && queued_bytes >= d->monitor.queued_bytes_high) {
++        qemu_cond_timedwait(&d->cond, &d->lock, EP_FRAME_US / 1000);
++        if (d->pause_requested) {
++            break;
++        }
++        queued_bytes = boxdroid_audio_queued_bytes();
++    }
++#else
+     if (d->monitor.stream) {
+ #if !defined(__ANDROID__)
+         queued_bytes = SDL_GetAudioStreamQueued(d->monitor.stream);
+@@ -194,6 +211,7 @@ static void throttle(MCPXAPUState *d)
+         }
+ #endif
+     }
++#endif
+ 
+     if (queued_bytes < 0 || queued_bytes > d->monitor.queued_bytes_low) {
+         int64_t now_us = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
+@@ -216,8 +234,15 @@ static void throttle(MCPXAPUState *d)
+         if (queued_bytes >= 0) {
+             int mid = (d->monitor.queued_bytes_low +
+                        d->monitor.queued_bytes_high) / 2;
++#if defined(__ANDROID__) && defined(BOXDROID_AUDIO)
++            int64_t adj = (queued_bytes - mid) / 8;
++            d->next_frame_time_us += MIN(MAX(adj, -400), 400);
++#else
+             d->next_frame_time_us += (queued_bytes > mid) - (queued_bytes < mid);
++#endif
+         }
++    } else {
++        d->next_frame_time_us = 0;
+     }
+ }
+ 
+diff --git a/hw/xbox/mcpx/apu/dsp/dsp_c.c b/hw/xbox/mcpx/apu/dsp/dsp_c.c
+index 13b3710..4099918 100644
+--- a/hw/xbox/mcpx/apu/dsp/dsp_c.c
++++ b/hw/xbox/mcpx/apu/dsp/dsp_c.c
+@@ -75,15 +75,7 @@ static void dsp_c_run(DSPState *dsp, int cycles)
+     if (dsp->save_cycles <= 0)
+         return;
+ 
+-    while (dsp->save_cycles > 0) {
+-        dsp56k_execute_instruction(core);
+-        dsp->save_cycles -= core->instr_cycle;
+-        core->cycle_count += core->instr_cycle;
+-
+-        if (core->is_idle) {
+-            break;
+-        }
+-    }
++    dsp56k_execute_run(core, &dsp->save_cycles);
+ }
+ 
+ static void dsp_c_bootstrap(DSPState *dsp)
+diff --git a/hw/xbox/mcpx/apu/dsp/gp_ep.c b/hw/xbox/mcpx/apu/dsp/gp_ep.c
+index 62ef1a2..cd91b2c 100644
+--- a/hw/xbox/mcpx/apu/dsp/gp_ep.c
++++ b/hw/xbox/mcpx/apu/dsp/gp_ep.c
+@@ -95,8 +95,7 @@ static void scatter_gather_rw(MCPXAPUState *d, hwaddr sge_base,
+     while (len > 0) {
+         assert(page_entry <= max_sge);
+ 
+-        uint32_t prd_address = ldl_le_phys(&address_space_memory,
+-                                           sge_base + page_entry * 8 + 0);
++        uint32_t prd_address = ldl_le_p(&d->ram_ptr[sge_base + page_entry * 8 + 0]);
+         // uint32_t prd_control = ldl_le_phys(&address_space_memory,
+         //                                     sge_base + page_entry * 8 + 4);
+ 
+@@ -499,8 +498,9 @@ void mcpx_apu_dsp_frame(MCPXAPUState *d, float mixbins[NUM_MIXBINS][NUM_SAMPLES_
+     for (int mixbin = 0; mixbin < NUM_MIXBINS; mixbin++) {
+         uint32_t base = GP_DSP_MIXBUF_BASE + mixbin * NUM_SAMPLES_PER_FRAME;
+         for (int sample = 0; sample < NUM_SAMPLES_PER_FRAME; sample++) {
++            float v = mixbins[mixbin][sample];
+             dsp_write_memory(d->gp.dsp, 'X', base + sample,
+-                             float_to_24b(mixbins[mixbin][sample]));
++                             v == 0.0f ? 0 : float_to_24b(v));
+         }
+     }
+ 
+diff --git a/hw/xbox/mcpx/apu/dsp/interp/dsp_cpu.c b/hw/xbox/mcpx/apu/dsp/interp/dsp_cpu.c
+index 9e4b695..6f57763 100644
+--- a/hw/xbox/mcpx/apu/dsp/interp/dsp_cpu.c
++++ b/hw/xbox/mcpx/apu/dsp/interp/dsp_cpu.c
+@@ -49,10 +49,14 @@
+  *  Functions
+  **********************************/
+ 
+-static void dsp_postexecute_update_pc(dsp_core_t* dsp);
++static inline void dsp_postexecute_update_pc(dsp_core_t* dsp);
+ static void dsp_postexecute_interrupts(dsp_core_t* dsp);
+ 
+-static uint32_t read_memory_p(dsp_core_t* dsp, uint32_t address);
++static inline uint32_t read_memory_p(dsp_core_t* dsp, uint32_t address)
++{
++    assert(address < DSP_PRAM_SIZE);
++    return ldl_le_p(&dsp->pram[address]);
++}
+ static uint32_t read_memory_disasm(dsp_core_t* dsp, int space, uint32_t address);
+ 
+ static void write_memory_raw(dsp_core_t* dsp, int space, uint32_t address, uint32_t value);
+@@ -68,11 +72,15 @@ static void dsp_compute_ssh_ssl(dsp_core_t* dsp);
+ static uint16_t dsp_abs56(uint32_t *dest);
+ static uint16_t dsp_asl56(uint32_t *dest, int n);
+ static uint16_t dsp_asr56(uint32_t *dest, int n);
+-static uint16_t dsp_add56(uint32_t *source, uint32_t *dest);
+-static uint16_t dsp_sub56(uint32_t *source, uint32_t *dest);
+-static void dsp_mul56(uint32_t source1, uint32_t source2, uint32_t *dest, uint8_t signe);
++static inline uint16_t dsp_add56(uint32_t *source, uint32_t *dest);
++static inline uint16_t dsp_sub56(uint32_t *source, uint32_t *dest);
++static inline void dsp_mul56(uint32_t source1, uint32_t source2, uint32_t *dest, uint8_t signe);
+ static void dsp_rnd56(dsp_core_t* dsp, uint32_t *dest);
+-static uint32_t dsp_signextend(int bits, uint32_t v);
++static inline uint32_t dsp_signextend(int bits, uint32_t v)
++{
++    const int shift = sizeof(int) * 8 - bits;
++    return (uint32_t)(((int32_t)v << shift) >> shift);
++}
+ 
+ /* Vector addresses per DSP56300FM Table 2-2, indexed by DSP_INTER_* */
+ static const dsp_interrupt_t dsp_interrupt[4] = {
+@@ -590,10 +598,7 @@ static const char* disasm_get_instruction_text(dsp_core_t* dsp)
+ 
+ void dsp56k_execute_instruction(dsp_core_t* dsp)
+ {
+-    trace_dsp56k_execute_instruction(dsp->is_gp, dsp->pc);
+-
+     uint32_t disasm_return = 0;
+-    dsp->disasm_memory_ptr = 0;
+ 
+     /* Decode and execute current instruction */
+     dsp->cur_inst = read_memory_p(dsp, dsp->pc);
+@@ -602,10 +607,12 @@ void dsp56k_execute_instruction(dsp_core_t* dsp)
+     dsp->cur_inst_len = 1;
+     dsp->instr_cycle = 2;
+ 
+-    bool tracing = TRACE_DSP_DISASM || trace_event_get_state(TRACE_DSP56K_EXECUTE_INSTRUCTION_DISASM);
++    bool tracing = TRACE_DSP_DISASM;
+ 
+     /* Disasm current instruction ? (trace mode only) */
+     if (tracing) {
++        trace_dsp56k_execute_instruction(dsp->is_gp, dsp->pc);
++        dsp->disasm_memory_ptr = 0;
+         disasm_return = disasm_instruction(dsp, DSP_TRACE_MODE);
+         if (disasm_return) {
+             const char *text = disasm_get_instruction_text(dsp);
+@@ -621,11 +628,11 @@ void dsp56k_execute_instruction(dsp_core_t* dsp)
+ 
+     if (dsp->cur_inst < 0x100000) {
+         const OpcodeEntry *op = dsp->pram_opcache[dsp->pc];
+-        if (op == NULL) {
++        if (unlikely(op == NULL)) {
+             op = lookup_opcode(dsp->cur_inst);
+             dsp->pram_opcache[dsp->pc] = op;
+         }
+-        if (op->emu_func) {
++        if (likely(op->emu_func != NULL)) {
+             op->emu_func(dsp);
+         } else {
+             DPRINTF("%x - %s\n", dsp->cur_inst, op->name);
+@@ -657,7 +664,10 @@ void dsp56k_execute_instruction(dsp_core_t* dsp)
+     dsp_postexecute_update_pc(dsp);
+ 
+     /* Process Interrupts */
+-    dsp_postexecute_interrupts(dsp);
++    if (unlikely(dsp->interrupt_state == DSP_INTERRUPT_DISABLED ||
++                 dsp->interrupt_counter != 0)) {
++        dsp_postexecute_interrupts(dsp);
++    }
+ 
+ 
+     dsp->num_inst += dsp->instr_cycle;
+@@ -676,11 +686,26 @@ void dsp56k_execute_instruction(dsp_core_t* dsp)
+ #endif
+ }
+ 
++void dsp56k_execute_run(dsp_core_t* dsp, int *save_cycles)
++{
++    int cycles = *save_cycles;
++    while (cycles > 0) {
++        dsp56k_execute_instruction(dsp);
++        cycles -= dsp->instr_cycle;
++        dsp->cycle_count += dsp->instr_cycle;
++
++        if (unlikely(dsp->is_idle)) {
++            break;
++        }
++    }
++    *save_cycles = cycles;
++}
++
+ /**********************************
+  *  Update the PC
+ **********************************/
+ 
+-static void dsp_postexecute_update_pc(dsp_core_t* dsp)
++static inline void dsp_postexecute_update_pc(dsp_core_t* dsp)
+ {
+     /* When running a REP, PC must stay on the current instruction */
+     if (dsp->loop_rep) {
+@@ -885,21 +910,14 @@ static void dsp_postexecute_interrupts(dsp_core_t* dsp)
+  *  Read/Write memory functions
+  **********************************/
+ 
+-static uint32_t read_memory_p(dsp_core_t* dsp, uint32_t address)
+-{
+-    assert((address & 0xFF000000) == 0);
+-    assert(address < DSP_PRAM_SIZE);
+-    uint32_t r = ldl_le_p(&dsp->pram[address]);
+-    assert((r & 0xFF000000) == 0);
+-    return r;
+-}
+-
+ uint32_t dsp56k_read_memory(dsp_core_t* dsp, int space, uint32_t address)
+ {
+     assert((address & 0xFF000000) == 0);
+ 
+     if (space == DSP_SPACE_X) {
+-        if (address >= DSP_PERIPH_BASE) {
++        if (likely(address < 0xc00)) {
++            return dsp->xram[address];
++        } else if (address >= DSP_PERIPH_BASE) {
+             assert(dsp->read_peripheral);
+             return dsp->read_peripheral(dsp, address);
+         } else if (address >= DSP_MIXBUFFER_BASE && address < DSP_MIXBUFFER_BASE+DSP_MIXBUFFER_SIZE) {
+@@ -939,7 +957,9 @@ static void write_memory_raw(dsp_core_t* dsp, int space, uint32_t address, uint3
+     assert((address & 0xFF000000) == 0);
+ 
+     if (space == DSP_SPACE_X) {
+-        if (address >= DSP_PERIPH_BASE) {
++        if (likely(address < 0xc00)) {
++            dsp->xram[address] = value;
++        } else if (address >= DSP_PERIPH_BASE) {
+             assert(dsp->write_peripheral);
+             dsp->write_peripheral(dsp, address, value);
+             return;
+@@ -1195,119 +1215,53 @@ static uint16_t dsp_asr56(uint32_t *dest, int n)
+     return (carry<<DSP_SR_C);
+ }
+ 
+-static uint16_t dsp_add56(uint32_t *source, uint32_t *dest)
++static inline uint16_t dsp_add56(uint32_t *source, uint32_t *dest)
+ {
+-    uint16_t overflow, carry, flg_s, flg_d, flg_r;
+-
+-    flg_s = (source[0]>>7) & 1;
+-    flg_d = (dest[0]>>7) & 1;
+-
+-    /* Add source to dest: D = D+S */
+-    dest[2] += source[2];
+-    dest[1] += source[1]+((dest[2]>>24) & 1);
+-    dest[0] += source[0]+((dest[1]>>24) & 1);
++    uint64_t s = source[2] | ((uint64_t)source[1] << 24) |
++                 ((uint64_t)(source[0] & BITMASK(8)) << 48);
++    uint64_t d = dest[2] | ((uint64_t)dest[1] << 24) |
++                 ((uint64_t)(dest[0] & BITMASK(8)) << 48);
++    uint64_t r = d + s;
+ 
+-    carry = (dest[0]>>8) & 1;
++    dest[2] = r & BITMASK(24);
++    dest[1] = (r >> 24) & BITMASK(24);
++    dest[0] = (r >> 48) & BITMASK(8);
+ 
+-    dest[2] &= BITMASK(24);
+-    dest[1] &= BITMASK(24);
+-    dest[0] &= BITMASK(8);
+-
+-    flg_r = (dest[0]>>7) & 1;
+-
+-    /*set overflow*/
+-    overflow = (flg_s ^ flg_r) & (flg_d ^ flg_r);
++    uint16_t carry = (r >> 56) & 1;
++    uint16_t overflow = (((s ^ r) & (d ^ r)) >> 55) & 1;
+ 
+     return (overflow<<DSP_SR_L)|(overflow<<DSP_SR_V)|(carry<<DSP_SR_C);
+ }
+ 
+-static uint16_t dsp_sub56(uint32_t *source, uint32_t *dest)
++static inline uint16_t dsp_sub56(uint32_t *source, uint32_t *dest)
+ {
+-    uint16_t overflow, carry, flg_s, flg_d, flg_r, dest_save;
+-
+-    dest_save = dest[0];
+-
+-    /* Subtract source from dest: D = D-S */
+-    dest[2] -= source[2];
+-    dest[1] -= source[1]+((dest[2]>>24) & 1);
+-    dest[0] -= source[0]+((dest[1]>>24) & 1);
+-
+-    carry = (dest[0]>>8) & 1;
+-
+-    dest[2] &= BITMASK(24);
+-    dest[1] &= BITMASK(24);
+-    dest[0] &= BITMASK(8);
++    uint64_t s = source[2] | ((uint64_t)source[1] << 24) |
++                 ((uint64_t)(source[0] & BITMASK(8)) << 48);
++    uint64_t d = dest[2] | ((uint64_t)dest[1] << 24) |
++                 ((uint64_t)(dest[0] & BITMASK(8)) << 48);
++    uint64_t r = d - s;
+ 
+-    flg_s = (source[0]>>7) & 1;
+-    flg_d = (dest_save>>7) & 1;
+-    flg_r = (dest[0]>>7) & 1;
++    dest[2] = r & BITMASK(24);
++    dest[1] = (r >> 24) & BITMASK(24);
++    dest[0] = (r >> 48) & BITMASK(8);
+ 
+-    /* set overflow */
+-    overflow = (flg_s ^ flg_d) & (flg_r ^ flg_d);
++    uint16_t carry = (r >> 56) & 1;
++    uint16_t overflow = (((s ^ d) & (r ^ d)) >> 55) & 1;
+ 
+     return (overflow<<DSP_SR_L)|(overflow<<DSP_SR_V)|(carry<<DSP_SR_C);
+ }
+ 
+-static void dsp_mul56(uint32_t source1, uint32_t source2, uint32_t *dest, uint8_t signe)
++static inline void dsp_mul56(uint32_t source1, uint32_t source2, uint32_t *dest, uint8_t signe)
+ {
+-    uint32_t part[4], zerodest[3], value;
+-
+-    /* Multiply: D = S1*S2 */
+-    if (source1 & (1<<23)) {
+-        signe ^= 1;
+-        source1 = (1<<24) - source1;
+-    }
+-    if (source2 & (1<<23)) {
+-        signe ^= 1;
+-        source2 = (1<<24) - source2;
+-    }
+-
+-    /* bits 0-11 * bits 0-11 */
+-    part[0]=(source1 & BITMASK(12))*(source2 & BITMASK(12));
+-    /* bits 12-23 * bits 0-11 */
+-    part[1]=((source1>>12) & BITMASK(12))*(source2 & BITMASK(12));
+-    /* bits 0-11 * bits 12-23 */
+-    part[2]=(source1 & BITMASK(12))*((source2>>12)  & BITMASK(12));
+-    /* bits 12-23 * bits 12-23 */
+-    part[3]=((source1>>12) & BITMASK(12))*((source2>>12) & BITMASK(12));
+-
+-    /* Calc dest 2 */
+-    dest[2] = part[0];
+-    dest[2] += (part[1] & BITMASK(12)) << 12;
+-    dest[2] += (part[2] & BITMASK(12)) << 12;
+-
+-    /* Calc dest 1 */
+-    dest[1] = (part[1]>>12) & BITMASK(12);
+-    dest[1] += (part[2]>>12) & BITMASK(12);
+-    dest[1] += part[3];
+-
+-    /* Calc dest 0 */
+-    dest[0] = 0;
+-
+-    /* Add carries */
+-    value = (dest[2]>>24) & BITMASK(8);
+-    if (value) {
+-        dest[1] += value;
+-        dest[2] &= BITMASK(24);
+-    }
+-    value = (dest[1]>>24) & BITMASK(8);
+-    if (value) {
+-        dest[0] += value;
+-        dest[1] &= BITMASK(24);
+-    }
+-
+-    /* Get rid of extra sign bit */
+-    dsp_asl56(dest, 1);
+-
++    int64_t s1 = ((int32_t)(source1 << 8)) >> 8;
++    int64_t s2 = ((int32_t)(source2 << 8)) >> 8;
++    uint64_t prod = (uint64_t)(s1 * s2) << 1;
+     if (signe) {
+-        zerodest[0] = zerodest[1] = zerodest[2] = 0;
+-
+-        dsp_sub56(dest, zerodest);
+-
+-        dest[0] = zerodest[0];
+-        dest[1] = zerodest[1];
+-        dest[2] = zerodest[2];
++        prod = -prod;
+     }
++    dest[2] = prod & BITMASK(24);
++    dest[1] = (prod >> 24) & BITMASK(24);
++    dest[0] = (prod >> 48) & BITMASK(8);
+ }
+ 
+ static void dsp_rnd56(dsp_core_t* dsp, uint32_t *dest)
+@@ -1351,9 +1305,3 @@ static void dsp_rnd56(dsp_core_t* dsp, uint32_t *dest)
+         dest[2]=0;
+     }
+ }
+-
+-static uint32_t dsp_signextend(int bits, uint32_t v) {
+-    const int shift = sizeof(int)*8 - bits;
+-    assert(shift > 0);
+-    return (uint32_t)(((int32_t)v << shift) >> shift);
+-}
+diff --git a/hw/xbox/mcpx/apu/dsp/interp/dsp_cpu.h b/hw/xbox/mcpx/apu/dsp/interp/dsp_cpu.h
+index d9ee163..639b385 100644
+--- a/hw/xbox/mcpx/apu/dsp/interp/dsp_cpu.h
++++ b/hw/xbox/mcpx/apu/dsp/interp/dsp_cpu.h
+@@ -141,6 +141,7 @@ struct dsp_core_s {
+ /* Functions */
+ void dsp56k_reset_cpu(dsp_core_t* dsp);		/* Set dsp_core to use */
+ void dsp56k_execute_instruction(dsp_core_t* dsp);	/* Execute 1 instruction */
++void dsp56k_execute_run(dsp_core_t* dsp, int *save_cycles);
+ 
+ uint32_t dsp56k_read_memory(dsp_core_t* dsp, int space, uint32_t address);
+ void dsp56k_write_memory(dsp_core_t* dsp, int space, uint32_t address, uint32_t value);
+diff --git a/hw/xbox/mcpx/apu/dsp/interp/dsp_emu.c.inc b/hw/xbox/mcpx/apu/dsp/interp/dsp_emu.c.inc
+index b512707..4bfe4a6 100644
+--- a/hw/xbox/mcpx/apu/dsp/interp/dsp_emu.c.inc
++++ b/hw/xbox/mcpx/apu/dsp/interp/dsp_emu.c.inc
+@@ -89,11 +89,13 @@ static void emu_update_rn_modulo(dsp_core_t* dsp, uint32_t numreg, int16_t modif
+     int16_t r_reg, orig_modifier=modifier;
+ 
+     modulo = dsp->registers[DSP_REG_M0+numreg]+1;
+-    bufsize = 1;
+-    bufmask = BITMASK(16);
+-    while (bufsize < modulo) {
+-        bufsize <<= 1;
+-        bufmask <<= 1;
++    if (modulo <= 1) {
++        bufsize = 1;
++        bufmask = BITMASK(16);
++    } else {
++        int shift = 32 - __builtin_clz((uint32_t)(modulo - 1));
++        bufsize = 1u << shift;
++        bufmask = (uint16_t)(0xffffu << shift);
+     }
+ 
+     lobound = dsp->registers[DSP_REG_R0+numreg] & bufmask;
+diff --git a/hw/xbox/mcpx/apu/fpconv.h b/hw/xbox/mcpx/apu/fpconv.h
+index fd2fadc..7001bdd 100644
+--- a/hw/xbox/mcpx/apu/fpconv.h
++++ b/hw/xbox/mcpx/apu/fpconv.h
+@@ -30,12 +30,12 @@ static inline float int8_to_float(int8_t x)
+ 
+ static inline float uint8_to_float(uint8_t value)
+ {
+-    return ((int)value - 0x80) / (1.0 * 0x80);
++    return ((int)value - 0x80) * (1.0f / 0x80);
+ }
+ 
+ static inline float int16_to_float(int16_t value)
+ {
+-    return value / (1.0 * 0x8000);
++    return value * (1.0f / 0x8000);
+ }
+ 
+ static inline float s6p9_to_float(int16_t value)
+@@ -45,7 +45,7 @@ static inline float s6p9_to_float(int16_t value)
+ 
+ static inline float int32_to_float(int32_t value)
+ {
+-    return value / (1.0 * 0x80000000);
++    return value * (1.0f / 2147483648.0f);
+ }
+ 
+ static inline float int24_to_float(int32_t value)
+@@ -55,14 +55,14 @@ static inline float int24_to_float(int32_t value)
+ 
+ static inline uint32_t float_to_24b(float value)
+ {
+-    double scaled_value = value * (8.0 * 0x100000);
++    float scaled_value = value * (8.0f * 0x100000);
+     int int24;
+-    if (scaled_value >= (1.0 * 0x7fffff)) {
++    if (scaled_value >= (float)0x7fffff) {
+         int24 = 0x7fffff;
+-    } else if (scaled_value <= (-8.0 * 0x100000)) {
++    } else if (scaled_value <= (-8.0f * 0x100000)) {
+         int24 = -1 - 0x7fffff;
+     } else {
+-        int24 = lrint(scaled_value);
++        int24 = lrintf(scaled_value);
+     }
+     return int24 & 0xffffff;
+ }
+diff --git a/hw/xbox/mcpx/apu/monitor.c b/hw/xbox/mcpx/apu/monitor.c
+index 501461c..7f5e148 100644
+--- a/hw/xbox/mcpx/apu/monitor.c
++++ b/hw/xbox/mcpx/apu/monitor.c
+@@ -30,6 +30,9 @@ void mcpx_apu_monitor_init(MCPXAPUState *d, Error **errp)
+     (void) errp;
+     d->monitor.stream = NULL;
+ #ifdef BOXDROID_AUDIO
++    int frame_bytes = sizeof(d->monitor.frame_buf);
++    d->monitor.queued_bytes_low = 3 * frame_bytes;
++    d->monitor.queued_bytes_high = 9 * frame_bytes;
+     boxdroid_audio_apu_attach();
+ #endif
+ }
+diff --git a/hw/xbox/mcpx/apu/vp/voice-ownership.h b/hw/xbox/mcpx/apu/vp/voice-ownership.h
+index fa41a9e..7833ec2 100644
+--- a/hw/xbox/mcpx/apu/vp/voice-ownership.h
++++ b/hw/xbox/mcpx/apu/vp/voice-ownership.h
+@@ -224,6 +224,31 @@ static inline void voice_owner_release(VoiceOwnership *o, unsigned v)
+     qemu_mutex_unlock(&o->lock);
+ }
+ 
++static inline void voice_owner_release_mask(VoiceOwnership *o,
++                                            const uint64_t mask[4])
++{
++    if (!(mask[0] | mask[1] | mask[2] | mask[3])) {
++        return;
++    }
++    qemu_mutex_lock(&o->lock);
++    for (int i = 0; i < 4; i++) {
++        uint64_t m = mask[i];
++        if (!m) {
++            continue;
++        }
++        assert((o->active[i] & m) == m);
++        o->active[i] &= ~m;
++        uint64_t g = qatomic_read(&o->guest[i]) & m;
++        while (g) {
++            int bit_idx = ctz64(g);
++            qemu_cond_signal(&o->idle[i * 64 + bit_idx]);
++            g &= g - 1;
++        }
++    }
++    qemu_cond_signal(&o->available);
++    qemu_mutex_unlock(&o->lock);
++}
++
+ static inline void voice_owner_cancel(VoiceOwnership *o, bool cancel)
+ {
+     qemu_mutex_lock(&o->lock);
+diff --git a/hw/xbox/mcpx/apu/vp/vp.c b/hw/xbox/mcpx/apu/vp/vp.c
+index 73951f8..cb8db50 100644
+--- a/hw/xbox/mcpx/apu/vp/vp.c
++++ b/hw/xbox/mcpx/apu/vp/vp.c
+@@ -95,14 +95,14 @@ static float clampf(float v, float min, float max)
+ static float attenuate(uint16_t vol)
+ {
+     vol &= 0xFFF;
+-    return (vol == 0xFFF) ? 0.0 : powf(10.0f, vol/(64.0 * -20.0f));
++    return (vol == 0xFFF) ? 0.0f : powf(10.0f, vol * (-1.0f / 1280.0f));
+ }
+ 
+ static uint32_t voice_get_mask(MCPXAPUState *d, uint16_t voice_handle,
+                                hwaddr offset, uint32_t mask)
+ {
+     hwaddr voice = d->regs[NV_PAPU_VPVADDR] + voice_handle * NV_PAVS_SIZE;
+-    return (ldl_le_phys(&address_space_memory, voice + offset) & mask) >>
++    return (ldl_le_p(&d->ram_ptr[voice + offset]) & mask) >>
+            ctz32(mask);
+ }
+ 
+@@ -111,9 +111,9 @@ static void voice_set_mask(MCPXAPUState *d, uint16_t voice_handle,
+ {
+     hwaddr voice = d->regs[NV_PAPU_VPVADDR]
+                     + voice_handle * NV_PAVS_SIZE;
+-    uint32_t v = ldl_le_phys(&address_space_memory, voice + offset) & ~mask;
+-    stl_le_phys(&address_space_memory, voice + offset,
+-                v | ((val << ctz32(mask)) & mask));
++    uint32_t v = ldl_le_p(&d->ram_ptr[voice + offset]) & ~mask;
++    stl_le_p(&d->ram_ptr[voice + offset],
++             v | ((val << ctz32(mask)) & mask));
+ }
+ 
+ static void voice_off(MCPXAPUState *d, uint16_t v)
+@@ -769,12 +769,13 @@ const MemoryRegionOps vp_ops = {
+     .write = vp_write,
+ };
+ 
+-static hwaddr get_data_ptr(hwaddr sge_base, unsigned int max_sge, uint32_t addr)
++static hwaddr get_data_ptr(MCPXAPUState *d, hwaddr sge_base,
++                           unsigned int max_sge, uint32_t addr)
+ {
+     unsigned int entry = addr / TARGET_PAGE_SIZE;
+     assert(entry <= max_sge);
+     uint32_t prd_address =
+-        ldl_le_phys(&address_space_memory, sge_base + entry * 4 * 2);
++        ldl_le_p(&d->ram_ptr[sge_base + entry * 4 * 2]);
+     // uint32_t prd_control =
+     //     ldl_le_phys(&address_space_memory, sge_base + entry * 4 * 2 + 4);
+     DPRINTF("Addr: 0x%08X, control: 0x%08X\n", prd_address, prd_control);
+@@ -918,9 +919,9 @@ static float voice_step_envelope(MCPXAPUState *d, uint16_t v, uint32_t reg_0,
+             // (probably what the hw actually does): y(t)=2^(-10t), which would
+             // permit simpler attenuation more efficiently and update level on
+             // each round.
+-            float pos = clampf(1 - count / (release_rate * 16.0), 0, 1);
++            float pos = clampf(1.0f - count / (release_rate * 16.0f), 0.0f, 1.0f);
+             uint8_t lvl = voice_get_mask(d, v, lvl_reg, lvl_mask);
+-            value = powf(M_E, -6.91*pos)*lvl;
++            value = expf(-6.91f * pos) * lvl;
+             count--; // FIXME: Should release count ascend or descend?
+             voice_set_mask(d, v, NV_PAVS_VOICE_CUR_ECNT, count_mask, count);
+         }
+@@ -1060,8 +1061,8 @@ static int voice_get_samples(MCPXAPUState *d, uint32_t v, float *samples,
+         }
+ 
+         hwaddr addr = d->regs[NV_PAPU_VPSSLADDR] + page * 8;
+-        segment_offset = ldl_le_phys(&address_space_memory, addr);
+-        segment_length = ldl_le_phys(&address_space_memory, addr + 4);
++        segment_offset = ldl_le_p(&d->ram_ptr[addr]);
++        segment_length = ldl_le_p(&d->ram_ptr[addr + 4]);
+         assert(segment_offset != 0);
+         assert(segment_length != 0);
+         seg_len = (segment_length >> 0) & 0xffff;
+@@ -1131,10 +1132,10 @@ static int voice_get_samples(MCPXAPUState *d, uint32_t v, float *samples,
+                     linear_addr += ba;
+                     for (unsigned int word_index = 0;
+                          word_index < (9 * samples_per_block); word_index++) {
+-                        hwaddr addr = get_data_ptr(d->regs[NV_PAPU_VPSGEADDR],
++                        hwaddr addr = get_data_ptr(d, d->regs[NV_PAPU_VPSGEADDR],
+                                                    0xFFFFFFFF, linear_addr);
+                         adpcm_block[word_index] =
+-                            ldl_le_phys(&address_space_memory, addr);
++                            ldl_le_p(&d->ram_ptr[addr]);
+                         linear_addr += 4;
+                     }
+                 }
+@@ -1157,7 +1158,7 @@ static int voice_get_samples(MCPXAPUState *d, uint32_t v, float *samples,
+                 addr = segment_offset + cbo * block_size;
+             } else {
+                 uint32_t linear_addr = ba + cbo * block_size;
+-                addr = get_data_ptr(d->regs[NV_PAPU_VPSGEADDR], 0xFFFFFFFF,
++                addr = get_data_ptr(d, d->regs[NV_PAPU_VPSGEADDR], 0xFFFFFFFF,
+                                     linear_addr);
+             }
+ 
+@@ -1166,19 +1167,19 @@ static int voice_get_samples(MCPXAPUState *d, uint32_t v, float *samples,
+                 float fval;
+                 switch (sample_size) {
+                 case NV_PAVS_VOICE_CFG_FMT_SAMPLE_SIZE_U8:
+-                    ival = ldub_phys(&address_space_memory, addr);
++                    ival = ldub_p(&d->ram_ptr[addr]);
+                     fval = uint8_to_float(ival & 0xff);
+                     break;
+                 case NV_PAVS_VOICE_CFG_FMT_SAMPLE_SIZE_S16:
+-                    ival = lduw_le_phys(&address_space_memory, addr);
++                    ival = lduw_le_p(&d->ram_ptr[addr]);
+                     fval = int16_to_float(ival & 0xffff);
+                     break;
+                 case NV_PAVS_VOICE_CFG_FMT_SAMPLE_SIZE_S24:
+-                    ival = ldl_le_phys(&address_space_memory, addr);
++                    ival = ldl_le_p(&d->ram_ptr[addr]);
+                     fval = int24_to_float(ival);
+                     break;
+                 case NV_PAVS_VOICE_CFG_FMT_SAMPLE_SIZE_S32:
+-                    ival = ldl_le_phys(&address_space_memory, addr);
++                    ival = ldl_le_p(&d->ram_ptr[addr]);
+                     fval = int32_to_float(ival);
+                     break;
+                 default:
+@@ -1380,7 +1381,8 @@ static void dump_multipass_unused_debug_info(MCPXAPUState *d, uint16_t v)
+ 
+ static void get_multipass_samples(MCPXAPUState *d,
+                                   float mixbins[][NUM_SAMPLES_PER_FRAME],
+-                                  uint16_t v, float samples[][2])
++                                  uint16_t v, float samples[][2],
++                                  VoiceWorker *worker)
+ {
+     struct McpxApuDebugVoice *dbg = &g_dbg.vp.v[v];
+ 
+@@ -1388,17 +1390,21 @@ static void get_multipass_samples(MCPXAPUState *d,
+     int mp_bin = voice_get_mask(d, v, NV_PAVS_VOICE_CFG_FMT,
+                                 NV_PAVS_VOICE_CFG_FMT_MULTIPASS_BIN);
+     dbg->multipass_bin = mp_bin;
++    uint32_t mp_bit = 1u << mp_bin;
+ 
+-    for (int i = 0; i < NUM_SAMPLES_PER_FRAME; i++) {
+-        samples[i][0] = mixbins[mp_bin][i];
+-        samples[i][1] = mixbins[mp_bin][i];
++    if (worker->active_mixbins & mp_bit) {
++        for (int i = 0; i < NUM_SAMPLES_PER_FRAME; i++) {
++            samples[i][0] = mixbins[mp_bin][i];
++            samples[i][1] = mixbins[mp_bin][i];
++        }
+     }
+ 
+     // DirectSound sets clear mix to true
+     bool clear_mix = voice_get_mask(d, v, NV_PAVS_VOICE_CFG_FMT,
+                                     NV_PAVS_VOICE_CFG_FMT_CLEAR_MIX);
+-    if (clear_mix) {
++    if (clear_mix && (worker->active_mixbins & mp_bit)) {
+         memset(&mixbins[mp_bin][0], 0, sizeof(mixbins[0]));
++        worker->active_mixbins &= ~mp_bit;
+     }
+ 
+     // Dump irrelevant data for audio debug UI to avoid showing stale info
+@@ -1472,7 +1478,7 @@ static void voice_process(MCPXAPUState *d,
+ #endif
+ 
+     if (multipass) {
+-        get_multipass_samples(d, mixbins, v, samples);
++        get_multipass_samples(d, mixbins, v, samples, worker);
+     } else {
+         for (int sample_count = 0; sample_count < NUM_SAMPLES_PER_FRAME;) {
+             int active = voice_get_mask(d, v, NV_PAVS_VOICE_PAR_STATE,
+@@ -1496,57 +1502,42 @@ static void voice_process(MCPXAPUState *d,
+         return;
+     }
+ 
++    hwaddr voice_addr = d->regs[NV_PAPU_VPVADDR] + v * NV_PAVS_SIZE;
++    uint32_t cfg_vbin = ldl_le_p(&d->ram_ptr[voice_addr + NV_PAVS_VOICE_CFG_VBIN]);
++    uint32_t cfg_fmt = ldl_le_p(&d->ram_ptr[voice_addr + NV_PAVS_VOICE_CFG_FMT]);
+     int bin[8];
+-    bin[0] = voice_get_mask(d, v, NV_PAVS_VOICE_CFG_VBIN,
+-                            NV_PAVS_VOICE_CFG_VBIN_V0BIN);
+-    bin[1] = voice_get_mask(d, v, NV_PAVS_VOICE_CFG_VBIN,
+-                            NV_PAVS_VOICE_CFG_VBIN_V1BIN);
+-    bin[2] = voice_get_mask(d, v, NV_PAVS_VOICE_CFG_VBIN,
+-                            NV_PAVS_VOICE_CFG_VBIN_V2BIN);
+-    bin[3] = voice_get_mask(d, v, NV_PAVS_VOICE_CFG_VBIN,
+-                            NV_PAVS_VOICE_CFG_VBIN_V3BIN);
+-    bin[4] = voice_get_mask(d, v, NV_PAVS_VOICE_CFG_VBIN,
+-                            NV_PAVS_VOICE_CFG_VBIN_V4BIN);
+-    bin[5] = voice_get_mask(d, v, NV_PAVS_VOICE_CFG_VBIN,
+-                            NV_PAVS_VOICE_CFG_VBIN_V5BIN);
+-    bin[6] = voice_get_mask(d, v, NV_PAVS_VOICE_CFG_FMT,
+-                            NV_PAVS_VOICE_CFG_FMT_V6BIN);
+-    bin[7] = voice_get_mask(d, v, NV_PAVS_VOICE_CFG_FMT,
+-                            NV_PAVS_VOICE_CFG_FMT_V7BIN);
+-
+     if (v < MCPX_HW_MAX_3D_VOICES) {
+         bin[0] = d->vp.hrtf_submix[0];
+         bin[1] = d->vp.hrtf_submix[1];
+         bin[2] = d->vp.hrtf_submix[2];
+         bin[3] = d->vp.hrtf_submix[3];
+-    }
+-
++    } else {
++        bin[0] = GET_MASK(cfg_vbin, NV_PAVS_VOICE_CFG_VBIN_V0BIN);
++        bin[1] = GET_MASK(cfg_vbin, NV_PAVS_VOICE_CFG_VBIN_V1BIN);
++        bin[2] = GET_MASK(cfg_vbin, NV_PAVS_VOICE_CFG_VBIN_V2BIN);
++        bin[3] = GET_MASK(cfg_vbin, NV_PAVS_VOICE_CFG_VBIN_V3BIN);
++    }
++    bin[4] = GET_MASK(cfg_vbin, NV_PAVS_VOICE_CFG_VBIN_V4BIN);
++    bin[5] = GET_MASK(cfg_vbin, NV_PAVS_VOICE_CFG_VBIN_V5BIN);
++    bin[6] = GET_MASK(cfg_fmt, NV_PAVS_VOICE_CFG_FMT_V6BIN);
++    bin[7] = GET_MASK(cfg_fmt, NV_PAVS_VOICE_CFG_FMT_V7BIN);
++
++    uint32_t tar_vola = ldl_le_p(&d->ram_ptr[voice_addr + NV_PAVS_VOICE_TAR_VOLA]);
++    uint32_t tar_volb = ldl_le_p(&d->ram_ptr[voice_addr + NV_PAVS_VOICE_TAR_VOLB]);
++    uint32_t tar_volc = ldl_le_p(&d->ram_ptr[voice_addr + NV_PAVS_VOICE_TAR_VOLC]);
+     uint16_t vol[8];
+-    vol[0] = voice_get_mask(d, v, NV_PAVS_VOICE_TAR_VOLA,
+-                            NV_PAVS_VOICE_TAR_VOLA_VOLUME0);
+-    vol[1] = voice_get_mask(d, v, NV_PAVS_VOICE_TAR_VOLA,
+-                            NV_PAVS_VOICE_TAR_VOLA_VOLUME1);
+-    vol[2] = voice_get_mask(d, v, NV_PAVS_VOICE_TAR_VOLB,
+-                            NV_PAVS_VOICE_TAR_VOLB_VOLUME2);
+-    vol[3] = voice_get_mask(d, v, NV_PAVS_VOICE_TAR_VOLB,
+-                            NV_PAVS_VOICE_TAR_VOLB_VOLUME3);
+-    vol[4] = voice_get_mask(d, v, NV_PAVS_VOICE_TAR_VOLC,
+-                            NV_PAVS_VOICE_TAR_VOLC_VOLUME4);
+-    vol[5] = voice_get_mask(d, v, NV_PAVS_VOICE_TAR_VOLC,
+-                            NV_PAVS_VOICE_TAR_VOLC_VOLUME5);
+-
+-    vol[6] = voice_get_mask(d, v, NV_PAVS_VOICE_TAR_VOLC,
+-                            NV_PAVS_VOICE_TAR_VOLC_VOLUME6_B11_8) << 8;
+-    vol[6] |= voice_get_mask(d, v, NV_PAVS_VOICE_TAR_VOLB,
+-                             NV_PAVS_VOICE_TAR_VOLB_VOLUME6_B7_4) << 4;
+-    vol[6] |= voice_get_mask(d, v, NV_PAVS_VOICE_TAR_VOLA,
+-                             NV_PAVS_VOICE_TAR_VOLA_VOLUME6_B3_0);
+-    vol[7] = voice_get_mask(d, v, NV_PAVS_VOICE_TAR_VOLC,
+-                            NV_PAVS_VOICE_TAR_VOLC_VOLUME7_B11_8) << 8;
+-    vol[7] |= voice_get_mask(d, v, NV_PAVS_VOICE_TAR_VOLB,
+-                             NV_PAVS_VOICE_TAR_VOLB_VOLUME7_B7_4) << 4;
+-    vol[7] |= voice_get_mask(d, v, NV_PAVS_VOICE_TAR_VOLA,
+-                             NV_PAVS_VOICE_TAR_VOLA_VOLUME7_B3_0);
++    vol[0] = GET_MASK(tar_vola, NV_PAVS_VOICE_TAR_VOLA_VOLUME0);
++    vol[1] = GET_MASK(tar_vola, NV_PAVS_VOICE_TAR_VOLA_VOLUME1);
++    vol[2] = GET_MASK(tar_volb, NV_PAVS_VOICE_TAR_VOLB_VOLUME2);
++    vol[3] = GET_MASK(tar_volb, NV_PAVS_VOICE_TAR_VOLB_VOLUME3);
++    vol[4] = GET_MASK(tar_volc, NV_PAVS_VOICE_TAR_VOLC_VOLUME4);
++    vol[5] = GET_MASK(tar_volc, NV_PAVS_VOICE_TAR_VOLC_VOLUME5);
++    vol[6] = (GET_MASK(tar_volc, NV_PAVS_VOICE_TAR_VOLC_VOLUME6_B11_8) << 8) |
++             (GET_MASK(tar_volb, NV_PAVS_VOICE_TAR_VOLB_VOLUME6_B7_4) << 4) |
++             GET_MASK(tar_vola, NV_PAVS_VOICE_TAR_VOLA_VOLUME6_B3_0);
++    vol[7] = (GET_MASK(tar_volc, NV_PAVS_VOICE_TAR_VOLC_VOLUME7_B11_8) << 8) |
++             (GET_MASK(tar_volb, NV_PAVS_VOICE_TAR_VOLB_VOLUME7_B7_4) << 4) |
++             GET_MASK(tar_vola, NV_PAVS_VOICE_TAR_VOLA_VOLUME7_B3_0);
+ 
+     // FIXME: If phase negations means to flip the signal upside down
+     //        we should modify volume of bin6 and bin7 here.
+@@ -1573,21 +1564,27 @@ static void voice_process(MCPXAPUState *d,
+         lpf = stereo ? (fmode == 1) : (fmode & 1);
+     }
+     if (lpf) {
+-        for (int ch = 0; ch < 2; ch++) {
++        for (unsigned int ch = 0; ch < channels; ch++) {
+             // FIXME: Cutoff modulation via NV_PAVS_VOICE_CFG_ENV1_EF_FCSCALE
+             int16_t fc = voice_get_mask(
+-                d, v, NV_PAVS_VOICE_TAR_FCA + (ch % channels) * 4,
++                d, v, NV_PAVS_VOICE_TAR_FCA + ch * 4,
+                 NV_PAVS_VOICE_TAR_FCA_FC0);
+-            float fc_f = clampf(pow(2, fc / 4096.0), 0.003906f, 1.0f);
++            float fc_f = clampf(powf(2.0f, fc / 4096.0f), 0.003906f, 1.0f);
+             uint16_t q = voice_get_mask(
+-                d, v, NV_PAVS_VOICE_TAR_FCA + (ch % channels) * 4,
++                d, v, NV_PAVS_VOICE_TAR_FCA + ch * 4,
+                 NV_PAVS_VOICE_TAR_FCA_FC1);
+-            float q_f = clampf(q / (1.0 * 0x8000), 0.079407f, 1.0f);
++            float q_f = clampf(q / (float)0x8000, 0.079407f, 1.0f);
+             sv_filter *filter = &d->vp.filters[v].svf[ch];
+             setup_svf(filter, fc_f, q_f, F_LP);
+             for (int i = 0; i < NUM_SAMPLES_PER_FRAME; i++) {
+-                samples[i][ch] = run_svf(filter, samples[i][ch]);
+-                samples[i][ch] = fmin(fmax(samples[i][ch], -1.0), 1.0);
++                samples[i][ch] = clampf(run_svf(filter, samples[i][ch]),
++                                        -1.0f, 1.0f);
++            }
++        }
++        if (channels == 1) {
++            d->vp.filters[v].svf[1] = d->vp.filters[v].svf[0];
++            for (int i = 0; i < NUM_SAMPLES_PER_FRAME; i++) {
++                samples[i][1] = samples[i][0];
+             }
+         }
+     }
+@@ -1610,6 +1607,9 @@ static void voice_process(MCPXAPUState *d,
+     // FIXME: ParaEQ
+ 
+     for (int b = 0; b < 8; b++) {
++        if ((vol[b] & 0xFFF) == 0xFFF || ea_value == 0.0f) {
++            continue;
++        }
+         float g = ea_value;
+         float hr;
+         if ((v < MCPX_HW_MAX_3D_VOICES) && (b < 4)) {
+@@ -1618,9 +1618,17 @@ static void voice_process(MCPXAPUState *d,
+         } else {
+             hr = 1 << d->vp.submix_headroom[bin[b]];
+         }
+-        g *= attenuate(vol[b])/hr;
++        g *= attenuate(vol[b]) / hr;
++        if (g == 0.0f) {
++            continue;
++        }
++        uint32_t bin_bit = 1u << bin[b];
++        if (!(worker->active_mixbins & bin_bit)) {
++            memset(mixbins[bin[b]], 0, sizeof(mixbins[0]));
++            worker->active_mixbins |= bin_bit;
++        }
+         for (int i = 0; i < NUM_SAMPLES_PER_FRAME; i++) {
+-            mixbins[bin[b]][i] += g*samples[i][b % channels];
++            mixbins[bin[b]][i] += g * samples[i][b % channels];
+         }
+     }
+ 
+@@ -1751,37 +1759,51 @@ static void voice_work_process(VoiceWorker *self)
+     const bool profile = false;
+ #endif
+ 
+-    int64_t start_time = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
++    int64_t start_time = profile ? qemu_clock_get_us(QEMU_CLOCK_REALTIME) : 0;
++    const bool single_inline =
++        vwd->num_workers == 1 && vwd->apu_participates && worker_id == 0;
+     g_dbg.vp.workers[worker_id].num_voices = self->queue_len;
+ 
+     if (self->queue_len) {
+-        qemu_mutex_unlock(&vwd->lock);
++        if (!single_inline) {
++            qemu_mutex_unlock(&vwd->lock);
++        }
+ 
+         // Process queued voices
+-        memset(self->mixbins, 0, sizeof(self->mixbins));
++        self->active_mixbins = 0;
+         if (d->monitor.point == MCPX_APU_DEBUG_MON_VP) {
+             memset(self->sample_buf, 0, sizeof(self->sample_buf));
+         }
++        uint64_t release_mask[4] = { 0 };
+         for (int i = 0; i < self->queue_len; i++) {
++            unsigned v = self->queue[i].voice;
+             if (self->queue[i].repeated) {
+-                voice_owner_enter(&d->vp.ownership, self->queue[i].voice,
++                voice_owner_enter(&d->vp.ownership, v,
+                                   self->queue[i].ordinal);
+             }
+             voice_process(d, self->mixbins, self->sample_buf,
+-                          self->queue[i].voice, self->queue[i].list,
++                          v, self->queue[i].list,
+                           self, profile);
+             bool finished = !self->queue[i].repeated ||
+-                voice_owner_complete_repeat(&d->vp.ownership, self->queue[i].voice);
++                voice_owner_complete_repeat(&d->vp.ownership, v);
+             if (finished && d->monitor.point != MCPX_APU_DEBUG_MON_VP) {
+-                voice_owner_release(&d->vp.ownership, self->queue[i].voice);
++                uint64_t bit = UINT64_C(1) << (v % 64);
++                if (unlikely(qatomic_read(&d->vp.ownership.guest[v / 64]) & bit)) {
++                    voice_owner_release(&d->vp.ownership, v);
++                } else {
++                    release_mask[v / 64] |= bit;
++                }
+             }
+         }
++        voice_owner_release_mask(&d->vp.ownership, release_mask);
+ 
+ #ifdef BOXDROID_XBOX_RUNTIME
+         int64_t lock_begin_us = profile ?
+             qemu_clock_get_us(QEMU_CLOCK_REALTIME) : 0;
+ #endif
+-        qemu_mutex_lock(&vwd->lock);
++        if (!single_inline) {
++            qemu_mutex_lock(&vwd->lock);
++        }
+ #ifdef BOXDROID_XBOX_RUNTIME
+         int64_t mix_begin_us = profile ?
+             qemu_clock_get_us(QEMU_CLOCK_REALTIME) : 0;
+@@ -1792,9 +1814,23 @@ static void voice_work_process(VoiceWorker *self)
+ #endif
+ 
+         // Add voice contributions
+-        for (int b = 0; b < NUM_MIXBINS; b++) {
+-            for (int s = 0; s < NUM_SAMPLES_PER_FRAME; s++) {
+-                vwd->mixbins[b][s] += self->mixbins[b][s];
++        if (single_inline) {
++            vwd->active_mixbins = self->active_mixbins;
++        } else {
++            uint32_t active = self->active_mixbins;
++            while (active) {
++                int b = ctz32(active);
++                uint32_t bit = 1u << b;
++                active &= ~bit;
++                if (!(vwd->active_mixbins & bit)) {
++                    memcpy(vwd->mixbins[b], self->mixbins[b],
++                           sizeof(vwd->mixbins[b]));
++                    vwd->active_mixbins |= bit;
++                } else {
++                    for (int s = 0; s < NUM_SAMPLES_PER_FRAME; s++) {
++                        vwd->mixbins[b][s] += self->mixbins[b][s];
++                    }
++                }
+             }
+         }
+         if (d->monitor.point == MCPX_APU_DEBUG_MON_VP) {
+@@ -1814,13 +1850,14 @@ static void voice_work_process(VoiceWorker *self)
+     }
+ 
+     vwd->workers_pending &= ~worker_bit;
+-    if (!vwd->workers_pending) {
++    if (!single_inline && !vwd->workers_pending) {
+         qemu_cond_signal(&vwd->work_finished);
+     }
+ 
+-    int64_t end_time = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
+-    g_dbg.vp.workers[worker_id].time_us = end_time - start_time;
+-
++    if (profile) {
++        int64_t end_time = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
++        g_dbg.vp.workers[worker_id].time_us = end_time - start_time;
++    }
+ }
+ 
+ static void *voice_worker_thread(void *arg)
+@@ -1876,6 +1913,14 @@ static void voice_work_enqueue(MCPXAPUState *d, int v, int list)
+ static void voice_work_schedule(MCPXAPUState *d)
+ {
+     VoiceWorkDispatch *vwd = &d->vp.voice_work_dispatch;
++    if (vwd->num_workers == 1) {
++        VoiceWorker *worker = &vwd->workers[0];
++        memcpy(worker->queue + worker->queue_len, vwd->queue,
++               vwd->queue_len * sizeof(vwd->queue[0]));
++        worker->queue_len += vwd->queue_len;
++        vwd->workers_pending |= UINT64_C(1);
++        return;
++    }
+     int next_worker_to_schedule = 0;
+     bool group = false;
+     uint32_t dirty = 0;
+@@ -1916,8 +1961,15 @@ static void voice_work_schedule(MCPXAPUState *d)
+         }
+ 
+         if (!group) {
+-            next_worker_to_schedule =
+-                (next_worker_to_schedule + 1) % vwd->num_workers;
++            int min_worker = (next_worker_to_schedule + 1) % vwd->num_workers;
++            for (int w = 0; w < vwd->num_workers; w++) {
++                int cand = (next_worker_to_schedule + 1 + w) % vwd->num_workers;
++                if (vwd->workers[cand].queue_len <
++                    vwd->workers[min_worker].queue_len) {
++                    min_worker = cand;
++                }
++            }
++            next_worker_to_schedule = min_worker;
+         }
+     }
+ }
+@@ -1927,8 +1979,13 @@ voice_work_dispatch(MCPXAPUState *d,
+                     float mixbins[NUM_MIXBINS][NUM_SAMPLES_PER_FRAME])
+ {
+     VoiceWorkDispatch *vwd = &d->vp.voice_work_dispatch;
++#ifdef BOXDROID_XBOX_RUNTIME
++    const bool profile = boxdroid_performance_profile_active();
++#else
++    const bool profile = false;
++#endif
+ 
+-    int64_t start_time = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
++    int64_t start_time = profile ? qemu_clock_get_us(QEMU_CLOCK_REALTIME) : 0;
+ 
+     VoiceWorkItem selected[MCPX_HW_MAX_VOICES];
+     unsigned selected_count = vwd->queue_len;
+@@ -1969,9 +2026,11 @@ voice_work_dispatch(MCPXAPUState *d,
+         break;
+     }
+ 
+-    qemu_mutex_lock(&vwd->lock);
++    const bool single_inline = vwd->num_workers == 1 && vwd->apu_participates;
++    if (!single_inline) {
++        qemu_mutex_lock(&vwd->lock);
++    }
+ #ifdef BOXDROID_XBOX_RUNTIME
+-    const bool profile = boxdroid_performance_profile_active();
+     int64_t dispatch_begin_us = profile ?
+         qemu_clock_get_us(QEMU_CLOCK_REALTIME) : 0;
+     if (profile) {
+@@ -1983,7 +2042,7 @@ voice_work_dispatch(MCPXAPUState *d,
+ #endif
+ 
+     if (vwd->queue_len) {
+-        memset(vwd->mixbins, 0, sizeof(vwd->mixbins));
++        vwd->active_mixbins = 0;
+ 
+         // Signal workers and wait for completion
+         voice_work_schedule(d);
+@@ -2019,22 +2078,30 @@ voice_work_dispatch(MCPXAPUState *d,
+         }
+ #endif
+         if (monitor) {
+-            for (unsigned v = 0; v < MCPX_HW_MAX_VOICES; v++) {
+-                voice_owner_release(&d->vp.ownership, v);
+-            }
++            uint64_t all_claims[4] = {
++                UINT64_MAX, UINT64_MAX, UINT64_MAX, UINT64_MAX
++            };
++            voice_owner_release_mask(&d->vp.ownership, all_claims);
+         }
+         vwd->queue_len = 0;
+ 
+         // Add voice contributions
+-        for (int b = 0; b < NUM_MIXBINS; b++) {
++        float (*src_mixbins)[NUM_SAMPLES_PER_FRAME] =
++            single_inline ? vwd->workers[0].mixbins : vwd->mixbins;
++        uint32_t active = vwd->active_mixbins;
++        while (active) {
++            int b = ctz32(active);
++            active &= active - 1;
+             for (int s = 0; s < NUM_SAMPLES_PER_FRAME; s++) {
+-                mixbins[b][s] += vwd->mixbins[b][s];
++                mixbins[b][s] += src_mixbins[b][s];
+             }
+         }
+     }
+ 
+-    int64_t end_time = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
+-    g_dbg.vp.total_worker_time_us = end_time - start_time;
++    int64_t end_time = profile ? qemu_clock_get_us(QEMU_CLOCK_REALTIME) : 0;
++    if (profile) {
++        g_dbg.vp.total_worker_time_us = end_time - start_time;
++    }
+ #ifdef BOXDROID_XBOX_RUNTIME
+     if (profile && end_time - vwd->profile_last_us >= 1000000) {
+         uint64_t work = 0, lock_wait = 0, mix_hold = 0, wait = 0, wakes = 0;
+@@ -2080,7 +2147,9 @@ voice_work_dispatch(MCPXAPUState *d,
+     }
+ #endif
+ 
+-    qemu_mutex_unlock(&vwd->lock);
++    if (!single_inline) {
++        qemu_mutex_unlock(&vwd->lock);
++    }
+ }
+ 
+ static void voice_work_init(MCPXAPUState *d)
+@@ -2183,18 +2252,19 @@ void mcpx_apu_vp_frame(MCPXAPUState *d, float mixbins[NUM_MIXBINS][NUM_SAMPLES_P
+         }
+     }
+ #endif
+-    memset(d->vp.sample_buf, 0, sizeof(d->vp.sample_buf));
++    if (d->monitor.point == MCPX_APU_DEBUG_MON_VP) {
++        memset(d->vp.sample_buf, 0, sizeof(d->vp.sample_buf));
++    }
+ 
+     /* Process all voices, mixing each into the affected MIXBINs */
++    qemu_mutex_lock(&d->vp.list_lock);
+     for (int list = 0; list < 3; list++) {
+         hwaddr top, current, next;
+         top = voice_list_regs[list].top;
+         current = voice_list_regs[list].current;
+         next = voice_list_regs[list].next;
+ 
+-        qemu_mutex_lock(&d->vp.list_lock);
+         d->regs[current] = d->regs[top];
+-        qemu_mutex_unlock(&d->vp.list_lock);
+         DPRINTF("list %d current voice %d\n", list, d->regs[current]);
+ 
+         for (int i = 0; d->regs[current] != 0xFFFF; i++) {
+@@ -2206,7 +2276,6 @@ void mcpx_apu_vp_frame(MCPXAPUState *d, float mixbins[NUM_MIXBINS][NUM_SAMPLES_P
+ 
+             uint16_t v = d->regs[current];
+             assert(v < MCPX_HW_MAX_VOICES);
+-            qemu_mutex_lock(&d->vp.list_lock);
+             d->regs[next] = voice_get_mask(d, v, NV_PAVS_VOICE_TAR_PITCH_LINK,
+                                NV_PAVS_VOICE_TAR_PITCH_LINK_NEXT_VOICE_HANDLE);
+             if (!voice_get_mask(d, v, NV_PAVS_VOICE_PAR_STATE,
+@@ -2216,10 +2285,9 @@ void mcpx_apu_vp_frame(MCPXAPUState *d, float mixbins[NUM_MIXBINS][NUM_SAMPLES_P
+                 voice_work_enqueue(d, v, list);
+             }
+             d->regs[current] = d->regs[next];
+-            qemu_mutex_unlock(&d->vp.list_lock);
+-
+         }
+     }
++    qemu_mutex_unlock(&d->vp.list_lock);
+     voice_work_dispatch(d, mixbins);
+ 
+     if (d->monitor.point == MCPX_APU_DEBUG_MON_VP) {
+diff --git a/hw/xbox/mcpx/apu/vp/vp.h b/hw/xbox/mcpx/apu/vp/vp.h
+index fbfc48f..876ce02 100644
+--- a/hw/xbox/mcpx/apu/vp/vp.h
++++ b/hw/xbox/mcpx/apu/vp/vp.h
+@@ -64,6 +64,7 @@ typedef struct VoiceWorker {
+     QemuCond work_pending;
+     float mixbins[NUM_MIXBINS][NUM_SAMPLES_PER_FRAME];
+     float sample_buf[NUM_SAMPLES_PER_FRAME][2];
++    uint32_t active_mixbins;
+     VoiceWorkItem queue[MCPX_HW_MAX_VOICES];
+     int queue_len;
+ #ifdef BOXDROID_XBOX_RUNTIME
+@@ -84,6 +85,7 @@ typedef struct VoiceWorkDispatch {
+     uint64_t workers_pending;
+     QemuCond work_finished;
+     float mixbins[NUM_MIXBINS][NUM_SAMPLES_PER_FRAME];
++    uint32_t active_mixbins;
+     VoiceWorkItem queue[MCPX_HW_MAX_VOICES];
+     int queue_len;
+ #ifdef BOXDROID_XBOX_RUNTIME
+diff --git a/hw/xbox/nv2a/pgraph/pgraph.c b/hw/xbox/nv2a/pgraph/pgraph.c
+index e0cd12c..f5aa433 100644
+--- a/hw/xbox/nv2a/pgraph/pgraph.c
++++ b/hw/xbox/nv2a/pgraph/pgraph.c
+@@ -932,6 +932,48 @@ DEF_METHOD(NV097, SET_FLIP_MODULO)
+              parameter);
+ }
+ 
++#ifdef BOXDROID_RUNTIME
++#include <sys/mman.h>
++#include <sys/system_properties.h>
++/* Optional single-producer RAM capture: one clock read and two stores/flip.
++ * No per-frame log/format/allocation/I/O. Pre-faulted MAP_SHARED file, bounded.
++ */
++static void validation_record_flip(void)
++{
++    enum { CAPACITY = 131072 };
++    static bool checked;
++    static uint64_t *capture;
++    static uint64_t count;
++    if (unlikely(!checked)) {
++        char value[PROP_VALUE_MAX] = {0};
++        checked = true;
++        if (__system_property_get("debug.boxdroid.validation_frames", value) &&
++            value[0] == '1') {
++            size_t bytes = (CAPACITY + 8) * sizeof(uint64_t);
++            int fd = open("/data/data/org.boxdroid/files/validation-frames.bin",
++                          O_RDWR | O_CREAT | O_TRUNC, 0600);
++            if (fd >= 0) {
++                if (ftruncate(fd, bytes) == 0) {
++                    void *p = mmap(NULL, bytes, PROT_READ | PROT_WRITE,
++                                   MAP_SHARED, fd, 0);
++                    if (p != MAP_FAILED) {
++                        capture = p;
++                        memset(capture, 0, bytes);
++                        capture[0] = UINT64_C(0x42444652414d4531);
++                        capture[1] = CAPACITY;
++                    }
++                }
++                close(fd);
++            }
++        }
++    }
++    if (unlikely(capture != NULL) && count < CAPACITY) {
++        capture[8 + count] = g_get_monotonic_time();
++        __atomic_store_n(&capture[2], ++count, __ATOMIC_RELEASE);
++    }
++}
++#endif
++
+ DEF_METHOD(NV097, FLIP_INCREMENT_WRITE)
+ {
+     uint32_t old =
+@@ -951,6 +993,7 @@ DEF_METHOD(NV097, FLIP_INCREMENT_WRITE)
+     pg->frame_time++;
+ #ifdef BOXDROID_RUNTIME
+     qatomic_inc(&guest_flips);
++    validation_record_flip();
+     if (boxdroid_performance_profile_active()) {
+         __android_log_print(ANDROID_LOG_INFO, "BoxDroid3",
+             "GUEST_FLIP mono_us=%" PRId64 " guest_flips=%" PRIu64,
+diff --git a/hw/xbox/nv2a/pgraph/vk/command.c b/hw/xbox/nv2a/pgraph/vk/command.c
+index ad04b2c..158d124 100644
+--- a/hw/xbox/nv2a/pgraph/vk/command.c
++++ b/hw/xbox/nv2a/pgraph/vk/command.c
+@@ -99,12 +99,19 @@ void pgraph_vk_end_single_time_commands(PGRAPHState *pg, VkCommandBuffer cmd)
+         .commandBufferCount = 1,
+         .pCommandBuffers = &cmd,
+     };
+-    int64_t aux_begin_us = g_get_monotonic_time();
++#ifdef BOXDROID_XBOX_RUNTIME
++    bool timings = boxdroid_diag_timings_enabled();
++#else
++    bool timings = false;
++#endif
++    int64_t aux_begin_us = timings ? g_get_monotonic_time() : 0;
+     VK_CHECK(vkQueueSubmit(r->queue, 1, &submit_info, VK_NULL_HANDLE));
+     nv2a_profile_inc_counter(NV2A_PROF_QUEUE_SUBMIT_AUX);
+     VK_CHECK(vkQueueWaitIdle(r->queue));
+-    r->trace_aux_wait_us += (g_get_monotonic_time() - aux_begin_us);
+-    r->trace_aux_calls++;
++    if (timings) {
++        r->trace_aux_wait_us += (g_get_monotonic_time() - aux_begin_us);
++        r->trace_aux_calls++;
++    }
+ 
+     r->in_aux_command_buffer = false;
+ }
+diff --git a/hw/xbox/nv2a/pgraph/vk/draw.c b/hw/xbox/nv2a/pgraph/vk/draw.c
+index faa5052..527c525 100644
+--- a/hw/xbox/nv2a/pgraph/vk/draw.c
++++ b/hw/xbox/nv2a/pgraph/vk/draw.c
+@@ -27,6 +27,9 @@
+ #include <android/log.h>
+ static void render_metric(unsigned kind, int64_t elapsed)
+ {
++    if (!boxdroid_diag_timings_enabled()) {
++        return;
++    }
+     static struct { uint64_t calls, total, maximum; } stats[12];
+     static int64_t report;
+     int64_t now=g_get_monotonic_time();
+@@ -1632,15 +1635,22 @@ void pgraph_vk_finish(PGRAPHState *pg, FinishReason finish_reason)
+         };
+         nv2a_profile_inc_counter(NV2A_PROF_QUEUE_SUBMIT);
+         vkResetFences(r->device, 1, &r->command_buffer_fence);
+-        int64_t submit_result_begin = g_get_monotonic_time();
++#ifdef BOXDROID_XBOX_RUNTIME
++        bool timings = boxdroid_diag_timings_enabled();
++#else
++        bool timings = false;
++#endif
++        int64_t submit_result_begin = timings ? g_get_monotonic_time() : 0;
+         VkResult submit_result = vkQueueSubmit(
+             r->queue, ARRAY_SIZE(submit_infos), submit_infos,
+             r->command_buffer_fence);
+-        int64_t submit_dt = g_get_monotonic_time() - submit_result_begin;
+-        r->trace_submit_us += submit_dt;
++        if (timings) {
++            int64_t submit_dt = g_get_monotonic_time() - submit_result_begin;
++            r->trace_submit_us += submit_dt;
+ #ifdef BOXDROID_RUNTIME
+-        render_metric(1, submit_dt);
++            render_metric(1, submit_dt);
+ #endif
++        }
+ #ifdef BOXDROID_XBOX_RUNTIME
+         if (boxdroid_target_draw_queued) {
+             if (!boxdroid_logged_vk32_first_render_submit) {
+@@ -1678,17 +1688,19 @@ void pgraph_vk_finish(PGRAPHState *pg, FinishReason finish_reason)
+             check_budget = true;
+         }
+ 
+-        int64_t fence_result_begin = g_get_monotonic_time();
++        int64_t fence_result_begin = timings ? g_get_monotonic_time() : 0;
+         VkResult fence_result = vkWaitForFences(
+             r->device, 1, &r->command_buffer_fence, VK_TRUE, UINT64_MAX);
+-        int64_t fence_dt = g_get_monotonic_time() - fence_result_begin;
+-        r->trace_fence_us += fence_dt;
+-        if (fence_dt > r->trace_fence_max_us) {
+-            r->trace_fence_max_us = fence_dt;
+-        }
++        if (timings) {
++            int64_t fence_dt = g_get_monotonic_time() - fence_result_begin;
++            r->trace_fence_us += fence_dt;
++            if (fence_dt > r->trace_fence_max_us) {
++                r->trace_fence_max_us = fence_dt;
++            }
+ #ifdef BOXDROID_RUNTIME
+-        render_metric(2, fence_dt);
++            render_metric(2, fence_dt);
+ #endif
++        }
+         VK_CHECK(fence_result);
+ #ifdef BOXDROID_XBOX_RUNTIME
+         if (boxdroid_target_draw_queued) {
+diff --git a/hw/xbox/nv2a/pgraph/vk/renderer.c b/hw/xbox/nv2a/pgraph/vk/renderer.c
+index c15807b..372f48f 100644
+--- a/hw/xbox/nv2a/pgraph/vk/renderer.c
++++ b/hw/xbox/nv2a/pgraph/vk/renderer.c
+@@ -168,37 +168,47 @@ static void pgraph_vk_process_pending(NV2AState *d)
+ static void pgraph_vk_flip_stall(NV2AState *d)
+ {
+     PGRAPHVkState *r = d->pgraph.vk_renderer_state;
+-    int64_t finish_begin_us = g_get_monotonic_time();
++#ifdef BOXDROID_XBOX_RUNTIME
++    bool timings = boxdroid_diag_timings_enabled();
++#else
++    bool timings = false;
++#endif
++    int64_t finish_begin_us = timings ? g_get_monotonic_time() : 0;
+     pgraph_vk_finish(&d->pgraph, VK_FINISH_REASON_FLIP_STALL);
+-    int64_t now_us = g_get_monotonic_time();
+-    int64_t finish_us = now_us - finish_begin_us;
+-    int64_t flip_dt_us = r->trace_last_flip_us ? (now_us - r->trace_last_flip_us) : 0;
+-    int64_t vblank_us = d->pgraph.vblank_wait_us;
+-    r->trace_last_flip_us = now_us;
+-    d->pgraph.flip_stall_start_us = now_us;
+-    d->pgraph.vblank_wait_us = 0;
+-
+-    int64_t vcpu_dl_us = qatomic_xchg(&r->trace_vcpu_dl_wait_us, 0);
+-    int64_t scan_lock_us = qatomic_xchg(&r->trace_scanout_lock_us, 0);
+-    int64_t scan_dl_us = qatomic_xchg(&r->trace_scanout_dl_us, 0);
++    int64_t now_us = (timings || r->trace_pipe_calls > 0 ||
++                      r->pipeline_cache_dirty) ?
++                     g_get_monotonic_time() : 0;
++    if (timings) {
++        int64_t finish_us = now_us - finish_begin_us;
++        int64_t flip_dt_us =
++            r->trace_last_flip_us ? (now_us - r->trace_last_flip_us) : 0;
++        int64_t vblank_us = d->pgraph.vblank_wait_us;
++        r->trace_last_flip_us = now_us;
++        d->pgraph.flip_stall_start_us = now_us;
++        d->pgraph.vblank_wait_us = 0;
++
++        int64_t vcpu_dl_us = qatomic_xchg(&r->trace_vcpu_dl_wait_us, 0);
++        int64_t scan_lock_us = qatomic_xchg(&r->trace_scanout_lock_us, 0);
++        int64_t scan_dl_us = qatomic_xchg(&r->trace_scanout_dl_us, 0);
+ #ifdef __ANDROID__
+-    __android_log_print(
+-        ANDROID_LOG_INFO, "BoxDroid",
+-        "FLIP_TRACE flip_dt_us=%" PRId64 " finish_us=%" PRId64
+-        " submit_us=%" PRId64 " fence_us=%" PRId64 " fence_max_us=%" PRId64
+-        " aux_us=%" PRId64 " aux_n=%u pipe_us=%" PRId64 " pipe_n=%u"
+-        " shd_us=%" PRId64 " shd_n=%u tex_us=%" PRId64 " tex_up=%u"
+-        " surf_up_us=%" PRId64 " surf_up_n=%u surf_dn_us=%" PRId64 " surf_dn_n=%u"
+-        " vcpu_dl_us=%" PRId64 " scan_lock_us=%" PRId64 " scan_dl_us=%" PRId64
+-        " vblank_us=%" PRId64,
+-        flip_dt_us, finish_us, r->trace_submit_us, r->trace_fence_us,
+-        r->trace_fence_max_us, r->trace_aux_wait_us, r->trace_aux_calls,
+-        r->trace_pipe_us, r->trace_pipe_calls, r->trace_shader_us,
+-        r->trace_shader_calls, r->trace_tex_us, r->trace_tex_uploads,
+-        r->trace_surf_up_us, r->trace_surf_up_calls,
+-        r->trace_surf_down_us, r->trace_surf_down_calls,
+-        vcpu_dl_us, scan_lock_us, scan_dl_us, vblank_us);
++        __android_log_print(
++            ANDROID_LOG_INFO, "BoxDroid",
++            "FLIP_TRACE flip_dt_us=%" PRId64 " finish_us=%" PRId64
++            " submit_us=%" PRId64 " fence_us=%" PRId64 " fence_max_us=%" PRId64
++            " aux_us=%" PRId64 " aux_n=%u pipe_us=%" PRId64 " pipe_n=%u"
++            " shd_us=%" PRId64 " shd_n=%u tex_us=%" PRId64 " tex_up=%u"
++            " surf_up_us=%" PRId64 " surf_up_n=%u surf_dn_us=%" PRId64 " surf_dn_n=%u"
++            " vcpu_dl_us=%" PRId64 " scan_lock_us=%" PRId64 " scan_dl_us=%" PRId64
++            " vblank_us=%" PRId64,
++            flip_dt_us, finish_us, r->trace_submit_us, r->trace_fence_us,
++            r->trace_fence_max_us, r->trace_aux_wait_us, r->trace_aux_calls,
++            r->trace_pipe_us, r->trace_pipe_calls, r->trace_shader_us,
++            r->trace_shader_calls, r->trace_tex_us, r->trace_tex_uploads,
++            r->trace_surf_up_us, r->trace_surf_up_calls,
++            r->trace_surf_down_us, r->trace_surf_down_calls,
++            vcpu_dl_us, scan_lock_us, scan_dl_us, vblank_us);
+ #endif
++    }
+     if (r->trace_pipe_calls > 0) {
+         r->pipeline_cache_dirty = true;
+         r->pipeline_cache_dirty_us = now_us;
+@@ -253,10 +263,18 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
+ {
+     PGRAPHState *pg = &d->pgraph;
+     PGRAPHVkState *r = pg->vk_renderer_state;
++#ifdef BOXDROID_XBOX_RUNTIME
++    bool timings = boxdroid_diag_timings_enabled();
++#else
++    bool timings = false;
++#endif
+ 
+-    int64_t lock_begin_us = g_get_monotonic_time();
++    int64_t lock_begin_us = timings ? g_get_monotonic_time() : 0;
+     qemu_mutex_lock(&d->pfifo.lock);
+-    qatomic_add(&r->trace_scanout_lock_us, g_get_monotonic_time() - lock_begin_us);
++    if (timings) {
++        qatomic_add(&r->trace_scanout_lock_us,
++                    g_get_monotonic_time() - lock_begin_us);
++    }
+ 
+     VGADisplayParams vga_display_params;
+     int display_width = 0, display_height = 0;
+@@ -471,9 +489,12 @@ static int pgraph_vk_get_framebuffer_surface(NV2AState *d)
+                         surface->width, surface->height);
+ #endif
+ #endif
+-    int64_t dl_begin_us = g_get_monotonic_time();
++    int64_t dl_begin_us = timings ? g_get_monotonic_time() : 0;
+     pgraph_vk_wait_for_surface_download(surface);
+-    qatomic_add(&r->trace_scanout_dl_us, g_get_monotonic_time() - dl_begin_us);
++    if (timings) {
++        qatomic_add(&r->trace_scanout_dl_us,
++                    g_get_monotonic_time() - dl_begin_us);
++    }
+ #ifdef __ANDROID__
+ #ifdef BOXDROID_XBOX_RUNTIME
+     boxdroid_diag_event(BOXDROID_DIAG_READBACK_COMPLETE,
+diff --git a/hw/xbox/nv2a/pgraph/vk/renderer.h b/hw/xbox/nv2a/pgraph/vk/renderer.h
+index 95ab8c5..c34df5d 100644
+--- a/hw/xbox/nv2a/pgraph/vk/renderer.h
++++ b/hw/xbox/nv2a/pgraph/vk/renderer.h
+@@ -40,6 +40,9 @@
+ #include "debug.h"
+ #include "constants.h"
+ #include "glsl.h"
++#ifdef BOXDROID_XBOX_RUNTIME
++#include "hw/xbox/nv2a/boxdroid-diagnostics.h"
++#endif
+ 
+ #ifdef CONFIG_OPENGL
+ #define HAVE_EXTERNAL_MEMORY 1
+diff --git a/hw/xbox/nv2a/pgraph/vk/shaders.c b/hw/xbox/nv2a/pgraph/vk/shaders.c
+index 85fb2ac..a7e5047 100644
+--- a/hw/xbox/nv2a/pgraph/vk/shaders.c
++++ b/hw/xbox/nv2a/pgraph/vk/shaders.c
+@@ -327,7 +327,12 @@ static void shader_module_cache_entry_init(Lru *lru, LruNode *node,
+         container_of(node, ShaderModuleCacheEntry, node);
+     memcpy(&module->key, key, sizeof(ShaderModuleCacheKey));
+ 
+-    int64_t shader_begin_us = g_get_monotonic_time();
++#ifdef BOXDROID_XBOX_RUNTIME
++    bool timings = boxdroid_diag_timings_enabled();
++#else
++    bool timings = false;
++#endif
++    int64_t shader_begin_us = timings ? g_get_monotonic_time() : 0;
+     MString *code;
+ 
+     switch (module->key.kind) {
+@@ -352,8 +357,10 @@ static void shader_module_cache_entry_init(Lru *lru, LruNode *node,
+         r, module->key.kind, mstring_get_str(code));
+     pgraph_vk_ref_shader_module(module->module_info);
+     mstring_unref(code);
+-    r->trace_shader_us += (g_get_monotonic_time() - shader_begin_us);
+-    r->trace_shader_calls++;
++    if (timings) {
++        r->trace_shader_us += (g_get_monotonic_time() - shader_begin_us);
++        r->trace_shader_calls++;
++    }
+ }
+ 
+ static void shader_module_cache_entry_post_evict(Lru *lru, LruNode *node)
+diff --git a/hw/xbox/nv2a/pgraph/vk/surface.c b/hw/xbox/nv2a/pgraph/vk/surface.c
+index 39d19d1..7763453 100644
+--- a/hw/xbox/nv2a/pgraph/vk/surface.c
++++ b/hw/xbox/nv2a/pgraph/vk/surface.c
+@@ -368,8 +368,15 @@ static void download_surface_to_buffer(NV2AState *d, SurfaceBinding *surface,
+         return;
+     }
+ 
+-    int64_t surf_dl_begin_us = g_get_monotonic_time();
+-    r->trace_surf_down_calls++;
++#ifdef BOXDROID_XBOX_RUNTIME
++    bool timings = boxdroid_diag_timings_enabled();
++#else
++    bool timings = false;
++#endif
++    int64_t surf_dl_begin_us = timings ? g_get_monotonic_time() : 0;
++    if (timings) {
++        r->trace_surf_down_calls++;
++    }
+ 
+     nv2a_profile_inc_counter(NV2A_PROF_SURF_DOWNLOAD);
+ 
+@@ -858,7 +865,9 @@ static void download_surface_to_buffer(NV2AState *d, SurfaceBinding *surface,
+                                 "copied-from-staging-to-vram");
+     }
+ #endif
+-    r->trace_surf_down_us += (g_get_monotonic_time() - surf_dl_begin_us);
++    if (timings) {
++        r->trace_surf_down_us += (g_get_monotonic_time() - surf_dl_begin_us);
++    }
+ }
+ 
+ static void download_surface(NV2AState *d, SurfaceBinding *surface, bool force)
+@@ -998,14 +1007,22 @@ static void surface_access_callback(void *opaque, MemoryRegion *mr, hwaddr addr,
+     qemu_mutex_unlock(&d->pgraph.lock);
+ 
+     if (wait_for_downloads) {
+-        int64_t wait_begin_us = g_get_monotonic_time();
++#ifdef BOXDROID_XBOX_RUNTIME
++        bool timings = boxdroid_diag_timings_enabled();
++#else
++        bool timings = false;
++#endif
++        int64_t wait_begin_us = timings ? g_get_monotonic_time() : 0;
+         qemu_mutex_lock(&d->pfifo.lock);
+         qemu_event_reset(&r->downloads_complete);
+         qatomic_set(&r->downloads_pending, true);
+         pfifo_kick(d);
+         qemu_mutex_unlock(&d->pfifo.lock);
+         qemu_event_wait(&r->downloads_complete);
+-        qatomic_add(&r->trace_vcpu_dl_wait_us, g_get_monotonic_time() - wait_begin_us);
++        if (timings) {
++            qatomic_add(&r->trace_vcpu_dl_wait_us,
++                        g_get_monotonic_time() - wait_begin_us);
++        }
+     }
+ }
+ 
+@@ -1493,7 +1510,12 @@ void pgraph_vk_upload_surface_data(NV2AState *d, SurfaceBinding *surface,
+         return;
+     }
+ 
+-    int64_t surf_up_begin_us = g_get_monotonic_time();
++#ifdef BOXDROID_XBOX_RUNTIME
++    bool timings = boxdroid_diag_timings_enabled();
++#else
++    bool timings = false;
++#endif
++    int64_t surf_up_begin_us = timings ? g_get_monotonic_time() : 0;
+ 
+     nv2a_profile_inc_counter(NV2A_PROF_SURF_UPLOAD);
+ 
+@@ -1841,8 +1863,10 @@ void pgraph_vk_upload_surface_data(NV2AState *d, SurfaceBinding *surface,
+     nv2a_profile_inc_counter(NV2A_PROF_QUEUE_SUBMIT_2);
+     pgraph_vk_end_debug_marker(r, cmd);
+     pgraph_vk_end_single_time_commands(pg, cmd);
+-    r->trace_surf_up_calls++;
+-    r->trace_surf_up_us += (g_get_monotonic_time() - surf_up_begin_us);
++    if (timings) {
++        r->trace_surf_up_calls++;
++        r->trace_surf_up_us += (g_get_monotonic_time() - surf_up_begin_us);
++    }
+ 
+     surface->initialized = true;
+ }
+diff --git a/hw/xbox/nv2a/pgraph/vk/texture.c b/hw/xbox/nv2a/pgraph/vk/texture.c
+index 6fcc3ac..e1fd3e4 100644
+--- a/hw/xbox/nv2a/pgraph/vk/texture.c
++++ b/hw/xbox/nv2a/pgraph/vk/texture.c
+@@ -28,6 +28,9 @@
+ #include "hw/xbox/nv2a/pgraph/swizzle.h"
+ #include "qemu/fast-hash.h"
+ #include "qemu/lru.h"
++#if defined(BOXDROID_XBOX_RUNTIME)
++#include "hw/xbox/nv2a/boxdroid-diagnostics.h"
++#endif
+ #include "renderer.h"
+ 
+ static void texture_cache_release_node_resources(PGRAPHVkState *r, TextureBinding *snode);
+@@ -1434,7 +1437,12 @@ void pgraph_vk_bind_textures(NV2AState *d)
+         return;
+     }
+ 
+-    int64_t tex_begin_us = g_get_monotonic_time();
++#ifdef BOXDROID_XBOX_RUNTIME
++    bool timings = boxdroid_diag_timings_enabled();
++#else
++    bool timings = false;
++#endif
++    int64_t tex_begin_us = timings ? g_get_monotonic_time() : 0;
+     for (int i = 0; i < NV2A_MAX_TEXTURES; i++) {
+         if (!pgraph_is_texture_enabled(pg, i)) {
+             r->texture_bindings[i] = &r->dummy_texture;
+@@ -1445,7 +1453,9 @@ void pgraph_vk_bind_textures(NV2AState *d)
+ 
+         pg->texture_dirty[i] = false; // FIXME: Move to renderer?
+     }
+-    r->trace_tex_us += (g_get_monotonic_time() - tex_begin_us);
++    if (timings) {
++        r->trace_tex_us += (g_get_monotonic_time() - tex_begin_us);
++    }
+ 
+     r->texture_bindings_changed = true;
+     update_timestamps(r);
+diff --git a/util/main-loop.c b/util/main-loop.c
+index e6b70e1..c4eb98d 100644
+--- a/util/main-loop.c
++++ b/util/main-loop.c
+@@ -37,6 +37,7 @@
+ #include "qom/object.h"
+ #ifdef BOXDROID_RUNTIME
+ #include <android/log.h>
++extern bool boxdroid_diag_timings_enabled(void);
+ #endif
+ 
+ #ifdef XBOX
+@@ -372,7 +373,8 @@ static int os_host_main_loop_wait(int64_t timeout)
+     glib_pollfds_fill(&timeout);
+ 
+ #ifdef BOXDROID_RUNTIME
+-    int64_t perfStart = g_get_monotonic_time();
++    bool timings = boxdroid_diag_timings_enabled();
++    int64_t perfStart = timings ? g_get_monotonic_time() : 0;
+ #endif
+     bql_unlock();
+     replay_mutex_unlock();
+@@ -382,34 +384,36 @@ static int os_host_main_loop_wait(int64_t timeout)
+ #endif
+     ret = qemu_poll_ns((GPollFD *)gpollfds->data, gpollfds->len, timeout);
+ #ifdef BOXDROID_RUNTIME
+-    int64_t perfPoll = g_get_monotonic_time();
++    int64_t perfPoll = timings ? g_get_monotonic_time() : 0;
+ #endif
+ #ifdef XBOX
+     qemu_mutex_lock_main_loop();
+ #endif
+ 
+ #ifdef BOXDROID_RUNTIME
+-    int64_t perfMain = g_get_monotonic_time();
++    int64_t perfMain = timings ? g_get_monotonic_time() : 0;
+ #endif
+     replay_mutex_lock();
+ #ifdef BOXDROID_RUNTIME
+-    int64_t perfReplay = g_get_monotonic_time();
++    int64_t perfReplay = timings ? g_get_monotonic_time() : 0;
+ #endif
+     bql_lock();
+ #ifdef BOXDROID_RUNTIME
+-    static int64_t report, poll, mainWait, replayWait, bqlWait, maximumBql;
+-    static unsigned count;
+-    int64_t now = g_get_monotonic_time();
+-    if (!report) report=now;
+-    poll+=perfPoll-perfStart; mainWait+=perfMain-perfPoll;
+-    replayWait+=perfReplay-perfMain; bqlWait+=now-perfReplay;
+-    maximumBql=MAX(maximumBql,now-perfReplay); ++count;
+-    if (now-report >= G_USEC_PER_SEC) {
+-        __android_log_print(ANDROID_LOG_INFO,"BoxDroid",
+-            "MAINLOOP elapsed_us=%lld calls=%u poll_us=%lld main_lock_us=%lld replay_us=%lld bql_us=%lld max_bql_us=%lld last_timeout_ns=%lld",
+-            (long long)(now-report),count,(long long)poll,(long long)mainWait,
+-            (long long)replayWait,(long long)bqlWait,(long long)maximumBql,(long long)timeout);
+-        report=now;count=0;poll=mainWait=replayWait=bqlWait=maximumBql=0;
++    if (timings) {
++        static int64_t report, poll, mainWait, replayWait, bqlWait, maximumBql;
++        static unsigned count;
++        int64_t now = g_get_monotonic_time();
++        if (!report) report=now;
++        poll+=perfPoll-perfStart; mainWait+=perfMain-perfPoll;
++        replayWait+=perfReplay-perfMain; bqlWait+=now-perfReplay;
++        maximumBql=MAX(maximumBql,now-perfReplay); ++count;
++        if (now-report >= G_USEC_PER_SEC) {
++            __android_log_print(ANDROID_LOG_INFO,"BoxDroid",
++                "MAINLOOP elapsed_us=%lld calls=%u poll_us=%lld main_lock_us=%lld replay_us=%lld bql_us=%lld max_bql_us=%lld last_timeout_ns=%lld",
++                (long long)(now-report),count,(long long)poll,(long long)mainWait,
++                (long long)replayWait,(long long)bqlWait,(long long)maximumBql,(long long)timeout);
++            report=now;count=0;poll=mainWait=replayWait=bqlWait=maximumBql=0;
++        }
+     }
+ #endif
+ 

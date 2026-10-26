@@ -602,6 +602,7 @@ bool createSurface(JNIEnv *env, jobject javaSurface, uint32_t width, uint32_t he
 }
 
 void destroyStaging() {
+    p.frameGeometryValid = false;
     if (p.stagingMapped) vkUnmapMemory(p.device, p.stagingMemory);
     if (p.stagingBuffer) vkDestroyBuffer(p.device, p.stagingBuffer, nullptr);
     if (p.stagingMemory) vkFreeMemory(p.device, p.stagingMemory, nullptr);
@@ -861,11 +862,14 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
         const std::array<uint32_t, 9> geometry = {sourceWidth, sourceHeight, sourceStride,
             p.requestedWidth, p.requestedHeight, p.nativeWindowWidth, p.nativeWindowHeight,
             p.extent.width, p.extent.height};
+        auto *dst = static_cast<uint8_t *>(p.stagingMapped);
         if (!p.frameGeometryValid || geometry != p.frameGeometryKey) {
             p.frameGeometryValid = true;
             p.frameGeometryKey = geometry;
             p.frameFit = fit;
             ++p.geometryChanges;
+            const size_t destinationPixels = static_cast<size_t>(p.extent.width) * p.extent.height;
+            std::fill_n(reinterpret_cast<uint32_t *>(dst), destinationPixels, 0xFF000000U);
             // Geometry events only, with a fixed cap for this diagnostic harness.
             if (p.geometryChanges <= 32) log(ANDROID_LOG_INFO,
                 "FRAME_UPLOAD_GEOMETRY change=" + std::to_string(p.geometryChanges) +
@@ -880,10 +884,6 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
                 std::to_string(destinationY) + " aspect_fit=1 pre_transform=" +
                 hexValue(p.swapchainPreTransform));
         }
-        auto *dst = static_cast<uint8_t *>(p.stagingMapped);
-        const size_t destinationBytes = static_cast<size_t>(p.extent.width) * p.extent.height * 4;
-        std::memset(dst, 0, destinationBytes);
-        for (size_t i = 0; i < destinationBytes / 4; ++i) dst[i * 4 + 3] = 255;
 #ifdef BOXDROID_RUNTIME
         // Same aspect-fit rectangle; Pixman's NEON scaler removes per-pixel
         // integer divisions from the refresh/BQL critical path.
