@@ -13,6 +13,7 @@ typedef struct MCPXAPUState {
     pthread_cond_t cond;
     unsigned int dsp_write_waiters;
     bool exiting;
+    bool owner_ready;
     bool in_frame;
     unsigned int writes, frames;
 } MCPXAPUState;
@@ -32,6 +33,7 @@ static void *frame_owner(void *opaque)
 {
     MCPXAPUState *d = opaque;
     qemu_mutex_lock(&d->lock);
+    __atomic_store_n(&d->owner_ready, true, __ATOMIC_RELEASE);
     while (!qatomic_read(&d->exiting)) {
         d->in_frame = true;
         ++d->frames;
@@ -80,6 +82,11 @@ int main(void)
         };
         pthread_t owner, wake, writers[8];
         assert(pthread_create(&owner, NULL, frame_owner, &d) == 0);
+        /* The negative control requires an already saturated owner. Otherwise
+         * writers may finish before the owner ever acquires the mutex. */
+        while (!__atomic_load_n(&d.owner_ready, __ATOMIC_ACQUIRE)) {
+            sched_yield();
+        }
         assert(pthread_create(&wake, NULL, spurious_waker, &d) == 0);
         for (int i = 0; i < count; ++i) {
             assert(pthread_create(&writers[i], NULL, writer, &d) == 0);

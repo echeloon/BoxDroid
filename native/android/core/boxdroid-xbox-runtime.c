@@ -66,9 +66,11 @@ Java_org_boxdroid_MainActivity_nativeXboxStartWithDvd(JNIEnv *, jobject,
 #define TAG "BoxDroid"
 
 static bool performance_profile;
-static bool detailed_diagnostics;
+bool detailed_diagnostics;
 static bool diagnostic_producers_forced;
 static bool diagnostic_timings_forced;
+uint32_t timing_av_entry;
+static uint32_t timing_av_mode;
 bool boxdroid_tcg_diagnostics_active(void);
 extern void boxdroid_android_configure_workers(void);
 bool boxdroid_performance_profile_active(void);
@@ -1389,7 +1391,6 @@ static const struct { uint32_t mode; unsigned hz; } timing_av_modes[] = {
     { 0xc0040404, 60 },
     { 0xc0060601, 60 },
 };
-static uint32_t timing_av_entry, timing_av_mode;
 static uint64_t timing_probe_ticks;
 static unsigned timing_target_hz;
 uint64_t boxdroid_guest_refresh_period_ns(void)
@@ -1535,22 +1536,31 @@ static void timing_report(int64_t now)
 }
 #endif
 
+static bool refresh_scanout_acquired;
+static int refresh_scanout_result;
+static uint8_t *reusable_rgba;
+static size_t reusable_rgba_cap;
+
 static int xbox_acquire_scanout(void)
 {
     int result;
     assert(bql_locked());
     bql_unlock();
 #ifdef BOXDROID_RUNTIME
-    int64_t begin = g_get_monotonic_time();
+    int64_t begin = performance_profile ? g_get_monotonic_time() : 0;
 #endif
     result = nv2a_get_framebuffer_surface();
 #ifdef BOXDROID_RUNTIME
-    int64_t done = g_get_monotonic_time();
-    timing_scanout_us += done - begin;
+    int64_t done = performance_profile ? g_get_monotonic_time() : 0;
+    if (performance_profile) {
+        timing_scanout_us += done - begin;
+    }
 #endif
     bql_lock();
 #ifdef BOXDROID_RUNTIME
-    timing_bql_us += g_get_monotonic_time() - done;
+    if (performance_profile) {
+        timing_bql_us += g_get_monotonic_time() - done;
+    }
 #endif
     return result;
 }
@@ -1649,7 +1659,12 @@ static void xbox_display_update(DisplayChangeListener *dcl,
     }
     /* Flush the current NV2A Vulkan scanout surface into shared Xbox VRAM.
      * With HAVE_EXTERNAL_MEMORY=0 this is Xemu's CPU-visible download path. */
-    nv2a_surface = xbox_acquire_scanout() >= 0;
+    if (refresh_scanout_acquired) {
+        nv2a_surface = refresh_scanout_result >= 0;
+        refresh_scanout_acquired = false;
+    } else {
+        nv2a_surface = xbox_acquire_scanout() >= 0;
+    }
     if (!nv2a_surface) {
         nv2a_release_framebuffer_surface();
         if (!__atomic_exchange_n(&diagnostic_nv2a_miss_logged, true,
@@ -1826,16 +1841,24 @@ static void xbox_display_update(DisplayChangeListener *dcl,
                             "surface-before-pixman");
 
 #ifdef BOXDROID_RUNTIME
-    int64_t timing_convert_begin = g_get_monotonic_time();
+    int64_t timing_convert_begin =
+        performance_profile ? g_get_monotonic_time() : 0;
 #endif
-    rgba = g_malloc((size_t) surface_width_px * surface_height_px * 4);
+    {
+        size_t needed_rgba = (size_t) surface_width_px * surface_height_px * 4;
+        if (needed_rgba > reusable_rgba_cap) {
+            g_free(reusable_rgba);
+            reusable_rgba = g_malloc(needed_rgba);
+            reusable_rgba_cap = needed_rgba;
+        }
+        rgba = reusable_rgba;
+    }
     stride = surface_width_px * 4;
     converted = pixman_image_create_bits(PIXMAN_a8b8g8r8,
                                           surface_width_px,
                                           surface_height_px,
                                           (uint32_t *) rgba, stride);
     if (!converted) {
-        g_free(rgba);
         if (nv2a_surface) {
             nv2a_release_framebuffer_surface();
         }
@@ -1929,8 +1952,11 @@ static void xbox_display_update(DisplayChangeListener *dcl,
                          nonblack_pixels, __ATOMIC_RELAXED);
     }
 #ifdef BOXDROID_RUNTIME
-    int64_t timing_present_begin = g_get_monotonic_time();
-    timing_conversion_us += timing_present_begin - timing_convert_begin;
+    int64_t timing_present_begin =
+        performance_profile ? g_get_monotonic_time() : 0;
+    if (performance_profile) {
+        timing_conversion_us += timing_present_begin - timing_convert_begin;
+    }
     ++timing_frames;
     if (frame_hash != timing_last_hash) {
         __atomic_add_fetch(&timing_unique, 1, __ATOMIC_RELAXED);
@@ -1962,10 +1988,15 @@ static void xbox_display_update(DisplayChangeListener *dcl,
     bool presented = boxdroid_android_present_rgba(rgba, surface_width_px,
                                                    surface_height_px, stride);
 #ifdef BOXDROID_RUNTIME
-    int64_t timing_present_end = g_get_monotonic_time();
-    timing_present_us += timing_present_end - timing_present_begin;
+    int64_t timing_present_end =
+        performance_profile ? g_get_monotonic_time() : 0;
+    if (performance_profile) {
+        timing_present_us += timing_present_end - timing_present_begin;
+    }
     bql_lock();
-    timing_bql_us += g_get_monotonic_time() - timing_present_end;
+    if (performance_profile) {
+        timing_bql_us += g_get_monotonic_time() - timing_present_end;
+    }
 #endif
     BoxDroidVideoStats video_stats = {
         .hash = frame_hash,
@@ -2080,15 +2111,16 @@ static void xbox_display_update(DisplayChangeListener *dcl,
         }
     }
     pixman_image_unref(converted);
-    g_free(rgba);
 }
 
 static void xbox_display_refresh(DisplayChangeListener *dcl)
 {
 #ifdef BOXDROID_RUNTIME
-    int64_t timing_begin = g_get_monotonic_time();
-    if (timing_last_start_us) timing_period_us += timing_begin - timing_last_start_us;
-    timing_last_start_us = timing_begin;
+    int64_t timing_begin = performance_profile ? g_get_monotonic_time() : 0;
+    if (performance_profile) {
+        if (timing_last_start_us) timing_period_us += timing_begin - timing_last_start_us;
+        timing_last_start_us = timing_begin;
+    }
     ++timing_refreshes;
 #endif
     int64_t now_us;
@@ -2097,16 +2129,19 @@ static void xbox_display_refresh(DisplayChangeListener *dcl)
     /* GPU rendering does not dirty QEMU's CPU VRAM bitmap. Desktop Xemu
      * requests accelerated scanout from its render loop independently of
      * dpy_gfx_update. Pull scanout before the VGA dirty check: Xemu's existing
-     * download marks DIRTY_MEMORY_VGA and the normal callback then presents.
-     * Release before graphic_hw_update so its callback can acquire normally. */
+     * download marks DIRTY_MEMORY_VGA and the normal callback then presents. */
     if (g_nv2a && g_nv2a->pgraph.renderer) {
-        xbox_acquire_scanout();
-        nv2a_release_framebuffer_surface();
+        refresh_scanout_result = xbox_acquire_scanout();
+        refresh_scanout_acquired = true;
     }
     graphic_hw_update(dcl->con);
+    if (refresh_scanout_acquired) {
+        nv2a_release_framebuffer_surface();
+        refresh_scanout_acquired = false;
+    }
     boxdroid_diag_event(BOXDROID_DIAG_GRAPHIC_HW_UPDATE,
                            qemu_clock_get_ms(QEMU_CLOCK_REALTIME), 0, 0, 0, 0, 0);
-    now_us = g_get_monotonic_time();
+    now_us = detailed_diagnostics ? g_get_monotonic_time() : 0;
     if (detailed_diagnostics && now_us - m5_fb_periodic_sample_us >= G_USEC_PER_SEC) {
         m5_fb_periodic_sample_us = now_us;
         if (g_nv2a) {
@@ -2135,8 +2170,11 @@ static void xbox_display_refresh(DisplayChangeListener *dcl)
         }
     }
 #ifdef BOXDROID_RUNTIME
-    timing_refresh_us += g_get_monotonic_time() - timing_begin;
-    timing_report(g_get_monotonic_time());
+    if (performance_profile) {
+        int64_t timing_end = g_get_monotonic_time();
+        timing_refresh_us += timing_end - timing_begin;
+        timing_report(timing_end);
+    }
 #endif
 }
 

@@ -30,7 +30,7 @@ struct config g_config = {
  * on the Snapdragon 865 favor four over two/eight for audio continuity. The property
  * is read at startup and, only with profiling enabled, at quiescent APU frame
  * boundaries for comparisons in the same running scene. */
-static int default_voice_workers = 2, available_worker_cpus = 1;
+static int default_voice_workers = 1, available_worker_cpus = 1;
 static int preferred_tcg_cpu = -1;
 
 void boxdroid_android_configure_tcg_thread(void);
@@ -75,8 +75,11 @@ bool boxdroid_android_requested_apu_participation(void);
 bool boxdroid_android_requested_apu_participation(void)
 {
     char value[PROP_VALUE_MAX] = { 0 };
-    return __system_property_get("debug.boxdroid.voice_apu", value) &&
-           strcmp(value, "1") == 0;
+    if (__system_property_get("debug.boxdroid.voice_apu", value) &&
+        value[0] != '\0') {
+        return strcmp(value, "1") == 0;
+    }
+    return true;
 }
 
 int boxdroid_android_requested_voice_workers(void);
@@ -130,7 +133,9 @@ void boxdroid_android_configure_workers(void)
      * unknown topologies, or infer core IDs from Android CPU numbering. */
     if (peak_count != 1 || performance < 2 || !runner_up ||
         runner_up > maximum * 9 / 10) preferred_tcg_cpu = -1;
-    default_voice_workers = maximum ? MAX(1, MIN(4, performance)) : MIN(2, MAX(1, available));
+    /* Inline APU voice processing (num_workers = 1 with apu_participates = 1)
+     * avoids 1500 Hz futex wake/wait and run-queue contention on Snapdragon 865. */
+    default_voice_workers = 1;
     available_worker_cpus = MAX(1, available);
     g_config.audio.vp.num_workers = boxdroid_android_requested_voice_workers();
     __android_log_print(ANDROID_LOG_INFO, "BoxDroid",

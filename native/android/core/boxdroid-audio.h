@@ -44,6 +44,7 @@ void boxdroid_audio_set_foreground(bool foreground);
 void boxdroid_audio_apu_attach(void);
 void boxdroid_audio_apu_detach(void);
 void boxdroid_audio_push(const int16_t *samples, uint32_t frames, float gain);
+int boxdroid_audio_queued_bytes(void);
 void boxdroid_audio_snapshot(BoxDroidAudioStats *stats);
 void boxdroid_audio_format_metrics(char *buffer, uint32_t buffer_size);
 

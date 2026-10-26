@@ -14,7 +14,7 @@
 #define TAG "BoxDroidAudio"
 #define AUDIO_RATE 48000
 #define AUDIO_CHANNELS 2
-#define AUDIO_RING_FRAMES 2048
+#define AUDIO_RING_FRAMES 4096
 
 JNIEXPORT jint JNICALL
 Java_org_boxdroid_AudioEmulatorActivity_nativeAudioInitialize(JNIEnv *env, jobject self);
@@ -416,6 +416,20 @@ void boxdroid_audio_push(const int16_t *samples, uint32_t frames, float gain)
     atomic_store_explicit(&stat_ring_peak, ring_peak, memory_order_relaxed);
     atomic_fetch_add_explicit(&stat_nonzero_frames, nonzero, memory_order_relaxed);
     atomic_store_explicit(&ring_write, write_at + accepted, memory_order_release);
+}
+
+int boxdroid_audio_queued_bytes(void)
+{
+    if (!atomic_load_explicit(&focus_granted, memory_order_acquire) ||
+        !atomic_load_explicit(&foreground, memory_order_acquire) ||
+        !atomic_load_explicit(&stream_started, memory_order_acquire) ||
+        atomic_load_explicit(&stream_error, memory_order_relaxed) != 0) {
+        return -1;
+    }
+    uint64_t write_at = atomic_load_explicit(&ring_write, memory_order_acquire);
+    uint64_t read_at = atomic_load_explicit(&ring_read, memory_order_acquire);
+    uint64_t queued = write_at >= read_at ? write_at - read_at : 0;
+    return (int)(queued * sizeof(AudioStereoFrame));
 }
 
 void boxdroid_audio_snapshot(BoxDroidAudioStats *stats)

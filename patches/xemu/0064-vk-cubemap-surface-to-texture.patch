@@ -1,0 +1,245 @@
+diff --git a/hw/xbox/nv2a/pgraph/vk/renderer.h b/hw/xbox/nv2a/pgraph/vk/renderer.h
+index c34df5d..ab50d61 100644
+--- a/hw/xbox/nv2a/pgraph/vk/renderer.h
++++ b/hw/xbox/nv2a/pgraph/vk/renderer.h
+@@ -236,6 +236,7 @@ typedef struct TextureBinding {
+     bool possibly_dirty;
+     uint64_t hash;
+     unsigned int draw_time;
++    unsigned int layer_draw_time[6];
+     uint32_t submit_time;
+ } TextureBinding;
+ 
+diff --git a/hw/xbox/nv2a/pgraph/vk/texture.c b/hw/xbox/nv2a/pgraph/vk/texture.c
+index e1fd3e4..ceb7628 100644
+--- a/hw/xbox/nv2a/pgraph/vk/texture.c
++++ b/hw/xbox/nv2a/pgraph/vk/texture.c
+@@ -878,6 +878,80 @@ static void copy_surface_to_texture(PGRAPHState *pg, SurfaceBinding *surface,
+     texture->draw_time = surface->draw_time;
+ }
+ 
++static void copy_cubemap_surfaces_to_texture(PGRAPHState *pg,
++                                             SurfaceBinding *surfaces[6],
++                                             TextureBinding *texture)
++{
++    PGRAPHVkState *r = pg->vk_renderer_state;
++    TextureShape *state = &texture->key.state;
++    VkColorFormatInfo vkf = kelvin_color_format_vk_map[state->color_format];
++
++    nv2a_profile_inc_counter(NV2A_PROF_SURF_TO_TEX);
++
++    VkCommandBuffer cmd = pgraph_vk_begin_nondraw_commands(pg);
++    pgraph_vk_begin_debug_marker(r, cmd, RGBA_GREEN, __func__);
++
++    bool copy_all = (texture->current_layout == VK_IMAGE_LAYOUT_UNDEFINED ||
++                     texture->draw_time == 0);
++
++    pgraph_vk_transition_image_layout(pg, cmd, texture->image, vkf.vk_format,
++                                      texture->current_layout,
++                                      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
++    texture->current_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
++
++    pg->draw_time++;
++    for (int layer = 0; layer < 6; layer++) {
++        SurfaceBinding *surface = surfaces[layer];
++        assert(surface && surface->color);
++
++        if (!copy_all && surface->draw_time == texture->layer_draw_time[layer]) {
++            continue;
++        }
++
++        trace_nv2a_pgraph_surface_render_to_texture(
++            surface->vram_addr, surface->width, surface->height);
++
++        pgraph_vk_transition_image_layout(
++            pg, cmd, surface->image, surface->host_fmt.vk_format,
++            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
++            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
++
++        VkImageCopy region = {
++            .srcSubresource.aspectMask = surface->host_fmt.aspect,
++            .srcSubresource.layerCount = 1,
++            .dstSubresource.aspectMask = surface->host_fmt.aspect,
++            .dstSubresource.baseArrayLayer = layer,
++            .dstSubresource.layerCount = 1,
++            .extent.width = surface->width,
++            .extent.height = surface->height,
++            .extent.depth = 1,
++        };
++        pgraph_apply_scaling_factor(pg, &region.extent.width,
++                                    &region.extent.height);
++        vkCmdCopyImage(cmd, surface->image,
++                       VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, texture->image,
++                       texture->current_layout, 1, &region);
++
++        pgraph_vk_transition_image_layout(
++            pg, cmd, surface->image, surface->host_fmt.vk_format,
++            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
++            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
++
++        surface->draw_time = pg->draw_time;
++        texture->layer_draw_time[layer] = surface->draw_time;
++    }
++
++    pgraph_vk_transition_image_layout(pg, cmd, texture->image, vkf.vk_format,
++                                      texture->current_layout,
++                                      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
++    texture->current_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
++
++    pgraph_vk_end_debug_marker(r, cmd);
++    pgraph_vk_end_nondraw_commands(pg, cmd);
++
++    texture->draw_time = pg->draw_time;
++}
++
+ static unsigned int vk_format_texel_size(VkFormat format)
+ {
+     switch (format) {
+@@ -896,12 +970,14 @@ static unsigned int vk_format_texel_size(VkFormat format)
+ }
+ 
+ static bool check_surface_to_texture_compatiblity(const SurfaceBinding *surface,
+-                                                  const TextureShape *shape)
++                                                  const TextureShape *shape,
++                                                  bool allow_cubemap_face)
+ {
+     if ((!surface->swizzle && surface->pitch != shape->pitch) ||
+         surface->width != shape->width ||
+         surface->height != shape->height ||
+-        shape->cubemap ||
++        (shape->cubemap &&
++         (!allow_cubemap_face || shape->border || !surface->color)) ||
+         shape->levels > 1) {
+         return false;
+     }
+@@ -1127,21 +1203,52 @@ static void create_texture(PGRAPHState *pg, int texture_idx)
+     bool possibly_dirty = false;
+     bool possibly_dirty_checked = false;
+     bool surface_to_texture = false;
++    bool cubemap_surface_to_texture = false;
++    SurfaceBinding *cubemap_surfaces[6] = { NULL };
+ 
+     // Check active surfaces to see if this texture was a render target
+     SurfaceBinding *surface = pgraph_vk_surface_get(d, texture_vram_offset);
+     if (surface && state.levels == 1) {
+-        surface_to_texture =
+-            check_surface_to_texture_compatiblity(surface, &state);
++        if (state.cubemap && !state.border) {
++            hwaddr layer_size = get_cubemap_layer_size(pg, state);
++            bool all_faces_compatible = true;
++            for (int layer = 0; layer < 6; layer++) {
++                SurfaceBinding *face_surface =
++                    (layer == 0) ?
++                        surface :
++                        pgraph_vk_surface_get(
++                            d, texture_vram_offset + layer * layer_size);
++                if (!face_surface ||
++                    !check_surface_to_texture_compatiblity(face_surface, &state,
++                                                           true)) {
++                    all_faces_compatible = false;
++                    break;
++                }
++                cubemap_surfaces[layer] = face_surface;
++            }
++            if (all_faces_compatible) {
++                surface_to_texture = true;
++                cubemap_surface_to_texture = true;
++                for (int layer = 0; layer < 6; layer++) {
++                    if (cubemap_surfaces[layer]->upload_pending) {
++                        pgraph_vk_upload_surface_data(
++                            d, cubemap_surfaces[layer], false);
++                    }
++                }
++            }
++        } else {
++            surface_to_texture =
++                check_surface_to_texture_compatiblity(surface, &state, false);
+ 
+-        if (!surface_to_texture && surface->color) {
+-            trace_nv2a_pgraph_surface_texture_compat_failed(
+-                surface->shape.color_format,
+-                state.color_format);
+-        }
++            if (!surface_to_texture && surface->color) {
++                trace_nv2a_pgraph_surface_texture_compat_failed(
++                    surface->shape.color_format,
++                    state.color_format);
++            }
+ 
+-        if (surface_to_texture && surface->upload_pending) {
+-            pgraph_vk_upload_surface_data(d, surface, false);
++            if (surface_to_texture && surface->upload_pending) {
++                pgraph_vk_upload_surface_data(d, surface, false);
++            }
+         }
+     }
+ 
+@@ -1181,7 +1288,7 @@ static void create_texture(PGRAPHState *pg, int texture_idx)
+     void *palette_data = (char*)d->vram_ptr + texture_palette_vram_offset;
+ 
+     uint64_t content_hash = 0;
+-    if (!surface_to_texture && possibly_dirty) {
++    if (!surface_to_texture && (possibly_dirty || snode->draw_time != 0)) {
+         content_hash = fast_hash(texture_data, texture_length);
+         if (is_indexed) {
+             content_hash ^= fast_hash(palette_data, texture_palette_data_size);
+@@ -1190,14 +1297,30 @@ static void create_texture(PGRAPHState *pg, int texture_idx)
+ 
+     if (binding_found) {
+         if (surface_to_texture) {
+-            // FIXME: Add draw time tracking
+-            if (surface->draw_time != snode->draw_time) {
++            if (cubemap_surface_to_texture) {
++                bool any_face_dirty = (snode->draw_time == 0);
++                for (int layer = 0; layer < 6; layer++) {
++                    if (cubemap_surfaces[layer]->draw_time !=
++                        snode->layer_draw_time[layer]) {
++                        any_face_dirty = true;
++                        break;
++                    }
++                }
++                if (any_face_dirty) {
++                    copy_cubemap_surfaces_to_texture(pg, cubemap_surfaces,
++                                                     snode);
++                }
++            } else if (surface->draw_time != snode->draw_time) {
+                 copy_surface_to_texture(pg, surface, snode);
+             }
+         } else {
+-            if (possibly_dirty && content_hash != snode->hash) {
++            if ((possibly_dirty && content_hash != snode->hash) ||
++                snode->draw_time != 0) {
+                 upload_texture_image(pg, texture_idx, snode);
+                 snode->hash = content_hash;
++                snode->draw_time = 0;
++                memset(snode->layer_draw_time, 0,
++                       sizeof(snode->layer_draw_time));
+             }
+         }
+ 
+@@ -1211,6 +1334,8 @@ static void create_texture(PGRAPHState *pg, int texture_idx)
+     snode->current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+     snode->possibly_dirty = false;
+     snode->hash = content_hash;
++    snode->draw_time = 0;
++    memset(snode->layer_draw_time, 0, sizeof(snode->layer_draw_time));
+ 
+     VkColorFormatInfo vkf = kelvin_color_format_vk_map[state.color_format];
+     assert(vkf.vk_format != 0);
+@@ -1388,10 +1513,15 @@ static void create_texture(PGRAPHState *pg, int texture_idx)
+     r->texture_bindings[texture_idx] = snode;
+ 
+     if (surface_to_texture) {
+-        copy_surface_to_texture(pg, surface, snode);
++        if (cubemap_surface_to_texture) {
++            copy_cubemap_surfaces_to_texture(pg, cubemap_surfaces, snode);
++        } else {
++            copy_surface_to_texture(pg, surface, snode);
++        }
+     } else {
+         upload_texture_image(pg, texture_idx, snode);
+         snode->draw_time = 0;
++        memset(snode->layer_draw_time, 0, sizeof(snode->layer_draw_time));
+     }
+ 
+     NV2A_VK_DGROUP_END();
