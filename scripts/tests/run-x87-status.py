@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Link the actual pinned x87 helpers with corrected SoftFloat; test on RP5."""
-import json,shlex,subprocess
+import json,shlex,subprocess,sys
 from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+import ndk
 R=Path(__file__).resolve().parents[2];B=R/'build/native/android-arm64';O=R/'build/production-correction/x87'
-N=Path.home()/'Library/Android/sdk/ndk/30.0.16248370/toolchains/llvm/prebuilt/darwin-x86_64/bin'
+N=ndk.get_llvm_bin()
 entries=json.loads((B/'compile_commands.json').read_text())
 e=next(e for e in entries if e['file'].endswith('/target/i386/tcg/fpu_helper.c'))
 c=shlex.split(e['command']);f=[];i=0

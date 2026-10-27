@@ -16,6 +16,10 @@ from pathlib import Path
 import re
 import struct
 import subprocess
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import ndk
 
 
 def read(path):
@@ -91,8 +95,9 @@ def main():
     p.add_argument('guest_dump', type=Path)
     p.add_argument('raw_report', type=Path)
     p.add_argument('output', type=Path)
-    p.add_argument('--llvm', type=Path, default=Path('/Users/maverick/Library/Android/sdk/ndk/30.0.16248370/toolchains/llvm/prebuilt/darwin-x86_64/bin'))
+    p.add_argument('--llvm', type=Path, help='NDK LLVM bin directory (default: resolved by scripts/ndk.py)')
     a = p.parse_args()
+    a.llvm = a.llvm or ndk.get_llvm_bin()
     a.output.mkdir(parents=True, exist_ok=False)
     blocks, guest = host_records(read(a.host_dump)), guest_records(read(a.guest_dump))
     starts = sorted(blocks)

@@ -15,7 +15,8 @@ android {
 
     defaultConfig {
         applicationId 'org.boxdroid'
-        minSdk 26
+        // Matches the API 33 NDK target of the native core (scripts/build-native.sh).
+        minSdk 33
         targetSdk 33
         versionCode 1
         versionName '1.0.0'

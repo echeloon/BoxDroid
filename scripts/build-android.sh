@@ -3,9 +3,23 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
-export JAVA_HOME="${JAVA_HOME:-/opt/homebrew/opt/openjdk@17}"
-export PATH="$JAVA_HOME/bin:$PATH"
-export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
+die() { echo "error: $*" >&2; exit 1; }
+
+case "$(uname -s)" in
+    Darwin) HOST_TAG=darwin-x86_64; DEFAULT_ANDROID_HOME="$HOME/Library/Android/sdk" ;;
+    Linux) HOST_TAG=linux-x86_64; DEFAULT_ANDROID_HOME="$HOME/Android/Sdk" ;;
+    *) die "unsupported host OS: $(uname -s) (supported: macOS, Linux)" ;;
+esac
+
+# Prefer an explicit JDK; otherwise let Gradle use the java found on PATH.
+if [[ -n "${JAVA_HOME:-}" ]]; then
+    [[ -x "$JAVA_HOME/bin/java" ]] || die "JAVA_HOME=$JAVA_HOME does not contain bin/java"
+    export PATH="$JAVA_HOME/bin:$PATH"
+elif ! command -v java >/dev/null || ! java -version >/dev/null 2>&1; then
+    die "no Java runtime found: install JDK 17 and set JAVA_HOME or put java on PATH"
+fi
+export ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$DEFAULT_ANDROID_HOME}}"
+[[ -d "$ANDROID_HOME" ]] || die "Android SDK not found at $ANDROID_HOME: set ANDROID_HOME"
 export ANDROID_SDK_ROOT="$ANDROID_HOME"
 export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$ANDROID_HOME/ndk/30.0.16248370}"
 export ANDROID_NDK_ROOT="$ANDROID_NDK_HOME"
@@ -36,7 +50,7 @@ find "$BUILD_ROOT/driver" -name '*.so' -exec cp {} "$BUILD_ROOT/jniLibs/arm64-v8
 ninja -C "$BUILD_ROOT" -j"${JOBS:-4}" libboxdroid.so
 mkdir -p "$BUILD_ROOT/jniLibs/arm64-v8a" "$BUILD_ROOT/assets"
 cp "$BUILD_ROOT/libboxdroid.so" "$BUILD_ROOT/jniLibs/arm64-v8a/"
-cp "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so" "$BUILD_ROOT/jniLibs/arm64-v8a/"
+cp "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/$HOST_TAG/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so" "$BUILD_ROOT/jniLibs/arm64-v8a/"
 
 if [[ ! -d web-frontend/node_modules ]]; then
     (cd web-frontend && npm ci)
@@ -56,6 +70,10 @@ APK_PATH="$ROOT/android/app/build/outputs/apk/debug/app-debug.apk"
 echo "Built $APK_PATH"
 
 if [[ "${BOXDROID_INSTALL:-1}" == 1 ]]; then
-    adb install -r "$APK_PATH"
-    adb shell am start -n org.boxdroid/.FrontendActivity
+    adb=( adb )
+    if [[ -n "${ANDROID_SERIAL:-}" ]]; then
+        adb+=( -s "$ANDROID_SERIAL" )
+    fi
+    "${adb[@]}" install -r "$APK_PATH"
+    "${adb[@]}" shell am start -n org.boxdroid/.FrontendActivity
 fi

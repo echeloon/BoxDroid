@@ -4,6 +4,10 @@ import argparse
 from pathlib import Path
 import signal
 import subprocess
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import ndk
 
 ROOT = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser(description=__doc__)
@@ -34,7 +38,7 @@ code += '\n\nstatic void frame_handoff(MCPXAPUState *d)\n{\n'
 code += block(frame, 'while (qatomic_read(&d->dsp_write_waiters)') + '\n}\n'
 (out / 'apu-handoff-under-test.inc').write_text(code)
 if args.android:
-    compiler = str(Path.home() / 'Android/Sdk/ndk/30.0.16248370/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android33-clang')
+    compiler = str(ndk.get_tool('aarch64-linux-android33-clang'))
 else:
     compiler = 'cc'
 for broken in (False, True):
