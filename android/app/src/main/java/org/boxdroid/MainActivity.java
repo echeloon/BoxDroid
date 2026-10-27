@@ -101,7 +101,7 @@ public class MainActivity extends Activity {
             Log.i(TAG, "VULKAN_DIAGNOSTICS=" + nativeDiagnostics());
             afterNativeRuntimeStop();
             nativeShutdown();
-            Log.i(TAG, "M5_SHUTDOWN_COMPLETE");
+            Log.i(TAG, "SHUTDOWN_COMPLETE");
             runOnUiThread(this::finish);
         });
     }
@@ -121,7 +121,7 @@ public class MainActivity extends Activity {
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         setContentView(root);
         File directory = getExternalFilesDir(null);
-        Log.i(TAG, "M5_PATHS directory=" + directory.getAbsolutePath());
+        Log.i(TAG, "PATHS directory=" + directory.getAbsolutePath());
         surfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
             private boolean created;
             private int generation;
@@ -155,7 +155,7 @@ public class MainActivity extends Activity {
                         return;
                     }
                     surfaceReady = true;
-                    Log.i(TAG, "M5_VIDEO_PRESENTER_READY surface_generation=" + currentGeneration);
+                    Log.i(TAG, "VIDEO_PRESENTER_READY surface_generation=" + currentGeneration);
                     onVideoPresenterReady(directory);
                 });
             }
@@ -297,7 +297,7 @@ public class MainActivity extends Activity {
             File mcpx = new File(directory, "mcpx.bin");
             File hdd = new File(directory, "hdd.qcow2");
             if (!bios.canRead() || !mcpx.canRead() || !hdd.canRead() || dvdFd < 0) {
-                Log.e(TAG, "M55_START_REJECTED bios=" + bios.canRead() + " mcpx=" + mcpx.canRead()
+                Log.e(TAG, "START_REJECTED bios=" + bios.canRead() + " mcpx=" + mcpx.canRead()
                         + " hdd=" + hdd.canRead() + " fd_valid=" + (dvdFd >= 0));
                 onSelectedDvdStartResult(-1);
                 return;
@@ -310,11 +310,11 @@ public class MainActivity extends Activity {
         xboxStarted = true;
         NATIVE.execute(() -> {
             beforeNativeRuntimeStart();
-            Log.i(TAG, "M55_EMULATOR_START_REQUEST dvd_fd_validated=1 dvd_size=" + dvdSize);
+            Log.i(TAG, "EMULATOR_START_REQUEST dvd_fd_validated=1 dvd_size=" + dvdSize);
             int result = nativeXboxStartWithDvd(biosPath, mcpxPath,
                     hddPath, log.getAbsolutePath(), dvdFd, dvdSize);
             graphicsStartResult(result);
-            Log.i(TAG, "M55_EMULATOR_START_RESULT=" + result);
+            Log.i(TAG, "EMULATOR_START_RESULT=" + result);
             if (result != 0) xboxStarted = false;
             final int startResult = result;
             runOnUiThread(() -> onSelectedDvdStartResult(startResult));
@@ -334,7 +334,7 @@ public class MainActivity extends Activity {
                 Log.i(TAG, "VULKAN_DIAGNOSTICS=" + nativeDiagnostics());
                 afterNativeRuntimeStop();
                 nativeShutdown();
-                Log.i(TAG, "M5_SHUTDOWN_COMPLETE");
+                Log.i(TAG, "SHUTDOWN_COMPLETE");
             });
         }
     }
@@ -348,7 +348,7 @@ public class MainActivity extends Activity {
                 Log.i(TAG, "VULKAN_DIAGNOSTICS=" + nativeDiagnostics());
                 afterNativeRuntimeStop();
                 nativeShutdown();
-                Log.i(TAG, "M5_SHUTDOWN_COMPLETE");
+                Log.i(TAG, "SHUTDOWN_COMPLETE");
             });
         }
         super.onDestroy();

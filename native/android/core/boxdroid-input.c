@@ -120,6 +120,18 @@ bool boxdroid_input_snapshot_primary(BoxDroidInputState *state)
     return true;
 }
 
+/* JNI entry points, called only from org.boxdroid.GamepadInput. */
+JNIEXPORT void JNICALL
+Java_org_boxdroid_GamepadInput_nativeSetState(JNIEnv *env, jclass type,
+        jint slot, jint device_id, jboolean connected, jint buttons,
+        jfloat left_x, jfloat left_y, jfloat right_x, jfloat right_y,
+        jfloat left_trigger, jfloat right_trigger);
+JNIEXPORT void JNICALL
+Java_org_boxdroid_GamepadInput_nativeClearAll(JNIEnv *env, jclass type);
+JNIEXPORT void JNICALL
+Java_org_boxdroid_GamepadInput_nativeSelectPrimary(JNIEnv *env, jclass type,
+                                                    jint slot);
+
 JNIEXPORT void JNICALL
 Java_org_boxdroid_GamepadInput_nativeSetState(JNIEnv *env, jclass type,
         jint slot, jint device_id, jboolean connected, jint buttons,

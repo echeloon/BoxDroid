@@ -1,32 +1,47 @@
-# React + TypeScript + Vite
+# BoxDroid web frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The BoxDroid user interface: main menu, game library and settings. It is a
+React single-page app (React Router in SPA mode, Vite, Tailwind CSS) that the
+Android app bundles as assets and shows in a WebView.
 
-Currently, two official plugins are available:
+## How it is loaded
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+`scripts/build-android.sh` runs `npm run build` and copies `build/client/` into
+`android/app/src/main/assets/www/`. `FrontendActivity` serves those files from
+the virtual host `http://boxdroid.local/`, falling back to `index.html` for
+client-side routes.
 
-## React Compiler
+## Talking to Android
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+The app exposes a JavaScript interface named `BoxDroidBridge` (implemented in
+`FrontendActivity.WebAppBridge`, typed in [`app/types.d.ts`](app/types.d.ts)):
 
-## Expanding the Oxlint configuration
+| Call | Purpose |
+| --- | --- |
+| `getGames()`, `getSettings()` | Read the game list and the system file / graphics driver state (JSON strings) |
+| `addGame()`, `deleteGame(index)`, `startGame(uri)` | Manage and launch games |
+| `selectMcpx()`, `selectBios()`, `selectHdd()`, `clearSetting(key)` | Pick or clear system files through the Android file picker |
+| `loadGraphicsDriver()`, `selectGraphicsDriver(mode)`, `deleteGraphicsDriver()` | Import, select or remove a custom Vulkan driver |
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+Android dispatches `games_changed` and `settings_changed` events on `window`
+when that state changes, for example after a file picker returns.
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+## Development
+
+```bash
+npm ci
+npm run dev      # dev server; BoxDroidBridge is absent in a desktop browser
+npm run lint     # oxlint
+npm run build    # production build into build/client/
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+To test on a device, run `./scripts/build-android.sh` from the repository root;
+it rebuilds the frontend and packages it into the APK.
+
+## Layout
+
+| Path | Contents |
+| --- | --- |
+| `app/routes/` | `_index` (main menu), `library`, `settings`, and the shared `matrix-layout` |
+| `app/components/` | UI components, including the vendored NeonBlade ASCII rain background |
+| `app/root.tsx`, `app/entry.client.tsx` | App shell and client entry point |
