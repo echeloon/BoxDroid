@@ -5,4 +5,3 @@ hydrateRoot(
   document,
   <HydratedRouter />
 );
-console.log("HELLO FROM ENTRY CLIENT");

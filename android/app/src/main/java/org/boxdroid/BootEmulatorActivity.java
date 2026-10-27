@@ -53,8 +53,8 @@ public class BootEmulatorActivity extends AudioEmulatorActivity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         addSelectionControls();
-        Log.i(TAG, "M61_STATE_IDLE emulator=stopped mcpx=stopped bios=stopped dvd=none");
-        Log.i(TAG, "M61_EMULATOR_NOT_STARTED reason=awaiting_user_selected_dvd");
+        Log.i(TAG, "STATE_IDLE emulator=stopped mcpx=stopped bios=stopped dvd=none");
+        Log.i(TAG, "EMULATOR_NOT_STARTED reason=awaiting_user_selected_dvd");
     }
 
     private void addSelectionControls() {
@@ -92,7 +92,7 @@ public class BootEmulatorActivity extends AudioEmulatorActivity {
         runOnUiThread(() -> {
             if (isFinishing()) return;
             presenterReady = true;
-            Log.i(TAG, "M61_PRESENTER_READY guest_runtime=stopped");
+            Log.i(TAG, "PRESENTER_READY guest_runtime=stopped");
             if (dvdDescriptor != null) {
                 maybeStartAfterSelection();
             } else if (!pickerShownThisLaunch) {
@@ -120,12 +120,12 @@ public class BootEmulatorActivity extends AudioEmulatorActivity {
         pickerShownThisLaunch = true;
         chooseButton.setEnabled(false);
         stateText.setText("Select an Xbox game image. The emulator is stopped.");
-        Log.i(TAG, "M61_PICKER_LAUNCHED action=ACTION_OPEN_DOCUMENT multiple=0 reason=" + reason);
+        Log.i(TAG, "PICKER_LAUNCHED action=ACTION_OPEN_DOCUMENT multiple=0 reason=" + reason);
         try {
             startActivityForResult(picker, REQUEST_XISO);
         } catch (RuntimeException error) {
             pickerInFlight = false;
-            Log.e(TAG, "M61_PICKER_LAUNCH_FAILED", error);
+            Log.e(TAG, "PICKER_LAUNCH_FAILED", error);
             Toast.makeText(this, "Could Not Load Game, Check your system files again", Toast.LENGTH_LONG).show();
             finish();
         }
@@ -138,12 +138,12 @@ public class BootEmulatorActivity extends AudioEmulatorActivity {
         pickerInFlight = false;
         Uri uri = data == null ? null : data.getData();
         if (resultCode != RESULT_OK || uri == null) {
-            Log.i(TAG, "M61_PICKER_CANCELLED emulator=stopped");
+            Log.i(TAG, "PICKER_CANCELLED emulator=stopped");
             finish();
             return;
         }
         selectedUri = uri;
-        Log.i(TAG, "M61_URI_SELECTED uri=" + uri);
+        Log.i(TAG, "URI_SELECTED uri=" + uri);
         validateSelectedDocument(data);
     }
 
@@ -162,7 +162,7 @@ public class BootEmulatorActivity extends AudioEmulatorActivity {
                 getContentResolver().takePersistableUriPermission(selectedUri, readFlag);
                 persistablePermission = true;
             } catch (SecurityException error) {
-                Log.w(TAG, "M61_URI_PERSIST_PERMISSION_UNAVAILABLE; retaining open descriptor");
+                Log.w(TAG, "URI_PERSIST_PERMISSION_UNAVAILABLE; retaining open descriptor");
             }
         }
 
@@ -183,7 +183,7 @@ public class BootEmulatorActivity extends AudioEmulatorActivity {
             selectedSize = fdSize;
             dvdDescriptor = opened;
             opened = null;
-            Log.i(TAG, "M61_URI_VALIDATED uri=" + selectedUri + " name=" + selectedName
+            Log.i(TAG, "URI_VALIDATED uri=" + selectedUri + " name=" + selectedName
                     + " provider_size=" + providerSize + " fd_size=" + selectedSize
                     + " mime=" + selectedMime + " read=1 random_access=1 fd="
                     + dvdDescriptor.getFd() + " persistable=" + persistablePermission);
@@ -194,7 +194,7 @@ public class BootEmulatorActivity extends AudioEmulatorActivity {
         } catch (IOException | ErrnoException | RuntimeException error) {
             closeQuietly(opened);
             releasePersistedPermission();
-            Log.e(TAG, "M61_URI_VALIDATION_FAILED uri=" + selectedUri + " name="
+            Log.e(TAG, "URI_VALIDATION_FAILED uri=" + selectedUri + " name="
                     + selectedName + " mime=" + selectedMime + " provider_size="
                     + providerSize + " reason=" + error.getClass().getSimpleName(), error);
             Toast.makeText(this, "Could Not Load Game, Check your system files again", Toast.LENGTH_LONG).show();
@@ -210,7 +210,7 @@ public class BootEmulatorActivity extends AudioEmulatorActivity {
                 if (column >= 0) return cursor.getString(column);
             }
         } catch (RuntimeException error) {
-            Log.w(TAG, "M61_URI_NAME_UNAVAILABLE");
+            Log.w(TAG, "URI_NAME_UNAVAILABLE");
         }
         return null;
     }
@@ -223,7 +223,7 @@ public class BootEmulatorActivity extends AudioEmulatorActivity {
                 if (column >= 0 && !cursor.isNull(column)) return cursor.getLong(column);
             }
         } catch (RuntimeException error) {
-            Log.w(TAG, "M61_URI_SIZE_UNAVAILABLE");
+            Log.w(TAG, "URI_SIZE_UNAVAILABLE");
         }
         return -1;
     }
@@ -232,7 +232,7 @@ public class BootEmulatorActivity extends AudioEmulatorActivity {
         try {
             return getContentResolver().getType(uri);
         } catch (RuntimeException error) {
-            Log.w(TAG, "M61_URI_MIME_UNAVAILABLE");
+            Log.w(TAG, "URI_MIME_UNAVAILABLE");
             return null;
         }
     }
@@ -242,7 +242,7 @@ public class BootEmulatorActivity extends AudioEmulatorActivity {
         startRequested = true;
         chooseButton.setEnabled(false);
         stateText.setText("Attaching selected DVD and starting Xbox boot…");
-        Log.i(TAG, "M61_DVD_ATTACH_REQUEST uri=" + selectedUri + " fd="
+        Log.i(TAG, "DVD_ATTACH_REQUEST uri=" + selectedUri + " fd="
                 + dvdDescriptor.getFd() + " bytes=" + selectedSize);
         startXboxWithDvd(runtimeDirectory, dvdDescriptor.getFd(), selectedSize);
     }
@@ -252,11 +252,11 @@ public class BootEmulatorActivity extends AudioEmulatorActivity {
         if (result == 0) {
             runtimeStarted = true;
             controls.setVisibility(View.GONE);
-            Log.i(TAG, "M61_GAME_BOOT_ATTEMPT start_result=0 dvd_selected=1");
+            Log.i(TAG, "GAME_BOOT_ATTEMPT start_result=0 dvd_selected=1");
             return;
         }
         startRequested = false;
-        Log.e(TAG, "M61_EMULATOR_START_FAILED result=" + result + " emulator_stopped=1");
+        Log.e(TAG, "EMULATOR_START_FAILED result=" + result + " emulator_stopped=1");
         Toast.makeText(this, "Could Not Load Game, Check your system files again", Toast.LENGTH_LONG).show();
         finish();
     }
@@ -283,7 +283,7 @@ public class BootEmulatorActivity extends AudioEmulatorActivity {
             chooseButton.setEnabled(true);
         }
         if (controls != null) controls.setVisibility(View.VISIBLE);
-        Log.i(TAG, "M61_STATE_IDLE emulator=stopped dvd=none");
+        Log.i(TAG, "STATE_IDLE emulator=stopped dvd=none");
     }
 
     private void resetSelection() {
@@ -303,7 +303,7 @@ public class BootEmulatorActivity extends AudioEmulatorActivity {
                 getContentResolver().releasePersistableUriPermission(
                         selectedUri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
             } catch (SecurityException error) {
-                Log.w(TAG, "M61_URI_PERSIST_PERMISSION_RELEASE_FAILED");
+                Log.w(TAG, "URI_PERSIST_PERMISSION_RELEASE_FAILED");
             }
         }
         persistablePermission = false;

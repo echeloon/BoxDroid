@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      native:
+        description: Also run the full native + APK build (slow)
+        type: boolean
+        default: false
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scripts:
+    name: Scripts and unit tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python unit tests
+        run: python -m unittest discover -s tests/native -p 'test_*.py' -v
+      - name: Python syntax
+        run: python -m py_compile scripts/*.py scripts/tests/*.py tests/native/*.py
+      - name: Shell syntax
+        run: |
+          bash -n scripts/build-native.sh
+          bash -n scripts/build-android.sh
+          shellcheck -S error scripts/build-native.sh scripts/build-android.sh
+
+  frontend:
+    name: Web frontend
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: web-frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web-frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  android:
+    name: Android app (Java only)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install SDK packages
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" > /dev/null
+      # Compiles the Java/Kotlin sources and resources against an empty native
+      # directory; the resulting APK has no libboxdroid.so and is not runnable.
+      - name: Assemble without native libraries
+        working-directory: android
+        run: |
+          mkdir -p "$RUNNER_TEMP/empty-native"
+          ./gradlew assembleDebug -PnativeBuildRoot="$RUNNER_TEMP/empty-native"
+
+  native:
+    name: Full native build and APK
+    if: github.event_name == 'workflow_dispatch' && inputs.native
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    env:
+      BOXDROID_INSTALL: "0"
+      JOBS: "4"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install host packages
+        run: sudo apt-get update && sudo apt-get install -y ninja-build pkg-config python3-venv file
+      - name: Install SDK packages
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" "ndk;30.0.16248370" > /dev/null
+      - name: Build
+        run: ANDROID_NDK_HOME="$ANDROID_HOME/ndk/30.0.16248370" ./scripts/build-android.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: boxdroid-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk

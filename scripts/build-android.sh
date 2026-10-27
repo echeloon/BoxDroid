@@ -62,7 +62,10 @@ import shutil
 import sys
 root = Path(sys.argv[1])
 destination = root / 'android/app/src/main/assets/www'
-shutil.copytree(root / 'web-frontend/build/client', destination, dirs_exist_ok=True)
+# Replace, not merge: content-hashed bundles from older builds would otherwise
+# accumulate and be packaged into the APK.
+shutil.rmtree(destination, ignore_errors=True)
+shutil.copytree(root / 'web-frontend/build/client', destination)
 PYASSETS
 (cd android && ./gradlew assembleDebug -PnativeBuildRoot="$BUILD_ROOT")
 APK_PATH="$ROOT/android/app/build/outputs/apk/debug/app-debug.apk"

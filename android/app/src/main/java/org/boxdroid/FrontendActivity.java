@@ -102,7 +102,7 @@ public class FrontendActivity extends Activity {
             public android.webkit.WebResourceResponse shouldInterceptRequest(WebView view, android.webkit.WebResourceRequest request) {
                 Uri url = request.getUrl();
                 if ("http".equals(url.getScheme()) && "boxdroid.local".equals(url.getHost())) {
-                    android.util.Log.e("BoxDroid-WebView", "Intercepting virtual host request: " + url.toString());
+                    android.util.Log.d("BoxDroid-WebView", "Intercepting virtual host request: " + url.toString());
                     String path = url.getPath();
                     if (path == null || path.isEmpty() || path.equals("/")) path = "/index.html";
                     
@@ -137,9 +137,14 @@ public class FrontendActivity extends Activity {
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public boolean onConsoleMessage(android.webkit.ConsoleMessage consoleMessage) {
-                android.util.Log.e("BoxDroid-WebView", consoleMessage.message() + " -- From line "
+                String message = consoleMessage.message() + " -- From line "
                         + consoleMessage.lineNumber() + " of "
-                        + consoleMessage.sourceId());
+                        + consoleMessage.sourceId();
+                switch (consoleMessage.messageLevel()) {
+                    case ERROR: android.util.Log.e("BoxDroid-WebView", message); break;
+                    case WARNING: android.util.Log.w("BoxDroid-WebView", message); break;
+                    default: android.util.Log.d("BoxDroid-WebView", message); break;
+                }
                 return super.onConsoleMessage(consoleMessage);
             }
         });
