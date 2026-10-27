@@ -14,9 +14,6 @@ React-based frontend that runs in a local WebView.
 > Snapdragon 865 device, but performance is below full speed in demanding
 > scenes and compatibility has only been checked on a handful of titles.
 
-| Main menu | Game library | System files |
-| --- | --- | --- |
-| ![Main menu](docs/images/main-menu.jpg) | ![Game library](docs/images/game-library.jpg) | ![System files](docs/images/system-files.jpg) |
 
 ## Features
 
