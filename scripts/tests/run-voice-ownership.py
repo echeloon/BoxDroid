@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """Test the production ownership header with TSAN, or real SRC_STATE on RP5."""
-import argparse,subprocess
+import argparse,subprocess,sys
 from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+import ndk
 R=Path(__file__).resolve().parents[2]
 O=R/'build/production-correction';O.mkdir(parents=True,exist_ok=True)
 p=argparse.ArgumentParser(description=__doc__);p.add_argument('--android',action='store_true')
 a=p.parse_args();header=R/'build/native/source/xemu/hw/xbox/mcpx/apu/vp'
 if a.android:
-    N=Path.home()/'Library/Android/sdk/ndk/30.0.16248370/toolchains/llvm/prebuilt/darwin-x86_64/bin'
     deps=R/'native/android/vcpkg_installed/arm64-android-api33'
-    command=[str(N/'aarch64-linux-android33-clang'),'-O2','-DVOICE_REAL_RESAMPLER',
+    command=[str(ndk.get_tool('aarch64-linux-android33-clang')),'-O2','-DVOICE_REAL_RESAMPLER',
              '-I'+str(deps/'include')]
     libraries=[str(deps/'lib/libsamplerate.a'),'-lm'];name='voice-android'
 else:

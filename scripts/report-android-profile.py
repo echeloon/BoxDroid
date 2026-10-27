@@ -7,23 +7,26 @@ Children percentages overlap; they must not be summed as independent costs.
 """
 
 import argparse
-import os
 from pathlib import Path
 import re
 import subprocess
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import ndk
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("capture", type=Path)
     parser.add_argument("--library", required=True, type=Path)
-    parser.add_argument("--ndk", type=Path, default=Path(os.environ.get(
-        "ANDROID_NDK_HOME", str(Path.home() / "Library/Android/sdk/ndk/30.0.16248370"))))
+    parser.add_argument("--ndk", type=Path, help="Android NDK (default: resolved by scripts/ndk.py)")
     args = parser.parse_args()
     if not args.library.is_file():
         parser.error("--library must name the saved unstripped library for this capture")
-    simpleperf = args.ndk / "simpleperf/bin/darwin/x86_64/simpleperf"
-    addr2line = args.ndk / "toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-addr2line"
+    args.ndk = args.ndk or ndk.get_ndk_path()
+    simpleperf = ndk.get_simpleperf(args.ndk)
+    addr2line = ndk.get_llvm_bin(args.ndk) / "llvm-addr2line"
     raw = subprocess.check_output([str(simpleperf), "report", "-i",
         str(args.capture / "perf.data"), "--children", "--sort", "tid,comm,symbol"], text=True)
     args.capture.joinpath("native-report.txt").write_text(raw)

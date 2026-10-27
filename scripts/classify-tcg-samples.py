@@ -4,8 +4,10 @@
 Weights are sampled CPU time, not exact retired-instruction counts. Sampling skid
 and reused JIT addresses limit attribution. No category is a removable-cost bound.
 """
-import argparse,bisect,collections,gzip,json,re,struct,subprocess
+import argparse,bisect,collections,gzip,json,re,struct,subprocess,sys
 from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+import ndk
 p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('host_dump',type=Path);p.add_argument('raw_report',type=Path);p.add_argument('output',type=Path)
 a=p.parse_args();a.output.mkdir(exist_ok=False,parents=True)
@@ -32,7 +34,7 @@ for line in a.raw_report.read_text().splitlines():
  samples[word]+=weight
 opcodes=sorted(samples)
 assembly=a.output/'sampled-opcodes.s';assembly.write_text('.text\n.global sampled_opcodes\nsampled_opcodes:\n'+''.join('.inst 0x%08x\n'%word for word in opcodes))
-llvm=Path('/Users/maverick/Library/Android/sdk/ndk/30.0.16248370/toolchains/llvm/prebuilt/darwin-x86_64/bin')
+llvm=ndk.get_llvm_bin()
 subprocess.run([str(llvm/'clang'),'-target','aarch64-linux-gnu','-c',str(assembly),'-o',str(a.output/'sampled-opcodes.o')],check=True)
 asm=subprocess.check_output([str(llvm/'llvm-objdump'),'-d','--no-show-raw-insn',str(a.output/'sampled-opcodes.o')],text=True)
 (a.output/'sampled-opcodes.asm').write_text(asm)

@@ -1132,7 +1132,6 @@ extern "C" JNIEXPORT jboolean JNICALL Java_org_boxdroid_MainActivity_nativePrese
 extern "C" JNIEXPORT void JNICALL Java_org_boxdroid_MainActivity_nativeSurfaceDestroyed(JNIEnv *, jobject);
 extern "C" JNIEXPORT jstring JNICALL Java_org_boxdroid_MainActivity_nativeDiagnostics(JNIEnv *, jobject);
 extern "C" JNIEXPORT void JNICALL Java_org_boxdroid_MainActivity_nativeShutdown(JNIEnv *, jobject);
-extern "C" JNIEXPORT jlong JNICALL Java_org_boxdroid_OverlayActivity_nativePresentedFrames(JNIEnv *, jobject);
 extern "C" JNIEXPORT jlong JNICALL Java_org_boxdroid_PerformanceActivity_nativePresentedFrames(JNIEnv *, jobject);
 
 extern "C" bool boxdroid_android_present_rgba(const uint8_t *, uint32_t,
@@ -1218,13 +1217,6 @@ Java_org_boxdroid_MainActivity_nativeDiagnostics(JNIEnv *env, jobject) {
     const std::string result = diagnostics();
     log(ANDROID_LOG_INFO, "DIAGNOSTICS=" + result);
     return env->NewStringUTF(result.c_str());
-}
-
-// Read only the completed-present counter for the Android performance view.
-// Guest execution, NV2A rendering, and scanout never depend on this query.
-extern "C" JNIEXPORT jlong JNICALL
-Java_org_boxdroid_OverlayActivity_nativePresentedFrames(JNIEnv *, jobject) {
-    return static_cast<jlong>(overlayPresentedFrames.load(std::memory_order_relaxed));
 }
 
 extern "C" JNIEXPORT void JNICALL

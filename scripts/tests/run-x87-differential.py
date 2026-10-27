@@ -3,13 +3,16 @@
 Requires the existing Android native build's configured headers/dependencies.
 No changes to the upstream checkout. Results are written under build/.
 """
-import argparse,json,shlex,subprocess
+import argparse,json,shlex,subprocess,sys
 from pathlib import Path
+
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+import ndk
 
 ROOT=Path(__file__).resolve().parents[2]
 B=ROOT/'build/native/android-arm64'
 OUT=ROOT/'build/production-correction/x87'
-NDK=Path.home()/'Library/Android/sdk/ndk/30.0.16248370/toolchains/llvm/prebuilt/darwin-x86_64/bin'
+NDK=ndk.get_llvm_bin()
 
 def run(*args,**kw):
     return subprocess.run(*args,check=True,**kw)

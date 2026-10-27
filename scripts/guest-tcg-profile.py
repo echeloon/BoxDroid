@@ -14,6 +14,10 @@ from pathlib import Path
 import re
 import struct
 import subprocess
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import ndk
 
 
 def main():
@@ -22,12 +26,12 @@ def main():
     parser.add_argument('host_dump', type=Path)
     parser.add_argument('guest_dump', type=Path)
     parser.add_argument('output', type=Path)
-    parser.add_argument('--ndk', type=Path, default=Path(
-        '/Users/maverick/Library/Android/sdk/ndk/30.0.16248370'))
+    parser.add_argument('--ndk', type=Path, help='Android NDK (default: resolved by scripts/ndk.py)')
     args = parser.parse_args()
+    args.ndk = args.ndk or ndk.get_ndk_path()
     args.output.mkdir(parents=True, exist_ok=False)
-    simpleperf = args.ndk / 'simpleperf/bin/darwin/x86_64/simpleperf'
-    llvm = args.ndk / 'toolchains/llvm/prebuilt/darwin-x86_64/bin'
+    simpleperf = ndk.get_simpleperf(args.ndk)
+    llvm = ndk.get_llvm_bin(args.ndk)
     raw = subprocess.check_output([
         str(simpleperf), 'report', '-i', str(args.capture / 'perf.data'),
         '--raw-period', '-n', '--sort', 'tid,comm,symbol'], text=True)

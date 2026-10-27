@@ -59,15 +59,41 @@ source_diff_hash() {
     git -C "$SOURCE" diff --binary | git -C "$ROOT" hash-object --stdin
 }
 
-[[ "$(uname -s)" == Darwin ]] || die "this toolchain is documented for macOS hosts"
-[[ -n "$NDK" && -d "$NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin" ]] || \
-    die "set ANDROID_NDK_HOME to an installed macOS Android NDK"
+# The NDK ships x86_64 host prebuilts only; Apple Silicon runs them natively
+# as universal binaries, Linux requires an x86_64 host.
+HOST_OS="$(uname -s)"
+HOST_ARCH="$(uname -m)"
+case "$HOST_OS" in
+    Darwin)
+        HOST_TAG=darwin-x86_64
+        case "$HOST_ARCH" in
+            arm64) VCPKG_HOST=arm64-osx ;;
+            x86_64) VCPKG_HOST=x64-osx ;;
+            *) die "unsupported macOS host architecture: $HOST_ARCH" ;;
+        esac
+        ;;
+    Linux)
+        HOST_TAG=linux-x86_64
+        [[ "$HOST_ARCH" == x86_64 ]] || \
+            die "unsupported Linux host architecture: $HOST_ARCH (the Android NDK requires x86_64)"
+        VCPKG_HOST=x64-linux
+        ;;
+    *)
+        die "unsupported host OS: $HOST_OS (supported: macOS, Linux)"
+        ;;
+esac
+[[ -n "$NDK" && -d "$NDK/toolchains/llvm/prebuilt/$HOST_TAG/bin" ]] || \
+    die "set ANDROID_NDK_HOME to an installed Android NDK with $HOST_TAG prebuilts"
 [[ -e "$ROOT/upstream/xemu/.git" || -f "$ROOT/upstream/xemu/.git" ]] || \
     git -C "$ROOT" submodule update --init upstream/xemu
 [[ "$(git -C "$ROOT/upstream/xemu" rev-parse HEAD)" == "$PIN" ]] || \
     die "upstream/xemu is not pinned at $PIN"
 
-for tool in git python3 ninja cmake pkg-config rustup rg sed file xcrun; do
+host_tools=( git python3 ninja cmake pkg-config rustup grep sed file )
+if [[ "$HOST_OS" == Darwin ]]; then
+    host_tools+=( xcrun )
+fi
+for tool in "${host_tools[@]}"; do
     command -v "$tool" >/dev/null || die "missing host tool: $tool"
 done
 
@@ -104,7 +130,7 @@ if [[ "$NEED_I386" == 1 ]]; then
     [[ "$(git -C "$DSP_SOURCE" rev-parse HEAD)" == "$DSP_PIN" ]] || \
         die "DSP56300 source is not at pinned commit $DSP_PIN"
     git -C "$DSP_SOURCE" diff --quiet || die "DSP56300 source checkout has local changes"
-    if ! rustup toolchain list | rg -q '^1\.96\.0([ -]|$)'; then
+    if ! rustup toolchain list | grep -Eq '^1\.96\.0([ -]|$)'; then
         rustup toolchain install 1.96.0 --profile minimal
     fi
     rustup target add --toolchain 1.96.0 "$TRIPLE"
@@ -176,9 +202,14 @@ fi
 
 mkdir -p "$BUILD"
 
-NDK_BIN="$NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin"
-HOST_CC="$(xcrun --find clang)"
-HOST_SDKROOT="$(xcrun --show-sdk-path)"
+NDK_BIN="$NDK/toolchains/llvm/prebuilt/$HOST_TAG/bin"
+if [[ "$HOST_OS" == Darwin ]]; then
+    HOST_CC="$(xcrun --find clang)"
+    SDKROOT="$(xcrun --show-sdk-path)"
+    export SDKROOT
+else
+    HOST_CC="$(command -v "${HOST_CC:-cc}")" || die "missing host C compiler: ${HOST_CC:-cc}"
+fi
 CC="$NDK_BIN/${TRIPLE}${API}-clang"
 CXX="$NDK_BIN/${TRIPLE}${API}-clang++"
 AR="$NDK_BIN/llvm-ar"
@@ -196,7 +227,7 @@ for pair in \
 done
 ln -sfn "$(command -v pkg-config)" "$TOOLS/${TRIPLE}${API}-pkg-config"
 
-SYSROOT="$NDK/toolchains/llvm/prebuilt/darwin-x86_64/sysroot"
+SYSROOT="$NDK/toolchains/llvm/prebuilt/$HOST_TAG/sysroot"
 cat > "$PKGCONFIG/vulkan.pc" <<EOF
 prefix=$SYSROOT/usr
 libdir=\${prefix}/lib/aarch64-linux-android/$API
@@ -211,7 +242,6 @@ EOF
 export ANDROID_NDK_HOME="$NDK"
 export ANDROID_NDK_ROOT="$NDK"
 export ANDROID_NATIVE_API_LEVEL="$API"
-export SDKROOT="$HOST_SDKROOT"
 export BOXDROID_CMAKE_TOOLCHAIN_FILE="$ROOT/native/android/cmake-android-toolchain.cmake"
 export VCPKG_ROOT="$VCPKG"
 export VCPKG_CHAINLOAD_TOOLCHAIN_FILE="$BOXDROID_CMAKE_TOOLCHAIN_FILE"
@@ -225,7 +255,7 @@ unset PKG_CONFIG_PATH
 cd "$ROOT/native/android"
 "$VCPKG/vcpkg" install \
     --triplet=arm64-android-api33 \
-    --host-triplet=arm64-osx \
+    --host-triplet="$VCPKG_HOST" \
     --overlay-triplets="$ROOT/native/android/triplets" \
     --x-install-root="$DEPS"
 
@@ -333,18 +363,18 @@ verify_aarch64() {
     local object="$1"
     [[ -s "$object" ]] || die "missing Android target object: $object"
     local header
-    if [[ "${BOXDROID_OPTIMIZED_BUILD:-0}" == 1 ]] && file "$object" | rg -q 'LLVM IR bitcode'; then
+    if [[ "${BOXDROID_OPTIMIZED_BUILD:-0}" == 1 ]] && file "$object" | grep -q 'LLVM IR bitcode'; then
         # ThinLTO objects are IR until the shared-library link. Validate their
         # target here; the runtime script still verifies the final ELF header.
         "$NDK_BIN/llvm-dis" "$object" -o "$BUILD/verify-target.ll"
-        rg -q '^target triple = "aarch64-.*android' "$BUILD/verify-target.ll" ||
+        grep -Eq '^target triple = "aarch64-.*android' "$BUILD/verify-target.ll" ||
             die "not Android AArch64 bitcode: $object"
         echo "Verified Android AArch64 ThinLTO object: $object"
         return
     fi
     header="$("$NDK_BIN/llvm-readelf" -h "$object")"
-    echo "$header" | rg -q 'Class:\s+ELF64' || die "not an ELF64 object: $object"
-    echo "$header" | rg -q 'Machine:\s+AArch64' || die "not an AArch64 object: $object"
+    echo "$header" | grep -Eq 'Class:[[:space:]]+ELF64' || die "not an ELF64 object: $object"
+    echo "$header" | grep -Eq 'Machine:[[:space:]]+AArch64' || die "not an AArch64 object: $object"
     echo "Verified Android target object: $(file "$object")"
 }
 
@@ -361,7 +391,7 @@ if [[ "$NEED_I386" == 1 ]]; then
     DSP_MEMBER="$("$NDK_BIN/llvm-ar" t "$DSP_ARCHIVE" | sed -n '1p')"
     [[ -n "$DSP_MEMBER" ]] || die "Rust DSP target archive has no members"
     DSP_HEADER="$("$NDK_BIN/llvm-ar" p "$DSP_ARCHIVE" "$DSP_MEMBER" | "$NDK_BIN/llvm-readelf" -h -)"
-    echo "$DSP_HEADER" | rg -q 'Class:\s+ELF64' || die "Rust DSP archive member is not ELF64"
-    echo "$DSP_HEADER" | rg -q 'Machine:\s+AArch64' || die "Rust DSP archive member is not AArch64"
+    echo "$DSP_HEADER" | grep -Eq 'Class:[[:space:]]+ELF64' || die "Rust DSP archive member is not ELF64"
+    echo "$DSP_HEADER" | grep -Eq 'Machine:[[:space:]]+AArch64' || die "Rust DSP archive member is not AArch64"
     echo "Verified Android Rust DSP archive member: ELF64 AArch64 ($DSP_MEMBER)"
 fi

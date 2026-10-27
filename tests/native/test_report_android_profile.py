@@ -19,7 +19,8 @@ class NativeReportTest(unittest.TestCase):
             directory = Path(temporary)
             library = directory / "exact.so"
             library.touch()
-            arguments = ["report-android-profile.py", str(directory), "--library", str(library)]
+            arguments = ["report-android-profile.py", str(directory), "--library", str(library),
+                         "--ndk", str(directory)]
             symbols = "apu_frame\napu.c:1\nqemu_thread\nthread.c:1\n"
             with patch("sys.argv", arguments), patch.object(
                 report.subprocess, "check_output", side_effect=[raw, symbols]
