@@ -1,0 +1,18 @@
+diff --git a/hw/xbox/mcpx/apu/apu.c b/hw/xbox/mcpx/apu/apu.c
+--- a/hw/xbox/mcpx/apu/apu.c
++++ b/hw/xbox/mcpx/apu/apu.c
+@@ -449,7 +449,13 @@
+     qemu_mutex_lock(&d->lock);
+     mcpx_apu_wait_for_idle(d);
+     mcpx_apu_reset_locked(d);
+-    mcpx_apu_resume(d);
++    /* A reset with the VM stopped (load_snapshot() resets the machine before
++     * loading device state) must leave the frame thread quiesced: the VM
++     * state change handler resumes it when the VM runs. Resuming here let the
++     * DSP execute while its loaded state was being written. */
++    if (runstate_is_running()) {
++        mcpx_apu_resume(d);
++    }
+     qemu_mutex_unlock(&d->lock);
+     bql_lock();
+ }

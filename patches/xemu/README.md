@@ -66,6 +66,12 @@ retains the configured background pool. This can be selected at startup, or chan
 live with profiling enabled. The repeated Sega GT comparison reduced wakeups
 but did not reproduce its first audio/cadence gain, so it remains opt-in.
 
+## Correctness patches
+
+| Patch | Core-owned work and ordering |
+| --- | --- |
+| 0065 | Keep the APU frame thread quiesced across a machine reset while the VM is stopped. `load_snapshot()` resets the machine before loading device state; resuming the thread there let the DSP execute while its loaded state was being written (an assertion in `read_memory_p`, reliably when a state was loaded during boot). The VM state change handler resumes the thread when the VM runs. |
+
 ## Pandora correction validation
 
 [Production correction notes](../../docs/performance/pandora-production-correction.md)
