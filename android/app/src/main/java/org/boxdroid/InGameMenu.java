@@ -35,6 +35,8 @@ final class InGameMenu {
         void setMetricsMode(int mode);
         int getAspectMode();
         void setAspectMode(int mode);
+        int getScalingFilter();
+        void setScalingFilter(int filter);
     }
 
     private static final int PANEL_COLOR = Color.argb(0xCC, 0x0E, 0x0E, 0x0E);
@@ -149,6 +151,8 @@ final class InGameMenu {
         addAction(R.string.menu_resume, listener::onMenuResume);
         addChoice(R.string.menu_aspect, this::aspectLabel, direction ->
                 listener.setAspectMode(Math.floorMod(listener.getAspectMode() + direction, 3)));
+        addChoice(R.string.menu_filter, this::filterLabel, direction ->
+                listener.setScalingFilter(Math.floorMod(listener.getScalingFilter() + direction, 2)));
         addChoice(R.string.menu_metrics, this::metricsLabel, direction ->
                 listener.setMetricsMode(Math.floorMod(listener.getMetricsMode() + direction, 3)));
         addDivider();
@@ -185,6 +189,11 @@ final class InGameMenu {
             case GameActivity.ASPECT_STRETCH: return activity.getString(R.string.aspect_stretch);
             default: return activity.getString(R.string.aspect_4_3);
         }
+    }
+
+    private String filterLabel() {
+        return activity.getString(listener.getScalingFilter() == GameActivity.FILTER_BILINEAR
+                ? R.string.filter_bilinear : R.string.filter_nearest);
     }
 
     private String metricsLabel() {

@@ -20,6 +20,10 @@ public class GameActivity extends BootEmulatorActivity implements InGameMenu.Lis
     static final int ASPECT_4_3 = 0;
     static final int ASPECT_16_9 = 1;
     static final int ASPECT_STRETCH = 2;
+    // Scaling filters, matching the native presenter's.
+    static final int FILTER_NEAREST = 0;
+    static final int FILTER_BILINEAR = 1;
+    private static final String SCALING_FILTER = "scaling_filter";
     private static final String SETTINGS = "boxdroid_settings";
 
     private GamepadInput physicalInput;
@@ -27,6 +31,7 @@ public class GameActivity extends BootEmulatorActivity implements InGameMenu.Lis
     private boolean quitting;
     private GameIdentity game;
     private int aspectMode = ASPECT_4_3;
+    private int scalingFilter = FILTER_NEAREST;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,6 +40,9 @@ public class GameActivity extends BootEmulatorActivity implements InGameMenu.Lis
         physicalInput = new GamepadInput(this);
         physicalInput.start();
         Log.i(TAG, "INPUT_LAYER_READY host=Android_Gamepad_Joystick slots=4 guest=XID_Duke");
+
+        scalingFilter = getSharedPreferences(SETTINGS, MODE_PRIVATE).getInt(SCALING_FILTER, FILTER_NEAREST);
+        applyScalingFilter(scalingFilter);
 
         menu = new InGameMenu(this, this);
         menu.attach(findViewById(android.R.id.content));
@@ -164,6 +172,21 @@ public class GameActivity extends BootEmulatorActivity implements InGameMenu.Lis
         getSharedPreferences(SETTINGS, MODE_PRIVATE).edit().putInt(gameSetting("aspect"), mode).apply();
         applyAspectMode(mode);
         Log.i(TAG, "GAME_SETTING game=" + game.key + " aspect=" + mode);
+    }
+
+    @Override
+    public int getScalingFilter() {
+        return scalingFilter;
+    }
+
+    /** The scaling filter is a global display preference, not a per-game one. */
+    @Override
+    public void setScalingFilter(int filter) {
+        if (filter < FILTER_NEAREST || filter > FILTER_BILINEAR || filter == scalingFilter) return;
+        scalingFilter = filter;
+        getSharedPreferences(SETTINGS, MODE_PRIVATE).edit().putInt(SCALING_FILTER, filter).apply();
+        applyScalingFilter(filter);
+        Log.i(TAG, "SETTING scaling_filter=" + filter);
     }
 
     @Override
