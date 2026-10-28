@@ -18,6 +18,7 @@ public class AudioEmulatorActivity extends PerformanceActivity {
     private AudioFocusRequest focusRequest;
     private boolean focusGranted;
     private boolean resumed;
+    private boolean suspended;
 
     private native int nativeAudioInitialize();
     private native void nativeAudioSetFocus(boolean focused);
@@ -36,7 +37,7 @@ public class AudioEmulatorActivity extends PerformanceActivity {
             Log.i(TAG, "AUDIO_FOCUS_LOSS change=" + change);
         }
         nativeAudioSetFocus(focusGranted);
-        nativeAudioSetForeground(resumed);
+        nativeAudioSetForeground(audioForeground());
     };
 
     @Override
@@ -60,7 +61,7 @@ public class AudioEmulatorActivity extends PerformanceActivity {
         int result = nativeAudioInitialize();
         Log.i(TAG, "AAUDIO_INITIALIZE result=" + result);
         nativeAudioSetFocus(focusGranted);
-        nativeAudioSetForeground(resumed);
+        nativeAudioSetForeground(audioForeground());
     }
 
     @Override
@@ -83,7 +84,7 @@ public class AudioEmulatorActivity extends PerformanceActivity {
     protected void onResume() {
         super.onResume();
         resumed = true;
-        nativeAudioSetForeground(true);
+        nativeAudioSetForeground(audioForeground());
     }
 
     @Override
@@ -114,8 +115,24 @@ public class AudioEmulatorActivity extends PerformanceActivity {
         Log.i(TAG, "AAUDIO_SHUTDOWN_COMPLETE");
     }
 
+    /** Output plays only while the activity is resumed and not suspended. */
+    private boolean audioForeground() {
+        return resumed && !suspended;
+    }
+
+    /** Mutes native output while the guest is paused (e.g. by the in-game menu). */
+    protected final void setAudioSuspended(boolean value) {
+        suspended = value;
+        nativeAudioSetForeground(audioForeground());
+    }
+
     @Override
     public void onBackPressed() {
+        requestCleanShutdown();
+    }
+
+    /** Releases audio, stops the guest in order and finishes the activity. */
+    protected final void requestCleanShutdown() {
         Log.i(TAG, "CLEAN_SHUTDOWN_REQUEST");
         resumed = false;
         focusGranted = false;

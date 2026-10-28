@@ -22,10 +22,16 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-/** Android-only diagnostic overlay. MainActivity continues to own the Xbox runtime. */
+/** Android-only performance metrics overlay. MainActivity continues to own the Xbox runtime. */
 public class PerformanceActivity extends MainActivity {
     private static final String TAG = "BoxDroid_";
     private static final long SAMPLE_MS = 500;
+    static final int METRICS_OFF = 0;
+    static final int METRICS_FPS = 1;
+    static final int METRICS_FULL = 2;
+    private static final String SETTINGS = "boxdroid_settings";
+    private static final String METRICS_MODE = "metrics_mode";
+    private volatile int metricsMode = METRICS_OFF;
     private final Object samplerLock = new Object();
     private ScheduledExecutorService sampler;
     private MetricsSampler currentSampler;
@@ -43,8 +49,10 @@ public class PerformanceActivity extends MainActivity {
         super.onCreate(state);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         FrameLayout content = findViewById(android.R.id.content);
+        metricsMode = getSharedPreferences(SETTINGS, MODE_PRIVATE).getInt(METRICS_MODE, METRICS_OFF);
         metrics = new TextView(this);
-        metrics.setText("FPS: 0.0\nRAM: 0 MB\nCPU: 0%\nGPU: N/A");
+        metrics.setText("");
+        metrics.setVisibility(metricsMode == METRICS_OFF ? View.GONE : View.VISIBLE);
         metrics.setTextColor(Color.rgb(115, 255, 85));
         metrics.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         metrics.setTypeface(Typeface.MONOSPACE);
@@ -68,7 +76,23 @@ public class PerformanceActivity extends MainActivity {
             return insets;
         });
         metrics.requestApplyInsets();
-        Log.i(TAG, "OVERLAY_READY alpha=176/255 position=top-right interval_ms=" + SAMPLE_MS);
+        Log.i(TAG, "OVERLAY_READY mode=" + metricsMode + " position=top-right interval_ms=" + SAMPLE_MS);
+    }
+
+    public final int getMetricsMode() {
+        return metricsMode;
+    }
+
+    /** Persists the global metrics mode and applies it immediately. */
+    public final void setMetricsMode(int mode) {
+        if (mode < METRICS_OFF || mode > METRICS_FULL || mode == metricsMode) return;
+        metricsMode = mode;
+        getSharedPreferences(SETTINGS, MODE_PRIVATE).edit().putInt(METRICS_MODE, mode).apply();
+        stopSampler();
+        metrics.setText("");
+        metrics.setVisibility(mode == METRICS_OFF ? View.GONE : View.VISIBLE);
+        startSampler();
+        Log.i(TAG, "OVERLAY_MODE mode=" + mode);
     }
 
     private int dp(int value) {
@@ -78,16 +102,26 @@ public class PerformanceActivity extends MainActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        startSampler();
+    }
+
+    @Override
+    protected void onStop() {
+        stopSampler();
+        super.onStop();
+    }
+
+    // With metrics off no sampling thread runs at all.
+    private void startSampler() {
         synchronized (samplerLock) {
-            if (sampler != null) return;
+            if (sampler != null || metricsMode == METRICS_OFF) return;
             sampler = Executors.newSingleThreadScheduledExecutor();
             currentSampler = new MetricsSampler();
             sampler.scheduleAtFixedRate(currentSampler, 0, SAMPLE_MS, TimeUnit.MILLISECONDS);
         }
     }
 
-    @Override
-    protected void onStop() {
+    private void stopSampler() {
         synchronized (samplerLock) {
             if (sampler != null) {
                 MetricsSampler closing = currentSampler;
@@ -97,7 +131,6 @@ public class PerformanceActivity extends MainActivity {
                 currentSampler = null;
             }
         }
-        super.onStop();
     }
 
     private final class MetricsSampler implements Runnable {
@@ -148,8 +181,27 @@ public class PerformanceActivity extends MainActivity {
             return file.readLine();
         }
 
+        // FPS-only mode reads just the native frame counter, never /proc or KGSL.
+        private void sampleFpsOnly() {
+            long now = SystemClock.elapsedRealtimeNanos();
+            long presented = nativeUniqueFrames();
+            if (previousNanos > 0 && now > previousNanos) {
+                double intervalFps = Math.max(0, presented - previousPresents) / ((now - previousNanos) / 1e9);
+                smoothFps = samples == 0 ? intervalFps : 0.5 * intervalFps + 0.5 * smoothFps;
+                ++samples;
+            }
+            previousNanos = now;
+            previousPresents = presented;
+            final String value = String.format(Locale.US, "%.0f FPS", smoothFps);
+            runOnUiThread(() -> metrics.setText(value));
+        }
+
         @Override
         public void run() {
+            if (metricsMode == METRICS_FPS) {
+                sampleFpsOnly();
+                return;
+            }
             long sampleStart = SystemClock.elapsedRealtimeNanos();
             try {
                 if (stat == null) {
