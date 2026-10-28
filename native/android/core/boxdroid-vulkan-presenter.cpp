@@ -101,6 +101,9 @@ std::atomic<int> aspectMode{kAspect4x3};
 // Scaling filters, matching the Java FILTER_* constants.
 constexpr int kFilterNearest = 0;
 constexpr int kFilterBilinear = 1;
+// Snapdragon Game Super Resolution 1: a bilinear base sample plus edge-adaptive
+// Lanczos-like sharpening, in its own pipeline (shaders/sgsr1.frag).
+constexpr int kFilterSgsr = 2;
 std::atomic<int> scalingFilter{kFilterNearest};
 
 AspectFit aspectFit(uint32_t sourceWidth, uint32_t sourceHeight,
@@ -236,6 +239,7 @@ struct Presenter {
     PFN_vkCmdSetViewport fn_CmdSetViewport = nullptr;
     PFN_vkCmdSetScissor fn_CmdSetScissor = nullptr;
     PFN_vkCmdDraw fn_CmdDraw = nullptr;
+    PFN_vkCmdPushConstants fn_CmdPushConstants = nullptr;
     VkInstance instance = VK_NULL_HANDLE;
     VkPhysicalDevice gpu = VK_NULL_HANDLE;
     VkDevice device = VK_NULL_HANDLE;
@@ -260,6 +264,7 @@ struct Presenter {
     VkRenderPass renderPass = VK_NULL_HANDLE;
     VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
     VkPipeline pipeline = VK_NULL_HANDLE;
+    VkPipeline sgsrPipeline = VK_NULL_HANDLE;  // null when it failed to build: SGSR draws bilinear
     VkDescriptorSetLayout setLayout = VK_NULL_HANDLE;
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
     std::array<VkDescriptorSet, 2> descriptorSets{};  // one per scaling filter
@@ -408,6 +413,7 @@ struct PresentationWorkerLifetime {
 #define vkCmdSetViewport p.fn_CmdSetViewport
 #define vkCmdSetScissor p.fn_CmdSetScissor
 #define vkCmdDraw p.fn_CmdDraw
+#define vkCmdPushConstants p.fn_CmdPushConstants
 
 void log(int priority, const std::string &message) {
     __android_log_write(priority, kTag, message.c_str());
@@ -572,6 +578,7 @@ bool loadDeviceFunctions() {
     LOAD_DEVICE(CmdSetViewport);
     LOAD_DEVICE(CmdSetScissor);
     LOAD_DEVICE(CmdDraw);
+    LOAD_DEVICE(CmdPushConstants);
     return true;
 }
 
@@ -874,6 +881,7 @@ void destroyPipelineObjects() {
     destroySwapchainTargets();
     destroySourceImage();
     if (p.pipeline) { vkDestroyPipeline(p.device, p.pipeline, nullptr); p.pipeline = VK_NULL_HANDLE; }
+    if (p.sgsrPipeline) { vkDestroyPipeline(p.device, p.sgsrPipeline, nullptr); p.sgsrPipeline = VK_NULL_HANDLE; }
     if (p.pipelineLayout) { vkDestroyPipelineLayout(p.device, p.pipelineLayout, nullptr); p.pipelineLayout = VK_NULL_HANDLE; }
     if (p.renderPass) { vkDestroyRenderPass(p.device, p.renderPass, nullptr); p.renderPass = VK_NULL_HANDLE; }
     if (p.descriptorPool) { vkDestroyDescriptorPool(p.device, p.descriptorPool, nullptr); p.descriptorPool = VK_NULL_HANDLE; }
@@ -895,78 +903,12 @@ VkShaderModule createShaderModule(const uint32_t *code, size_t bytes, const char
     return module;
 }
 
-// Render pass, pipeline, samplers and descriptor sets for one swapchain format.
-bool createPipelineObjects(VkFormat format) {
-    if (p.pipeline && p.pipelineFormat == format) return true;
-    destroyPipelineObjects();
-    for (int filter = kFilterNearest; filter <= kFilterBilinear; ++filter) {
-        VkSamplerCreateInfo sampler{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
-        sampler.magFilter = sampler.minFilter = filter == kFilterBilinear ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
-        sampler.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-        sampler.addressModeU = sampler.addressModeV = sampler.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        sampler.maxLod = 0.0f;
-        if (!check(vkCreateSampler(p.device, &sampler, nullptr, &p.samplers[filter]), "vkCreateSampler")) return false;
-    }
-    VkDescriptorSetLayoutBinding binding{};
-    binding.binding = 0;
-    binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    binding.descriptorCount = 1;
-    binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    VkDescriptorSetLayoutCreateInfo layoutInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-    layoutInfo.bindingCount = 1;
-    layoutInfo.pBindings = &binding;
-    if (!check(vkCreateDescriptorSetLayout(p.device, &layoutInfo, nullptr, &p.setLayout), "vkCreateDescriptorSetLayout")) return false;
-    VkDescriptorPoolSize poolSize{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, static_cast<uint32_t>(p.descriptorSets.size())};
-    VkDescriptorPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
-    poolInfo.maxSets = static_cast<uint32_t>(p.descriptorSets.size());
-    poolInfo.poolSizeCount = 1;
-    poolInfo.pPoolSizes = &poolSize;
-    if (!check(vkCreateDescriptorPool(p.device, &poolInfo, nullptr, &p.descriptorPool), "vkCreateDescriptorPool")) return false;
-    std::array<VkDescriptorSetLayout, 2> setLayouts{p.setLayout, p.setLayout};
-    VkDescriptorSetAllocateInfo setInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
-    setInfo.descriptorPool = p.descriptorPool;
-    setInfo.descriptorSetCount = static_cast<uint32_t>(setLayouts.size());
-    setInfo.pSetLayouts = setLayouts.data();
-    if (!check(vkAllocateDescriptorSets(p.device, &setInfo, p.descriptorSets.data()), "vkAllocateDescriptorSets")) return false;
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-    pipelineLayoutInfo.setLayoutCount = 1;
-    pipelineLayoutInfo.pSetLayouts = &p.setLayout;
-    if (!check(vkCreatePipelineLayout(p.device, &pipelineLayoutInfo, nullptr, &p.pipelineLayout), "vkCreatePipelineLayout")) return false;
-
-    // The clear paints the letterbox; the swapchain image goes straight to present.
-    VkAttachmentDescription attachment{};
-    attachment.format = format;
-    attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    VkAttachmentReference colorReference{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
-    VkSubpassDescription subpass{};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorReference;
-    // Order the attachment write after the acquire semaphore's wait stage.
-    VkSubpassDependency dependency{};
-    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    dependency.dstSubpass = 0;
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    VkRenderPassCreateInfo renderPassInfo{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
-    renderPassInfo.attachmentCount = 1;
-    renderPassInfo.pAttachments = &attachment;
-    renderPassInfo.subpassCount = 1;
-    renderPassInfo.pSubpasses = &subpass;
-    renderPassInfo.dependencyCount = 1;
-    renderPassInfo.pDependencies = &dependency;
-    if (!check(vkCreateRenderPass(p.device, &renderPassInfo, nullptr, &p.renderPass), "vkCreateRenderPass")) return false;
-
+// The fullscreen-triangle pipeline with one fragment shader; null on failure.
+// Needs p.renderPass and p.pipelineLayout.
+VkPipeline createGraphicsPipeline(const uint32_t *fragmentCode, size_t fragmentBytes, const char *name) {
     VkShaderModule vertex = createShaderModule(kPresentVertexShader, sizeof(kPresentVertexShader), "vkCreateShaderModule(vertex)");
-    VkShaderModule fragment = createShaderModule(kPresentFragmentShader, sizeof(kPresentFragmentShader), "vkCreateShaderModule(fragment)");
-    bool created = false;
+    VkShaderModule fragment = createShaderModule(fragmentCode, fragmentBytes, "vkCreateShaderModule(fragment)");
+    VkPipeline pipeline = VK_NULL_HANDLE;
     if (vertex && fragment) {
         std::array<VkPipelineShaderStageCreateInfo, 2> stages{};
         stages[0] = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
@@ -1012,12 +954,94 @@ bool createPipelineObjects(VkFormat format) {
         pipelineInfo.pDynamicState = &dynamic;
         pipelineInfo.layout = p.pipelineLayout;
         pipelineInfo.renderPass = p.renderPass;
-        created = check(vkCreateGraphicsPipelines(p.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &p.pipeline),
-                        "vkCreateGraphicsPipelines");
+        check(vkCreateGraphicsPipelines(p.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline),
+              (std::string("vkCreateGraphicsPipelines(") + name + ")").c_str());
     }
     if (vertex) vkDestroyShaderModule(p.device, vertex, nullptr);
     if (fragment) vkDestroyShaderModule(p.device, fragment, nullptr);
-    if (!created) return false;
+    return pipeline;
+}
+
+// Render pass, pipeline, samplers and descriptor sets for one swapchain format.
+bool createPipelineObjects(VkFormat format) {
+    if (p.pipeline && p.pipelineFormat == format) return true;
+    destroyPipelineObjects();
+    for (int filter = kFilterNearest; filter <= kFilterBilinear; ++filter) {
+        VkSamplerCreateInfo sampler{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+        sampler.magFilter = sampler.minFilter = filter == kFilterBilinear ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
+        sampler.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        sampler.addressModeU = sampler.addressModeV = sampler.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        sampler.maxLod = 0.0f;
+        if (!check(vkCreateSampler(p.device, &sampler, nullptr, &p.samplers[filter]), "vkCreateSampler")) return false;
+    }
+    VkDescriptorSetLayoutBinding binding{};
+    binding.binding = 0;
+    binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    binding.descriptorCount = 1;
+    binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    VkDescriptorSetLayoutCreateInfo layoutInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+    layoutInfo.bindingCount = 1;
+    layoutInfo.pBindings = &binding;
+    if (!check(vkCreateDescriptorSetLayout(p.device, &layoutInfo, nullptr, &p.setLayout), "vkCreateDescriptorSetLayout")) return false;
+    VkDescriptorPoolSize poolSize{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, static_cast<uint32_t>(p.descriptorSets.size())};
+    VkDescriptorPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+    poolInfo.maxSets = static_cast<uint32_t>(p.descriptorSets.size());
+    poolInfo.poolSizeCount = 1;
+    poolInfo.pPoolSizes = &poolSize;
+    if (!check(vkCreateDescriptorPool(p.device, &poolInfo, nullptr, &p.descriptorPool), "vkCreateDescriptorPool")) return false;
+    std::array<VkDescriptorSetLayout, 2> setLayouts{p.setLayout, p.setLayout};
+    VkDescriptorSetAllocateInfo setInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+    setInfo.descriptorPool = p.descriptorPool;
+    setInfo.descriptorSetCount = static_cast<uint32_t>(setLayouts.size());
+    setInfo.pSetLayouts = setLayouts.data();
+    if (!check(vkAllocateDescriptorSets(p.device, &setInfo, p.descriptorSets.data()), "vkAllocateDescriptorSets")) return false;
+    // SGSR's ViewportInfo; the plain present shader declares no push constants.
+    VkPushConstantRange pushRange{VK_SHADER_STAGE_FRAGMENT_BIT, 0, 4 * sizeof(float)};
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &p.setLayout;
+    pipelineLayoutInfo.pushConstantRangeCount = 1;
+    pipelineLayoutInfo.pPushConstantRanges = &pushRange;
+    if (!check(vkCreatePipelineLayout(p.device, &pipelineLayoutInfo, nullptr, &p.pipelineLayout), "vkCreatePipelineLayout")) return false;
+
+    // The clear paints the letterbox; the swapchain image goes straight to present.
+    VkAttachmentDescription attachment{};
+    attachment.format = format;
+    attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    VkAttachmentReference colorReference{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorReference;
+    // Order the attachment write after the acquire semaphore's wait stage.
+    VkSubpassDependency dependency{};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    VkRenderPassCreateInfo renderPassInfo{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
+    renderPassInfo.attachmentCount = 1;
+    renderPassInfo.pAttachments = &attachment;
+    renderPassInfo.subpassCount = 1;
+    renderPassInfo.pSubpasses = &subpass;
+    renderPassInfo.dependencyCount = 1;
+    renderPassInfo.pDependencies = &dependency;
+    if (!check(vkCreateRenderPass(p.device, &renderPassInfo, nullptr, &p.renderPass), "vkCreateRenderPass")) return false;
+
+    p.pipeline = createGraphicsPipeline(kPresentFragmentShader, sizeof(kPresentFragmentShader), "present");
+    if (!p.pipeline) return false;
+    p.sgsrPipeline = createGraphicsPipeline(kSgsrFragmentShader, sizeof(kSgsrFragmentShader), "sgsr");
+    if (!p.sgsrPipeline) {
+        p.lastError.clear();
+        log(ANDROID_LOG_WARN, "GPU_PRESENT_SGSR_UNAVAILABLE fallback=bilinear");
+    }
     p.pipelineFormat = format;
     log(ANDROID_LOG_INFO, "GPU_PRESENT_PIPELINE format=" + std::to_string(format));
     return true;
@@ -1328,8 +1352,9 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
                 pixman_double_to_fixed(static_cast<double>(sourceWidth) / destinationWidth),
                 pixman_double_to_fixed(static_cast<double>(sourceHeight) / destinationHeight));
             pixman_image_set_transform(srcImage, &transform);
-            pixman_image_set_filter(srcImage, scalingFilter.load(std::memory_order_relaxed) == kFilterBilinear ?
-                PIXMAN_FILTER_BILINEAR : PIXMAN_FILTER_NEAREST, nullptr, 0);
+            // The CPU fallback has no SGSR; it scales bilinear instead.
+            pixman_image_set_filter(srcImage, scalingFilter.load(std::memory_order_relaxed) == kFilterNearest ?
+                PIXMAN_FILTER_NEAREST : PIXMAN_FILTER_BILINEAR, nullptr, 0);
             pixman_image_set_repeat(srcImage, PIXMAN_REPEAT_PAD);
             pixman_image_composite32(PIXMAN_OP_SRC, srcImage, nullptr, dstImage,
                 0, 0, 0, 0, destinationX, destinationY, destinationWidth, destinationHeight);
@@ -1404,11 +1429,19 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
         VkRect2D scissor{{0, 0}, p.extent};
         vkCmdSetViewport(p.commandBuffer, 0, 1, &viewport);
         vkCmdSetScissor(p.commandBuffer, 0, 1, &scissor);
-        vkCmdBindPipeline(p.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, p.pipeline);
-        const int filter = scalingFilter.load(std::memory_order_relaxed) == kFilterBilinear ?
-            kFilterBilinear : kFilterNearest;
+        // SGSR samples through the bilinear sampler; without its pipeline it draws bilinear.
+        const int filter = scalingFilter.load(std::memory_order_relaxed);
+        const bool sgsr = filter == kFilterSgsr && p.sgsrPipeline;
+        vkCmdBindPipeline(p.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, sgsr ? p.sgsrPipeline : p.pipeline);
+        const int sampler = filter == kFilterNearest ? kFilterNearest : kFilterBilinear;
         vkCmdBindDescriptorSets(p.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, p.pipelineLayout,
-                                0, 1, &p.descriptorSets[filter], 0, nullptr);
+                                0, 1, &p.descriptorSets[sampler], 0, nullptr);
+        if (sgsr) {
+            const float viewportInfo[4] = {1.0f / sourceWidth, 1.0f / sourceHeight,
+                                           static_cast<float>(sourceWidth), static_cast<float>(sourceHeight)};
+            vkCmdPushConstants(p.commandBuffer, p.pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT,
+                               0, sizeof(viewportInfo), viewportInfo);
+        }
         vkCmdDraw(p.commandBuffer, 3, 1, 0, 0);
         vkCmdEndRenderPass(p.commandBuffer);
         waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -1708,7 +1741,7 @@ Java_org_boxdroid_MainActivity_nativeSetAspectMode(JNIEnv *, jobject, jint mode)
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_boxdroid_MainActivity_nativeSetScalingFilter(JNIEnv *, jobject, jint filter) {
-    if (filter < kFilterNearest || filter > kFilterBilinear) return;
+    if (filter < kFilterNearest || filter > kFilterSgsr) return;
     if (scalingFilter.exchange(filter, std::memory_order_relaxed) == filter) return;
     log(ANDROID_LOG_INFO, "SCALING_FILTER filter=" + std::to_string(filter));
     std::lock_guard<std::mutex> guard(presenterLock);

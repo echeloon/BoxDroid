@@ -19,7 +19,8 @@ ROOT = Path(__file__).resolve().parent.parent
 SHADERS = ROOT / 'native/android/core/shaders'
 HEADER = ROOT / 'native/android/core/boxdroid-present-shaders.h'
 # Source file -> C++ array name.
-OUTPUTS = {'present.vert': 'kPresentVertexShader', 'present.frag': 'kPresentFragmentShader'}
+OUTPUTS = {'present.vert': 'kPresentVertexShader', 'present.frag': 'kPresentFragmentShader',
+           'sgsr1.frag': 'kSgsrFragmentShader'}
 
 
 def glslc():

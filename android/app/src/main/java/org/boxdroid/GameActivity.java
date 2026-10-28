@@ -23,6 +23,7 @@ public class GameActivity extends BootEmulatorActivity implements InGameMenu.Lis
     // Scaling filters, matching the native presenter's.
     static final int FILTER_NEAREST = 0;
     static final int FILTER_BILINEAR = 1;
+    static final int FILTER_SGSR = 2;
     private static final String SCALING_FILTER = "scaling_filter";
     private static final String SETTINGS = "boxdroid_settings";
 
@@ -182,7 +183,7 @@ public class GameActivity extends BootEmulatorActivity implements InGameMenu.Lis
     /** The scaling filter is a global display preference, not a per-game one. */
     @Override
     public void setScalingFilter(int filter) {
-        if (filter < FILTER_NEAREST || filter > FILTER_BILINEAR || filter == scalingFilter) return;
+        if (filter < FILTER_NEAREST || filter > FILTER_SGSR || filter == scalingFilter) return;
         scalingFilter = filter;
         getSharedPreferences(SETTINGS, MODE_PRIVATE).edit().putInt(SCALING_FILTER, filter).apply();
         applyScalingFilter(filter);
