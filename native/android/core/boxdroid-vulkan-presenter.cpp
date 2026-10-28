@@ -90,21 +90,36 @@ struct AspectFit {
     double scale = 0;
 };
 
+// Display aspect modes, matching the Java ASPECT_* constants. The Xbox drives
+// a 4:3 or 16:9 TV whatever the framebuffer size, so the frame is fitted to the
+// chosen display aspect rather than to its pixel dimensions (720x480 is 4:3).
+constexpr int kAspect4x3 = 0;
+constexpr int kAspect16x9 = 1;
+constexpr int kAspectStretch = 2;
+std::atomic<int> aspectMode{kAspect4x3};
+
 AspectFit aspectFit(uint32_t sourceWidth, uint32_t sourceHeight,
-                    uint32_t surfaceWidth, uint32_t surfaceHeight) {
+                    uint32_t surfaceWidth, uint32_t surfaceHeight, int mode) {
     AspectFit fit;
     if (!sourceWidth || !sourceHeight || !surfaceWidth || !surfaceHeight) return fit;
     fit.scale = std::min(static_cast<double>(surfaceWidth) / sourceWidth,
                          static_cast<double>(surfaceHeight) / sourceHeight);
-    if (static_cast<uint64_t>(surfaceWidth) * sourceHeight >
-        static_cast<uint64_t>(surfaceHeight) * sourceWidth) {
+    if (mode == kAspectStretch) {
+        fit.width = surfaceWidth;
+        fit.height = surfaceHeight;
+        return fit;
+    }
+    const uint32_t aspectWidth = mode == kAspect16x9 ? 16 : 4;
+    const uint32_t aspectHeight = mode == kAspect16x9 ? 9 : 3;
+    if (static_cast<uint64_t>(surfaceWidth) * aspectHeight >
+        static_cast<uint64_t>(surfaceHeight) * aspectWidth) {
         fit.height = surfaceHeight;
         fit.width = std::max(1u, static_cast<uint32_t>(
-            (static_cast<uint64_t>(sourceWidth) * surfaceHeight) / sourceHeight));
+            (static_cast<uint64_t>(aspectWidth) * surfaceHeight) / aspectHeight));
     } else {
         fit.width = surfaceWidth;
         fit.height = std::max(1u, static_cast<uint32_t>(
-            (static_cast<uint64_t>(sourceHeight) * surfaceWidth) / sourceWidth));
+            (static_cast<uint64_t>(aspectHeight) * surfaceWidth) / aspectWidth));
     }
     fit.x = (surfaceWidth - fit.width) / 2;
     fit.y = (surfaceHeight - fit.height) / 2;
@@ -238,7 +253,7 @@ struct Presenter {
     VkImageUsageFlags surfaceUsageFlags = 0;
     uint32_t generation = 0;
     bool frameGeometryValid = false;
-    std::array<uint32_t, 9> frameGeometryKey{};
+    std::array<uint32_t, 10> frameGeometryKey{};
     AspectFit frameFit{};
     uint32_t geometryChanges = 0;
     std::vector<uint8_t> lastFrame;
@@ -854,14 +869,15 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
 #endif
     VkBuffer stagingBuffer = hasPixels ? p.stagingBuffer : VK_NULL_HANDLE;
     if (hasPixels) {
-        const AspectFit fit = aspectFit(sourceWidth, sourceHeight, p.extent.width, p.extent.height);
+        const int mode = aspectMode.load(std::memory_order_relaxed);
+        const AspectFit fit = aspectFit(sourceWidth, sourceHeight, p.extent.width, p.extent.height, mode);
         const uint32_t destinationWidth = fit.width;
         const uint32_t destinationHeight = fit.height;
         const uint32_t destinationX = fit.x;
         const uint32_t destinationY = fit.y;
-        const std::array<uint32_t, 9> geometry = {sourceWidth, sourceHeight, sourceStride,
+        const std::array<uint32_t, 10> geometry = {sourceWidth, sourceHeight, sourceStride,
             p.requestedWidth, p.requestedHeight, p.nativeWindowWidth, p.nativeWindowHeight,
-            p.extent.width, p.extent.height};
+            p.extent.width, p.extent.height, static_cast<uint32_t>(mode)};
         auto *dst = static_cast<uint8_t *>(p.stagingMapped);
         if (!p.frameGeometryValid || geometry != p.frameGeometryKey) {
             p.frameGeometryValid = true;
@@ -881,7 +897,7 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
                 " scale=" + std::to_string(fit.scale) +
                 " destination=" + std::to_string(destinationWidth) + "x" +
                 std::to_string(destinationHeight) + "+" + std::to_string(destinationX) + "+" +
-                std::to_string(destinationY) + " aspect_fit=1 pre_transform=" +
+                std::to_string(destinationY) + " aspect_mode=" + std::to_string(mode) + " pre_transform=" +
                 hexValue(p.swapchainPreTransform));
         }
 #ifdef BOXDROID_RUNTIME
@@ -1132,6 +1148,7 @@ extern "C" JNIEXPORT jboolean JNICALL Java_org_boxdroid_MainActivity_nativePrese
 extern "C" JNIEXPORT void JNICALL Java_org_boxdroid_MainActivity_nativeSurfaceDestroyed(JNIEnv *, jobject);
 extern "C" JNIEXPORT jstring JNICALL Java_org_boxdroid_MainActivity_nativeDiagnostics(JNIEnv *, jobject);
 extern "C" JNIEXPORT void JNICALL Java_org_boxdroid_MainActivity_nativeShutdown(JNIEnv *, jobject);
+extern "C" JNIEXPORT void JNICALL Java_org_boxdroid_MainActivity_nativeSetAspectMode(JNIEnv *, jobject, jint);
 extern "C" JNIEXPORT jlong JNICALL Java_org_boxdroid_PerformanceActivity_nativePresentedFrames(JNIEnv *, jobject);
 
 extern "C" bool boxdroid_android_present_rgba(const uint8_t *, uint32_t,
@@ -1209,6 +1226,17 @@ Java_org_boxdroid_MainActivity_nativeSurfaceDestroyed(JNIEnv *, jobject) {
     frameQueue.stop();
     std::lock_guard<std::mutex> guard(presenterLock);
     destroySurface();
+}
+
+// Applies from the next frame; repaints the last one at once so the change
+// shows while the guest is paused behind the in-game menu.
+extern "C" JNIEXPORT void JNICALL
+Java_org_boxdroid_MainActivity_nativeSetAspectMode(JNIEnv *, jobject, jint mode) {
+    if (mode < kAspect4x3 || mode > kAspectStretch) return;
+    if (aspectMode.exchange(mode, std::memory_order_relaxed) == mode) return;
+    log(ANDROID_LOG_INFO, "ASPECT_MODE mode=" + std::to_string(mode));
+    std::lock_guard<std::mutex> guard(presenterLock);
+    if (p.surface && p.swapchain && !surfaceRetiring.load(std::memory_order_acquire)) redrawLastFrame();
 }
 
 extern "C" JNIEXPORT jstring JNICALL
