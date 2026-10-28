@@ -3426,6 +3426,71 @@ Java_org_boxdroid_MainActivity_nativeXboxStartWithDvd(JNIEnv *env, jobject self,
 }
 #endif
 
+/* Pause/resume requests from the in-game menu. They run as a bottom half on
+ * the QEMU main loop, the same context as the monitor's stop/cont commands,
+ * so vm_stop()/vm_start() never race the main loop or the TCG thread.
+ * Callers are serialized by MainActivity's native executor. */
+static pthread_mutex_t pause_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t pause_done_cond = PTHREAD_COND_INITIALIZER;
+static bool pause_requested;
+static bool pause_done;
+static int pause_result;
+
+static void boxdroid_pause_bh(void *opaque)
+{
+    int result = 0;
+    (void) opaque;
+    if (pause_requested) {
+        if (runstate_is_running()) {
+            result = vm_stop(RUN_STATE_PAUSED);
+        }
+    } else if (runstate_check(RUN_STATE_PAUSED)) {
+        vm_start();
+    }
+    pthread_mutex_lock(&pause_lock);
+    pause_result = result;
+    pause_done = true;
+    pthread_cond_broadcast(&pause_done_cond);
+    pthread_mutex_unlock(&pause_lock);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_boxdroid_MainActivity_nativeXboxSetPaused(JNIEnv *env, jobject self,
+                                                   jboolean paused);
+JNIEXPORT jint JNICALL
+Java_org_boxdroid_MainActivity_nativeXboxSetPaused(JNIEnv *env, jobject self,
+                                                   jboolean paused)
+{
+    struct timespec deadline;
+    int result;
+    (void) env;
+    (void) self;
+    pthread_mutex_lock(&state_lock);
+    bool running = thread_created && init_succeeded && !loop_finished;
+    pthread_mutex_unlock(&state_lock);
+    if (!running) return -EAGAIN;
+
+    pthread_mutex_lock(&pause_lock);
+    pause_requested = paused == JNI_TRUE;
+    pause_done = false;
+    pthread_mutex_unlock(&pause_lock);
+    aio_bh_schedule_oneshot(qemu_get_aio_context(), boxdroid_pause_bh, NULL);
+
+    clock_gettime(CLOCK_REALTIME, &deadline);
+    deadline.tv_sec += 5;
+    pthread_mutex_lock(&pause_lock);
+    while (!pause_done) {
+        if (pthread_cond_timedwait(&pause_done_cond, &pause_lock, &deadline) == ETIMEDOUT) {
+            break;
+        }
+    }
+    result = pause_done ? pause_result : -ETIMEDOUT;
+    pthread_mutex_unlock(&pause_lock);
+    __android_log_print(ANDROID_LOG_INFO, TAG, "XBOX_%s result=%d",
+                        paused == JNI_TRUE ? "PAUSE" : "RESUME", result);
+    return result;
+}
+
 JNIEXPORT jint JNICALL
 Java_org_boxdroid_MainActivity_nativeXboxStop(JNIEnv *env, jobject self)
 {

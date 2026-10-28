@@ -7,31 +7,50 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
+import android.view.View;
+import android.view.WindowInsets;
 
 import org.boxdroid.BootEmulatorActivity;
 
 
-public class GameActivity extends BootEmulatorActivity {
+public class GameActivity extends BootEmulatorActivity implements InGameMenu.Listener {
     private static final String TAG = "BoxDroid_Game";
     private static final int REQUEST_XISO = 6101;
-    
+
     private GamepadInput physicalInput;
+    private InGameMenu menu;
+    private boolean quitting;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
+
         physicalInput = new GamepadInput(this);
         physicalInput.start();
         Log.i(TAG, "INPUT_LAYER_READY host=Android_Gamepad_Joystick slots=4 guest=XID_Duke");
-        
+
+        menu = new InGameMenu(this, this);
+        menu.attach(findViewById(android.R.id.content));
+        // In immersive mode the first edge swipe only reveals the system bars and
+        // sends no Back. Treat that reveal as the request to open the menu; this
+        // needs plain (non-sticky) immersive, see stickyImmersive().
+        View content = findViewById(android.R.id.content);
+        content.setOnApplyWindowInsetsListener((View view, WindowInsets insets) -> {
+            boolean barsVisible = insets.isVisible(WindowInsets.Type.navigationBars());
+            if (barsVisible && hasWindowFocus() && isGuestRunning() && !menu.isOpen() && !quitting) {
+                Log.i(TAG, "MENU_OPEN_REQUEST source=system_bars");
+                openMenu();
+            }
+            return view.onApplyWindowInsets(insets);
+        });
+
         Uri uri = getIntent().getData();
         if (uri != null) {
             Log.i(TAG, "Received game URI: " + uri);
             Intent fakeResult = new Intent();
             fakeResult.setData(uri);
             fakeResult.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            
+
             // This tricks BootEmulatorActivity into thinking the picker just returned
             onActivityResult(REQUEST_XISO, Activity.RESULT_OK, fakeResult);
         } else {
@@ -39,11 +58,12 @@ public class GameActivity extends BootEmulatorActivity {
             finish();
         }
     }
-    
+
     @Override
     protected void onResume() {
         super.onResume();
-        if (physicalInput != null) physicalInput.resume();
+        // While the menu is open the guest stays paused and receives no input.
+        if (physicalInput != null && !menu.isOpen()) physicalInput.resume();
     }
 
     @Override
@@ -64,14 +84,68 @@ public class GameActivity extends BootEmulatorActivity {
         System.exit(0);
     }
 
+    /** System Back (navigation button or edge swipe) toggles the menu once the game runs. */
+    @Override
+    public void onBackPressed() {
+        if (quitting) return;
+        if (menu.isOpen()) {
+            menu.back();
+        } else if (isGuestRunning()) {
+            openMenu();
+        } else {
+            // Still booting: keep the previous behaviour and leave cleanly.
+            super.onBackPressed();
+        }
+    }
+
+    private void openMenu() {
+        menu.open();
+        physicalInput.pause();
+        setAudioSuspended(true);
+        Log.i(TAG, "MENU_OPEN");
+        setGuestPaused(true, result -> {
+            if (result != 0 && menu.isOpen()) {
+                Log.e(TAG, "MENU_PAUSE_FAILED result=" + result);
+                onMenuResume();
+            }
+        });
+    }
+
+    @Override
+    protected boolean stickyImmersive() {
+        return false;
+    }
+
+    @Override
+    public void onMenuResume() {
+        if (!menu.isOpen()) return;
+        menu.close();
+        configurePresentationWindow();
+        setGuestPaused(false, null);
+        setAudioSuspended(false);
+        // Restart from a neutral controller: the button that closed the menu never reaches the guest.
+        physicalInput.resume();
+        Log.i(TAG, "MENU_RESUME");
+    }
+
+    @Override
+    public void onMenuQuit() {
+        if (quitting) return;
+        quitting = true;
+        Log.i(TAG, "MENU_QUIT");
+        requestCleanShutdown();
+    }
+
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        if (menu != null && menu.onKeyEvent(event)) return true;
         if (physicalInput != null && physicalInput.onKeyEvent(event)) return true;
         return super.dispatchKeyEvent(event);
     }
 
     @Override
     public boolean dispatchGenericMotionEvent(MotionEvent event) {
+        if (menu != null && menu.onMotionEvent(event)) return true;
         if (physicalInput != null && physicalInput.onMotionEvent(event)) return true;
         return super.dispatchGenericMotionEvent(event);
     }

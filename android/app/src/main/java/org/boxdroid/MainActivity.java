@@ -67,6 +67,7 @@ public class MainActivity extends Activity {
     protected native int nativeXboxStartWithDvd(String bios, String mcpx, String hdd, String log,
                                                  int dvdFd, long dvdSize);
     private native int nativeXboxStop();
+    private native int nativeXboxSetPaused(boolean paused);
     private native boolean nativeSurfaceCreated(Surface surface, int width, int height, int generation);
     private native boolean nativeSurfaceChanged(int width, int height);
     private native void nativeSurfaceDestroyed();
@@ -90,6 +91,22 @@ public class MainActivity extends Activity {
         if (biosFd != null) { try { biosFd.close(); } catch (Exception e) {} biosFd = null; }
         if (mcpxFd != null) { try { mcpxFd.close(); } catch (Exception e) {} mcpxFd = null; }
         if (hddFd != null) { try { hddFd.close(); } catch (Exception e) {} hddFd = null; }
+    }
+
+    /** True once the guest has started and no shutdown has been requested. */
+    protected final boolean isGuestRunning() {
+        return xboxStarted && !stopping;
+    }
+
+    /**
+     * Pauses or resumes the guest. Runs on the native executor, so it is
+     * ordered with start and stop; the callback runs on the UI thread.
+     */
+    protected final void setGuestPaused(boolean paused, java.util.function.IntConsumer onResult) {
+        NATIVE.execute(() -> {
+            int result = xboxStarted && !stopping ? nativeXboxSetPaused(paused) : -1;
+            if (onResult != null) runOnUiThread(() -> onResult.accept(result));
+        });
     }
 
     /** Stop the native runtime in order before closing this milestone app. */
@@ -174,13 +191,22 @@ public class MainActivity extends Activity {
 
     private MainActivity thisActivity() { return this; }
 
-    private void configurePresentationWindow() {
+    /**
+     * Sticky immersive lets an edge swipe show the bars only transiently, without
+     * telling the app. Return false to use plain immersive, where the revealed bars
+     * stay visible and are reported through window insets.
+     */
+    protected boolean stickyImmersive() { return true; }
+
+    /** Hides the system bars again, e.g. after an edge swipe revealed them. */
+    protected final void configurePresentationWindow() {
         getWindow().getDecorView().setBackgroundColor(Color.BLACK);
         getWindow().setStatusBarColor(Color.BLACK);
         getWindow().setNavigationBarColor(Color.BLACK);
         getWindow().getDecorView().setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+                (stickyImmersive() ? View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY : View.SYSTEM_UI_FLAG_IMMERSIVE) |
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
                 View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
     }
 
