@@ -68,6 +68,9 @@ public class MainActivity extends Activity {
                                                  int dvdFd, long dvdSize);
     private native int nativeXboxStop();
     private native int nativeXboxSetPaused(boolean paused);
+    private native int nativeXboxSaveState(String name);
+    private native int nativeXboxLoadState(String name);
+    private native String nativeXboxListStates(String prefix);
     private native boolean nativeSurfaceCreated(Surface surface, int width, int height, int generation);
     private native boolean nativeSurfaceChanged(int width, int height);
     private native void nativeSurfaceDestroyed();
@@ -108,6 +111,47 @@ public class MainActivity extends Activity {
         NATIVE.execute(() -> {
             int result = xboxStarted && !stopping ? nativeXboxSetPaused(paused) : -1;
             if (onResult != null) runOnUiThread(() -> onResult.accept(result));
+        });
+    }
+
+    /**
+     * Saves the paused guest into the hard disk snapshot {@code name}, replacing
+     * one with the same name. Runs on the native executor; the callback runs on
+     * the UI thread with 0 on success.
+     */
+    protected final void saveGuestState(String name, java.util.function.IntConsumer onResult) {
+        NATIVE.execute(() -> {
+            int result = xboxStarted && !stopping ? nativeXboxSaveState(name) : -1;
+            runOnUiThread(() -> onResult.accept(result));
+        });
+    }
+
+    /** Loads snapshot {@code name} into the paused guest; resuming continues from it. */
+    protected final void loadGuestState(String name, java.util.function.IntConsumer onResult) {
+        NATIVE.execute(() -> {
+            int result = xboxStarted && !stopping ? nativeXboxLoadState(name) : -1;
+            runOnUiThread(() -> onResult.accept(result));
+        });
+    }
+
+    /**
+     * Lists the snapshots whose name starts with {@code prefix} as name to Unix
+     * time in seconds; the callback receives null when they can't be read.
+     */
+    protected final void listGuestStates(String prefix,
+                                         java.util.function.Consumer<java.util.Map<String, Long>> onResult) {
+        NATIVE.execute(() -> {
+            String listing = xboxStarted && !stopping ? nativeXboxListStates(prefix) : null;
+            java.util.Map<String, Long> states = null;
+            if (listing != null) {
+                states = new java.util.HashMap<>();
+                for (String line : listing.split("\n")) {
+                    int tab = line.indexOf('\t');
+                    if (tab > 0) states.put(line.substring(0, tab), Long.parseLong(line.substring(tab + 1)));
+                }
+            }
+            java.util.Map<String, Long> result = states;
+            runOnUiThread(() -> onResult.accept(result));
         });
     }
 

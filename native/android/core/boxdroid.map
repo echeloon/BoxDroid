@@ -5,6 +5,9 @@ BOXDROID_1 {
         Java_org_boxdroid_MainActivity_nativeXboxStartWithDvd*;
         Java_org_boxdroid_MainActivity_nativeXboxStop;
         Java_org_boxdroid_MainActivity_nativeXboxSetPaused;
+        Java_org_boxdroid_MainActivity_nativeXboxSaveState;
+        Java_org_boxdroid_MainActivity_nativeXboxLoadState;
+        Java_org_boxdroid_MainActivity_nativeXboxListStates;
         Java_org_boxdroid_MainActivity_nativeSurfaceCreated;
         Java_org_boxdroid_MainActivity_nativeSurfaceChanged;
         Java_org_boxdroid_MainActivity_nativePresentFrame;

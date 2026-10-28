@@ -15,10 +15,14 @@ import android.view.ViewGroup;
 import android.view.WindowInsets;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
+import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.Supplier;
 
@@ -37,6 +41,11 @@ final class InGameMenu {
         void setAspectMode(int mode);
         int getScalingFilter();
         void setScalingFilter(int filter);
+        /** Each slot's save time in Unix seconds, 0 when empty; null when unreadable. */
+        void listStates(Consumer<long[]> onResult);
+        /** The callbacks receive 0 on success. */
+        void saveState(int slot, IntConsumer onDone);
+        void loadState(int slot, IntConsumer onDone);
     }
 
     private static final int PANEL_COLOR = Color.argb(0xCC, 0x0E, 0x0E, 0x0E);
@@ -49,6 +58,7 @@ final class InGameMenu {
     private static final float STICK_THRESHOLD = 0.5f;
     // A habitual second edge swipe arrives as Back right after the menu opened.
     private static final long BACK_DEBOUNCE_MS = 1000;
+    private static final long STATUS_MS = 2500;
 
     /** One selectable line. {@code step} is null for plain actions. */
     private static final class Row {
@@ -69,12 +79,16 @@ final class InGameMenu {
     private final Listener listener;
     private final FrameLayout root;
     private final LinearLayout panel;
+    private final ScrollView scroll;
     private final LinearLayout items;
     private final TextView hint;
     private final List<Row> rows = new ArrayList<>();
     private int selected;
     private boolean open;
-    private boolean confirming;
+    // Any page but the main one: B and Back return to the main page.
+    private boolean subPage;
+    // A save state operation is running: input is ignored until it reports back.
+    private boolean busy;
     private int stickDirection;
     private long openedAt;
 
@@ -87,7 +101,7 @@ final class InGameMenu {
         root.setVisibility(View.GONE);
         // Touches outside the panel resume the game; none reach the surface below.
         root.setClickable(true);
-        root.setOnClickListener(view -> listener.onMenuResume());
+        root.setOnClickListener(view -> { if (!busy) listener.onMenuResume(); });
 
         panel = new LinearLayout(activity);
         panel.setOrientation(LinearLayout.VERTICAL);
@@ -101,9 +115,15 @@ final class InGameMenu {
             return insets;
         });
 
+        // Pages taller than the screen scroll; select() keeps the selected row in view.
         items = new LinearLayout(activity);
         items.setOrientation(LinearLayout.VERTICAL);
-        panel.addView(items, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+        scroll = new ScrollView(activity);
+        scroll.setVerticalScrollBarEnabled(false);
+        scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        scroll.addView(items, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        panel.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
         hint = text(R.string.menu_hint, 13, HINT_TEXT);
         panel.addView(hint);
 
@@ -149,6 +169,8 @@ final class InGameMenu {
     private void showMainPage() {
         resetPage(R.string.menu_title, 0);
         addAction(R.string.menu_resume, listener::onMenuResume);
+        addAction(R.string.menu_save_state, () -> showStatesPage(true));
+        addAction(R.string.menu_load_state, () -> showStatesPage(false));
         addChoice(R.string.menu_aspect, this::aspectLabel, direction ->
                 listener.setAspectMode(Math.floorMod(listener.getAspectMode() + direction, 3)));
         addChoice(R.string.menu_filter, this::filterLabel, direction ->
@@ -167,17 +189,100 @@ final class InGameMenu {
         select(0);
     }
 
+    /** Lists the slots; saving to an occupied slot asks first, empty slots can't be loaded. */
+    private void showStatesPage(boolean save) {
+        int title = save ? R.string.menu_save_state : R.string.menu_load_state;
+        showBusy(title);
+        listener.listStates(times -> {
+            busy = false;
+            if (!open) return;
+            if (times == null) {
+                showMessage(R.string.state_list_failed);
+                return;
+            }
+            resetPage(activity.getString(title), null, true);
+            DateFormat format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT);
+            for (int i = 0; i < times.length; i++) {
+                int slot = i;
+                boolean empty = times[i] == 0;
+                TextView value = text(0, 15, SECONDARY_TEXT);
+                value.setText(empty ? activity.getString(R.string.state_empty)
+                        : format.format(new Date(times[i] * 1000)));
+                Runnable action = save ? (empty ? () -> saveState(slot) : () -> showOverwrite(slot))
+                        : (empty ? null : () -> loadState(slot));
+                addRow(activity.getString(R.string.state_slot, slot + 1), value, action, null);
+            }
+            select(0);
+        });
+    }
+
+    private void showOverwrite(int slot) {
+        resetPage(activity.getString(R.string.state_overwrite_title, slot + 1),
+                activity.getString(R.string.state_overwrite_message), true);
+        addAction(R.string.quit_cancel, () -> showStatesPage(true));
+        addAction(R.string.state_overwrite, () -> saveState(slot));
+        select(0);
+    }
+
+    private void saveState(int slot) {
+        showBusy(R.string.state_saving);
+        listener.saveState(slot, result -> {
+            busy = false;
+            if (!open) return;
+            if (result != 0) {
+                showMessage(R.string.state_save_failed);
+                return;
+            }
+            showMainPage();
+            String status = activity.getString(R.string.state_saved, slot + 1);
+            hint.setText(status);
+            hint.postDelayed(() -> {
+                if (open && !subPage && status.contentEquals(hint.getText())) hint.setText(R.string.menu_hint);
+            }, STATUS_MS);
+        });
+    }
+
+    /** A loaded state continues as soon as the menu closes. */
+    private void loadState(int slot) {
+        showBusy(R.string.state_loading);
+        listener.loadState(slot, result -> {
+            busy = false;
+            if (!open) return;
+            if (result == 0) listener.onMenuResume();
+            else showMessage(R.string.state_load_failed);
+        });
+    }
+
+    private void showBusy(int title) {
+        resetPage(activity.getString(title), null, true);
+        hint.setText("");
+        busy = true;
+    }
+
+    private void showMessage(int message) {
+        resetPage(activity.getString(message), null, true);
+        addAction(R.string.state_ok, this::showMainPage);
+        select(0);
+    }
+
     private void resetPage(int title, int message) {
+        resetPage(activity.getString(title), message == 0 ? null : activity.getString(message), message != 0);
+    }
+
+    private void resetPage(CharSequence title, CharSequence message, boolean sub) {
         items.removeAllViews();
         rows.clear();
-        confirming = message != 0;
-        hint.setText(confirming ? R.string.menu_hint_back : R.string.menu_hint);
-        TextView heading = text(title, 22, Color.WHITE);
+        scroll.scrollTo(0, 0);
+        subPage = sub;
+        hint.setText(subPage ? R.string.menu_hint_back : R.string.menu_hint);
+        TextView heading = text(0, 22, Color.WHITE);
+        heading.setText(title);
         heading.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        heading.setPadding(0, 0, 0, dp(confirming ? 8 : 20));
+        heading.setPadding(0, 0, 0, dp(message != null ? 8 : 20));
         items.addView(heading);
-        if (confirming) {
-            TextView body = text(message, 15, SECONDARY_TEXT);
+        if (message != null) {
+            TextView body = text(0, 15, SECONDARY_TEXT);
+            body.setText(message);
             body.setPadding(0, 0, 0, dp(20));
             items.addView(body);
         }
@@ -208,7 +313,7 @@ final class InGameMenu {
     }
 
     private void addAction(int label, Runnable action) {
-        addRow(label, null, action, null);
+        addRow(activity.getString(label), null, action, null);
     }
 
     /** A value cycled with left/right; activating it (A or tap) moves to the next value. */
@@ -216,11 +321,11 @@ final class InGameMenu {
         TextView valueView = text(0, 17, SECONDARY_TEXT);
         Runnable refresh = () -> valueView.setText("‹ " + value.get() + " ›");
         refresh.run();
-        addRow(label, valueView, () -> { step.accept(1); refresh.run(); },
+        addRow(activity.getString(label), valueView, () -> { step.accept(1); refresh.run(); },
                 direction -> { step.accept(direction); refresh.run(); });
     }
 
-    private void addRow(int label, TextView value, Runnable action, IntConsumer step) {
+    private void addRow(CharSequence label, TextView value, Runnable action, IntConsumer step) {
         LinearLayout line = new LinearLayout(activity);
         line.setOrientation(LinearLayout.HORIZONTAL);
         line.setGravity(Gravity.CENTER_VERTICAL);
@@ -229,7 +334,8 @@ final class InGameMenu {
         View indicator = new View(activity);
         line.addView(indicator, new LinearLayout.LayoutParams(dp(3), dp(24)));
 
-        TextView name = text(label, 17, Color.WHITE);
+        TextView name = text(0, 17, Color.WHITE);
+        name.setText(label);
         name.setPadding(dp(14), 0, dp(12), 0);
         line.addView(name, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         if (value != null) line.addView(value);
@@ -262,6 +368,16 @@ final class InGameMenu {
             rows.get(i).view.setBackgroundColor(on ? SELECTED_COLOR : Color.TRANSPARENT);
             rows.get(i).indicator.setBackgroundColor(on ? Color.WHITE : Color.TRANSPARENT);
         }
+        View row = rows.get(selected).view;
+        // After layout, so a page that was just built has its row positions.
+        scroll.post(() -> {
+            int top = row.getTop();
+            int bottom = row.getBottom();
+            int visible = scroll.getHeight();
+            if (selected == 0) scroll.smoothScrollTo(0, 0);
+            else if (bottom > scroll.getScrollY() + visible) scroll.smoothScrollTo(0, bottom - visible);
+            else if (top < scroll.getScrollY()) scroll.smoothScrollTo(0, top);
+        });
     }
 
     private void activateSelected() {
@@ -275,7 +391,7 @@ final class InGameMenu {
     }
 
     /**
-     * B and Back leave the confirmation page first, then resume the game. Also the
+     * B and Back return to the main page first, then resume the game. Also the
      * entry point for system Back delivered to onBackPressed() instead of as a key.
      */
     void back() {
@@ -284,7 +400,8 @@ final class InGameMenu {
             Log.i("BoxDroid_Game", "MENU_BACK_IGNORED since_open_ms=" + sinceOpen);
             return;
         }
-        if (confirming) showMainPage();
+        if (busy) return;
+        if (subPage) showMainPage();
         else listener.onMenuResume();
     }
 
@@ -296,6 +413,7 @@ final class InGameMenu {
                 || key == KeyEvent.KEYCODE_VOLUME_MUTE) {
             return false;
         }
+        if (busy) return true;
         boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
         boolean up = event.getAction() == KeyEvent.ACTION_UP;
         switch (key) {
@@ -329,6 +447,7 @@ final class InGameMenu {
     /** Maps the D-pad hat and left stick to single navigation steps; consumes all motion while open. */
     boolean onMotionEvent(MotionEvent event) {
         if (!open) return false;
+        if (busy) return true;
         if ((event.getSource() & InputDevice.SOURCE_CLASS_JOYSTICK) == 0
                 || event.getAction() != MotionEvent.ACTION_MOVE) {
             return true;

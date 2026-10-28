@@ -25,6 +25,7 @@ public class GameActivity extends BootEmulatorActivity implements InGameMenu.Lis
     static final int FILTER_BILINEAR = 1;
     static final int FILTER_SGSR = 2;
     private static final String SCALING_FILTER = "scaling_filter";
+    static final int STATE_SLOTS = 3;
     private static final String SETTINGS = "boxdroid_settings";
 
     private GamepadInput physicalInput;
@@ -188,6 +189,43 @@ public class GameActivity extends BootEmulatorActivity implements InGameMenu.Lis
         getSharedPreferences(SETTINGS, MODE_PRIVATE).edit().putInt(SCALING_FILTER, filter).apply();
         applyScalingFilter(filter);
         Log.i(TAG, "SETTING scaling_filter=" + filter);
+    }
+
+    /** Save states are hard disk snapshots named after the game: "4D530004.1-slot1". */
+    private String stateName(int slot) {
+        return game.key + "-slot" + (slot + 1);
+    }
+
+    @Override
+    public void listStates(java.util.function.Consumer<long[]> onResult) {
+        if (game == null) {
+            onResult.accept(null);
+            return;
+        }
+        listGuestStates(game.key + "-slot", states -> {
+            if (states == null) {
+                onResult.accept(null);
+                return;
+            }
+            long[] times = new long[STATE_SLOTS];
+            for (int i = 0; i < STATE_SLOTS; i++) {
+                Long time = states.get(stateName(i));
+                times[i] = time == null ? 0 : Math.max(1, time);
+            }
+            onResult.accept(times);
+        });
+    }
+
+    @Override
+    public void saveState(int slot, java.util.function.IntConsumer onDone) {
+        Log.i(TAG, "STATE_SAVE_REQUEST name=" + stateName(slot));
+        saveGuestState(stateName(slot), onDone);
+    }
+
+    @Override
+    public void loadState(int slot, java.util.function.IntConsumer onDone) {
+        Log.i(TAG, "STATE_LOAD_REQUEST name=" + stateName(slot));
+        loadGuestState(stateName(slot), onDone);
     }
 
     @Override

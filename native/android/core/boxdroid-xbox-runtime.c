@@ -14,6 +14,8 @@
 #include "system/system.h"
 #include "system/blockdev.h"
 #include "system/block-backend-io.h"
+#include "block/snapshot.h"
+#include "migration/snapshot.h"
 #include "crypto/init.h"
 #include "hw/xbox/eeprom_generation.h"
 #include "qapi/error.h"
@@ -3440,6 +3442,8 @@ static void boxdroid_pause_bh(void *opaque)
 {
     int result = 0;
     (void) opaque;
+    __android_log_print(ANDROID_LOG_INFO, TAG, "XBOX_PAUSE_BH requested=%d runstate=%s",
+                        pause_requested, RunState_str(runstate_get()));
     if (pause_requested) {
         if (runstate_is_running()) {
             result = vm_stop(RUN_STATE_PAUSED);
@@ -3489,6 +3493,140 @@ Java_org_boxdroid_MainActivity_nativeXboxSetPaused(JNIEnv *env, jobject self,
     __android_log_print(ANDROID_LOG_INFO, TAG, "XBOX_%s result=%d",
                         paused == JNI_TRUE ? "PAUSE" : "RESUME", result);
     return result;
+}
+
+/*
+ * Save states are QEMU internal snapshots in the qcow2 hard disk: the machine
+ * state and the disk contents are captured together, so a game's own saves on
+ * the disk never disagree with the restored memory. Operations run on the QEMU
+ * main loop with the guest paused behind the in-game menu, one at a time (the
+ * Java side serializes them on its native executor).
+ */
+enum { STATE_SAVE, STATE_LOAD, STATE_LIST };
+static pthread_mutex_t state_job_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t state_job_cond = PTHREAD_COND_INITIALIZER;
+static int state_job_kind;
+static char *state_job_name;      /* snapshot name, or the name prefix to list */
+static GString *state_job_listing; /* "name\tunix_seconds\n" per snapshot */
+static int state_job_result;
+static bool state_job_done;
+
+static void boxdroid_state_bh(void *opaque)
+{
+    Error *err = NULL;
+    int result = 0;
+    (void) opaque;
+    __android_log_print(ANDROID_LOG_INFO, TAG, "XBOX_STATE_BH kind=%d runstate=%s",
+                        state_job_kind, RunState_str(runstate_get()));
+    switch (state_job_kind) {
+    case STATE_SAVE:
+        /* Stays paused: save_snapshot restores the run state it found. */
+        if (!save_snapshot(state_job_name, true, NULL, false, NULL, &err)) result = -EIO;
+        break;
+    case STATE_LOAD:
+        /* The guest is paused; resuming from the menu continues the loaded state. */
+        if (!load_snapshot(state_job_name, NULL, false, NULL, &err)) result = -EIO;
+        break;
+    case STATE_LIST: {
+        BlockDriverState *bs = bdrv_all_find_vmstate_bs(NULL, false, NULL, &err);
+        QEMUSnapshotInfo *snapshots = NULL;
+        int count = bs ? bdrv_snapshot_list(bs, &snapshots) : -ENOENT;
+        if (count < 0) {
+            result = count;
+            break;
+        }
+        for (int i = 0; i < count; i++) {
+            if (g_str_has_prefix(snapshots[i].name, state_job_name)) {
+                g_string_append_printf(state_job_listing, "%s\t%" PRId64 "\n",
+                                       snapshots[i].name, (int64_t) snapshots[i].date_sec);
+            }
+        }
+        g_free(snapshots);
+        break;
+    }
+    }
+    if (err) {
+        __android_log_print(ANDROID_LOG_ERROR, TAG, "XBOX_STATE_ERROR kind=%d name=%s error=%s",
+                            state_job_kind, state_job_name, error_get_pretty(err));
+        error_free(err);
+    }
+    pthread_mutex_lock(&state_job_lock);
+    state_job_result = result;
+    state_job_done = true;
+    pthread_cond_broadcast(&state_job_cond);
+    pthread_mutex_unlock(&state_job_lock);
+}
+
+/* Runs one state operation on the main loop; a save writes tens of MB to disk. */
+static int boxdroid_run_state_job(JNIEnv *env, int kind, jstring name)
+{
+    struct timespec deadline;
+    int result;
+    pthread_mutex_lock(&state_lock);
+    bool running = thread_created && init_succeeded && !loop_finished;
+    pthread_mutex_unlock(&state_lock);
+    if (!running) return -EAGAIN;
+    const char *chars = (*env)->GetStringUTFChars(env, name, NULL);
+    if (!chars) return -EINVAL;
+
+    pthread_mutex_lock(&state_job_lock);
+    g_free(state_job_name);
+    state_job_name = g_strdup(chars);
+    state_job_kind = kind;
+    if (state_job_listing) g_string_truncate(state_job_listing, 0);
+    else state_job_listing = g_string_new(NULL);
+    state_job_done = false;
+    pthread_mutex_unlock(&state_job_lock);
+    (*env)->ReleaseStringUTFChars(env, name, chars);
+    int64_t begin = g_get_monotonic_time();
+    aio_bh_schedule_oneshot(qemu_get_aio_context(), boxdroid_state_bh, NULL);
+
+    clock_gettime(CLOCK_REALTIME, &deadline);
+    deadline.tv_sec += 120;
+    pthread_mutex_lock(&state_job_lock);
+    while (!state_job_done) {
+        if (pthread_cond_timedwait(&state_job_cond, &state_job_lock, &deadline) == ETIMEDOUT) {
+            break;
+        }
+    }
+    result = state_job_done ? state_job_result : -ETIMEDOUT;
+    pthread_mutex_unlock(&state_job_lock);
+    __android_log_print(ANDROID_LOG_INFO, TAG, "XBOX_STATE_%s name=%s result=%d ms=%" PRId64,
+                        kind == STATE_SAVE ? "SAVE" : kind == STATE_LOAD ? "LOAD" : "LIST",
+                        state_job_name, result, (g_get_monotonic_time() - begin) / 1000);
+    return result;
+}
+
+JNIEXPORT jint JNICALL
+Java_org_boxdroid_MainActivity_nativeXboxSaveState(JNIEnv *env, jobject self, jstring name);
+JNIEXPORT jint JNICALL
+Java_org_boxdroid_MainActivity_nativeXboxSaveState(JNIEnv *env, jobject self, jstring name)
+{
+    (void) self;
+    return boxdroid_run_state_job(env, STATE_SAVE, name);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_boxdroid_MainActivity_nativeXboxLoadState(JNIEnv *env, jobject self, jstring name);
+JNIEXPORT jint JNICALL
+Java_org_boxdroid_MainActivity_nativeXboxLoadState(JNIEnv *env, jobject self, jstring name)
+{
+    (void) self;
+    return boxdroid_run_state_job(env, STATE_LOAD, name);
+}
+
+/* Lists the snapshots whose name starts with prefix, as "name\tunix_seconds" lines. */
+JNIEXPORT jstring JNICALL
+Java_org_boxdroid_MainActivity_nativeXboxListStates(JNIEnv *env, jobject self, jstring prefix);
+JNIEXPORT jstring JNICALL
+Java_org_boxdroid_MainActivity_nativeXboxListStates(JNIEnv *env, jobject self, jstring prefix)
+{
+    (void) self;
+    if (boxdroid_run_state_job(env, STATE_LIST, prefix) != 0) return NULL;
+    pthread_mutex_lock(&state_job_lock);
+    jstring listing = (*env)->NewStringUTF(env, state_job_listing->str);
+    pthread_mutex_unlock(&state_job_lock);
+    return listing;
 }
 
 JNIEXPORT jint JNICALL
