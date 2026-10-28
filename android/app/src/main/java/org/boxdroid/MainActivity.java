@@ -71,6 +71,7 @@ public class MainActivity extends Activity {
     private native int nativeXboxSaveState(String name);
     private native int nativeXboxLoadState(String name);
     private native String nativeXboxListStates(String prefix);
+    private native void nativeXboxSetWidescreen(boolean widescreen);
     private native boolean nativeSurfaceCreated(Surface surface, int width, int height, int generation);
     private native boolean nativeSurfaceChanged(int width, int height);
     private native void nativeSurfaceDestroyed();
@@ -161,6 +162,14 @@ public class MainActivity extends Activity {
      */
     protected final void applyAspectMode(int mode) {
         NATIVE.execute(() -> nativeSetAspectMode(mode));
+    }
+
+    /**
+     * Sets the console's widescreen video setting in its EEPROM before the next
+     * start; the guest reads it at boot.
+     */
+    protected final void setConsoleWidescreen(boolean widescreen) {
+        NATIVE.execute(() -> nativeXboxSetWidescreen(widescreen));
     }
 
     /** Sets the filter the presenter scales the guest frame with. */

@@ -39,6 +39,10 @@ final class InGameMenu {
         void setMetricsMode(int mode);
         int getAspectMode();
         void setAspectMode(int mode);
+        boolean getWidescreen();
+        void setWidescreen(boolean on);
+        /** True when the saved widescreen setting differs from the one the console booted with. */
+        boolean widescreenNeedsRestart();
         int getScalingFilter();
         void setScalingFilter(int filter);
         /** Each slot's save time in Unix seconds, 0 when empty; null when unreadable. */
@@ -59,6 +63,8 @@ final class InGameMenu {
     // A habitual second edge swipe arrives as Back right after the menu opened.
     private static final long BACK_DEBOUNCE_MS = 1000;
     private static final long STATUS_MS = 2500;
+    private static final int[] ASPECT_ORDER = {GameActivity.ASPECT_AUTO, GameActivity.ASPECT_4_3,
+            GameActivity.ASPECT_16_9, GameActivity.ASPECT_STRETCH};
 
     /** One selectable line. {@code step} is null for plain actions. */
     private static final class Row {
@@ -171,8 +177,23 @@ final class InGameMenu {
         addAction(R.string.menu_resume, listener::onMenuResume);
         addAction(R.string.menu_save_state, () -> showStatesPage(true));
         addAction(R.string.menu_load_state, () -> showStatesPage(false));
-        addChoice(R.string.menu_aspect, this::aspectLabel, direction ->
-                listener.setAspectMode(Math.floorMod(listener.getAspectMode() + direction, 3)));
+        addChoice(R.string.menu_aspect, this::aspectLabel, direction -> {
+            int position = Math.floorMod(indexOf(ASPECT_ORDER, listener.getAspectMode()) + direction,
+                    ASPECT_ORDER.length);
+            listener.setAspectMode(ASPECT_ORDER[position]);
+        });
+        addChoice(R.string.menu_widescreen, this::widescreenLabel, direction -> {
+            listener.setWidescreen(!listener.getWidescreen());
+            // Widescreen also changes the aspect ratio: rebuild the page, keeping the row.
+            int row = selected;
+            hint.post(() -> {
+                showMainPage();
+                select(row);
+                if (listener.widescreenNeedsRestart()) {
+                    showStatus(activity.getString(R.string.widescreen_restart));
+                }
+            });
+        });
         addChoice(R.string.menu_filter, this::filterLabel, direction ->
                 listener.setScalingFilter(Math.floorMod(listener.getScalingFilter() + direction, 3)));
         addChoice(R.string.menu_metrics, this::metricsLabel, direction ->
@@ -234,11 +255,7 @@ final class InGameMenu {
                 return;
             }
             showMainPage();
-            String status = activity.getString(R.string.state_saved, slot + 1);
-            hint.setText(status);
-            hint.postDelayed(() -> {
-                if (open && !subPage && status.contentEquals(hint.getText())) hint.setText(R.string.menu_hint);
-            }, STATUS_MS);
+            showStatus(activity.getString(R.string.state_saved, slot + 1));
         });
     }
 
@@ -251,6 +268,14 @@ final class InGameMenu {
             if (result == 0) listener.onMenuResume();
             else showMessage(R.string.state_load_failed);
         });
+    }
+
+    /** A short message in place of the main page's hint. */
+    private void showStatus(String status) {
+        hint.setText(status);
+        hint.postDelayed(() -> {
+            if (open && !subPage && status.contentEquals(hint.getText())) hint.setText(R.string.menu_hint);
+        }, STATUS_MS);
     }
 
     private void showBusy(int title) {
@@ -288,12 +313,22 @@ final class InGameMenu {
         }
     }
 
+    private static int indexOf(int[] values, int value) {
+        for (int i = 0; i < values.length; i++) if (values[i] == value) return i;
+        return 0;
+    }
+
     private String aspectLabel() {
         switch (listener.getAspectMode()) {
+            case GameActivity.ASPECT_AUTO: return activity.getString(R.string.aspect_auto);
             case GameActivity.ASPECT_16_9: return activity.getString(R.string.aspect_16_9);
             case GameActivity.ASPECT_STRETCH: return activity.getString(R.string.aspect_stretch);
             default: return activity.getString(R.string.aspect_4_3);
         }
+    }
+
+    private String widescreenLabel() {
+        return activity.getString(listener.getWidescreen() ? R.string.widescreen_on : R.string.widescreen_off);
     }
 
     private String filterLabel() {

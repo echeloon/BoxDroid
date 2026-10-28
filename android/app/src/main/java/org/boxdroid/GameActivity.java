@@ -20,6 +20,8 @@ public class GameActivity extends BootEmulatorActivity implements InGameMenu.Lis
     static final int ASPECT_4_3 = 0;
     static final int ASPECT_16_9 = 1;
     static final int ASPECT_STRETCH = 2;
+    // Follows the console's widescreen signal, as a TV would; the default.
+    static final int ASPECT_AUTO = 3;
     // Scaling filters, matching the native presenter's.
     static final int FILTER_NEAREST = 0;
     static final int FILTER_BILINEAR = 1;
@@ -32,7 +34,10 @@ public class GameActivity extends BootEmulatorActivity implements InGameMenu.Lis
     private InGameMenu menu;
     private boolean quitting;
     private GameIdentity game;
-    private int aspectMode = ASPECT_4_3;
+    private int aspectMode = ASPECT_AUTO;
+    // The widescreen setting the console booted with, and the one saved for the next start.
+    private boolean bootWidescreen;
+    private boolean widescreen;
     private int scalingFilter = FILTER_NEAREST;
 
     @Override
@@ -66,8 +71,11 @@ public class GameActivity extends BootEmulatorActivity implements InGameMenu.Lis
             Log.i(TAG, "Received game URI: " + uri);
             game = GameIdentity.of(this, uri);
             aspectMode = getSharedPreferences(SETTINGS, MODE_PRIVATE)
-                    .getInt(gameSetting("aspect"), ASPECT_4_3);
+                    .getInt(gameSetting("aspect"), ASPECT_AUTO);
             applyAspectMode(aspectMode);
+            widescreen = bootWidescreen = getSharedPreferences(SETTINGS, MODE_PRIVATE)
+                    .getBoolean(gameSetting("widescreen"), false);
+            setConsoleWidescreen(widescreen);
             Intent fakeResult = new Intent();
             fakeResult.setData(uri);
             fakeResult.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
@@ -169,11 +177,35 @@ public class GameActivity extends BootEmulatorActivity implements InGameMenu.Lis
 
     @Override
     public void setAspectMode(int mode) {
-        if (mode < ASPECT_4_3 || mode > ASPECT_STRETCH || mode == aspectMode || game == null) return;
+        if (mode < ASPECT_4_3 || mode > ASPECT_AUTO || mode == aspectMode || game == null) return;
         aspectMode = mode;
         getSharedPreferences(SETTINGS, MODE_PRIVATE).edit().putInt(gameSetting("aspect"), mode).apply();
         applyAspectMode(mode);
         Log.i(TAG, "GAME_SETTING game=" + game.key + " aspect=" + mode);
+    }
+
+    @Override
+    public boolean getWidescreen() {
+        return widescreen;
+    }
+
+    /**
+     * Saves the game's widescreen setting for its next start. A fixed aspect
+     * ratio that would contradict it returns to Auto, which follows the
+     * console's own widescreen signal.
+     */
+    @Override
+    public void setWidescreen(boolean on) {
+        if (on == widescreen || game == null) return;
+        widescreen = on;
+        getSharedPreferences(SETTINGS, MODE_PRIVATE).edit().putBoolean(gameSetting("widescreen"), on).apply();
+        if ((on && aspectMode == ASPECT_4_3) || (!on && aspectMode == ASPECT_16_9)) setAspectMode(ASPECT_AUTO);
+        Log.i(TAG, "GAME_SETTING game=" + game.key + " widescreen=" + on);
+    }
+
+    @Override
+    public boolean widescreenNeedsRestart() {
+        return widescreen != bootWidescreen;
     }
 
     @Override

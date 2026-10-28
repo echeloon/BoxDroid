@@ -21,6 +21,7 @@
 #include "qapi/error.h"
 #include "ui/console.h"
 #include "ui/surface.h"
+#include "ui/xemu-widescreen.h"
 #include "hw/xbox/nv2a/nv2a.h"
 #include "hw/xbox/nv2a/nv2a_int.h"
 #include "hw/xbox/nv2a/boxdroid-diagnostics.h"
@@ -53,6 +54,7 @@ int64_t boxdroid_x87_start;
 #define BOXDROID_PROGRESS_DEVICE_SLOTS 64
 #define BOXDROID_VIDEO_TIMELINE_LOG_CAP 128
 
+extern void boxdroid_android_set_guest_widescreen(bool widescreen);
 extern bool boxdroid_android_present_rgba(const uint8_t *pixels,
                                          uint32_t width, uint32_t height,
                                          uint32_t stride);
@@ -97,6 +99,8 @@ static int dvd_source_fd = -1;
 static uint64_t dvd_expected_size;
 #endif
 static char *eeprom_path;
+/* -1 leaves the EEPROM's widescreen setting as it is; 0 or 1 sets it at start. */
+static int requested_widescreen = -1;
 static uint64_t guest_frame_count;
 static uint64_t m5_diagnostic_sequence;
 static uint64_t m5_pgraph_record_count;
@@ -1597,6 +1601,14 @@ static void xbox_display_update(DisplayChangeListener *dcl,
     (void) y;
     (void) width;
     (void) height;
+    /* The kernel signals the TV's aspect ratio through a PM GPIO (5 = 16:9);
+     * the presenter's Auto aspect follows it, as a widescreen TV would. */
+    static int guest_widescreen = -1;
+    if (xemu_get_widescreen() != guest_widescreen) {
+        guest_widescreen = xemu_get_widescreen();
+        boxdroid_android_set_guest_widescreen(guest_widescreen);
+        __android_log_print(ANDROID_LOG_INFO, TAG, "GUEST_ASPECT widescreen=%d", guest_widescreen);
+    }
     boxdroid_diag_event(BOXDROID_DIAG_DISPLAY_CALLBACK,
                            (uint64_t) x, (uint64_t) y,
                            (uint64_t) width, (uint64_t) height, 0, 0);
@@ -3196,6 +3208,70 @@ static void *run_xbox(void *unused)
     return NULL;
 }
 
+/*
+ * The console's video settings live in the EEPROM user section, which the
+ * kernel reads at boot and games query through XGetVideoFlags(). Widescreen and
+ * letterbox are alternatives, as in the dashboard; the other flags are kept.
+ */
+#define EEPROM_USER_CHECKSUM 0x60
+#define EEPROM_USER_BEGIN 0x64
+#define EEPROM_USER_CHECKED_BYTES 0x5C
+#define EEPROM_VIDEO_FLAGS 0x94
+#define EEPROM_VIDEO_WIDESCREEN 0x00010000u
+#define EEPROM_VIDEO_LETTERBOX 0x00100000u
+
+/* The EEPROM's checksum: a 64-bit sum of little-endian words, high and low folded, inverted. */
+static uint32_t eeprom_checksum(const uint8_t *data, size_t length)
+{
+    uint32_t high = 0, low = 0;
+    for (size_t i = 0; i + 4 <= length; i += 4) {
+        uint32_t value = ldl_le_p(data + i);
+        uint64_t sum = ((uint64_t) high << 32) | low;
+        high = (sum + value) >> 32;
+        low += value;
+    }
+    return ~(high + low);
+}
+
+static void boxdroid_apply_eeprom_widescreen(const char *path)
+{
+    uint8_t eeprom[256];
+    if (requested_widescreen < 0) return;
+    FILE *file = fopen(path, "r+b");
+    if (!file) return;
+    if (fread(eeprom, 1, sizeof(eeprom), file) != sizeof(eeprom)) {
+        fclose(file);
+        return;
+    }
+    uint32_t flags = ldl_le_p(eeprom + EEPROM_VIDEO_FLAGS);
+    uint32_t updated = requested_widescreen ?
+        (flags & ~EEPROM_VIDEO_LETTERBOX) | EEPROM_VIDEO_WIDESCREEN :
+        flags & ~EEPROM_VIDEO_WIDESCREEN;
+    if (updated != flags) {
+        stl_le_p(eeprom + EEPROM_VIDEO_FLAGS, updated);
+        stl_le_p(eeprom + EEPROM_USER_CHECKSUM,
+                 eeprom_checksum(eeprom + EEPROM_USER_BEGIN, EEPROM_USER_CHECKED_BYTES));
+        if (fseek(file, 0, SEEK_SET) != 0 ||
+            fwrite(eeprom, 1, sizeof(eeprom), file) != sizeof(eeprom)) {
+            __android_log_print(ANDROID_LOG_ERROR, TAG, "XBOX_EEPROM_VIDEO_WRITE_FAIL path=%s", path);
+        }
+    }
+    fclose(file);
+    __android_log_print(ANDROID_LOG_INFO, TAG, "XBOX_EEPROM_VIDEO flags=0x%08x widescreen=%d changed=%d",
+                        updated, requested_widescreen, updated != flags);
+}
+
+/* Takes effect at the next start: the console reads its EEPROM at boot. */
+JNIEXPORT void JNICALL
+Java_org_boxdroid_MainActivity_nativeXboxSetWidescreen(JNIEnv *env, jobject self, jboolean widescreen);
+JNIEXPORT void JNICALL
+Java_org_boxdroid_MainActivity_nativeXboxSetWidescreen(JNIEnv *env, jobject self, jboolean widescreen)
+{
+    (void) env;
+    (void) self;
+    requested_widescreen = widescreen == JNI_TRUE;
+}
+
 JNIEXPORT jint JNICALL
 Java_org_boxdroid_MainActivity_nativeXboxStart(JNIEnv *env, jobject self,
                                                    jstring bios, jstring mcpx,
@@ -3336,6 +3412,7 @@ Java_org_boxdroid_MainActivity_nativeXboxStart(JNIEnv *env, jobject self,
         (*env)->ReleaseStringUTFChars(env, log, log_path);
         return -EIO;
     }
+    boxdroid_apply_eeprom_widescreen(eeprom_path);
     arguments[26 + arg_shift] = g_strdup_printf("smbus-storage,file=%s", eeprom_path);
     __android_log_print(ANDROID_LOG_INFO, TAG, "XBOX_EEPROM_READY size=256 app_private=1");
     __android_log_print(ANDROID_LOG_INFO, TAG,

@@ -97,7 +97,10 @@ struct AspectFit {
 constexpr int kAspect4x3 = 0;
 constexpr int kAspect16x9 = 1;
 constexpr int kAspectStretch = 2;
-std::atomic<int> aspectMode{kAspect4x3};
+// 16:9 while the console signals a widescreen TV, else 4:3.
+constexpr int kAspectAuto = 3;
+std::atomic<int> aspectMode{kAspectAuto};
+std::atomic<bool> guestWidescreen{false};
 // Scaling filters, matching the Java FILTER_* constants.
 constexpr int kFilterNearest = 0;
 constexpr int kFilterBilinear = 1;
@@ -1298,7 +1301,10 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
 #endif
     VkBuffer stagingBuffer = hasPixels ? p.stagingBuffer : VK_NULL_HANDLE;
     if (hasPixels) {
-        const int mode = aspectMode.load(std::memory_order_relaxed);
+        int mode = aspectMode.load(std::memory_order_relaxed);
+        if (mode == kAspectAuto) {
+            mode = guestWidescreen.load(std::memory_order_relaxed) ? kAspect16x9 : kAspect4x3;
+        }
         const AspectFit fit = aspectFit(sourceWidth, sourceHeight, p.extent.width, p.extent.height, mode);
         const uint32_t destinationWidth = fit.width;
         const uint32_t destinationHeight = fit.height;
@@ -1653,6 +1659,12 @@ extern "C" JNIEXPORT jlong JNICALL Java_org_boxdroid_PerformanceActivity_nativeP
 
 extern "C" bool boxdroid_android_present_rgba(const uint8_t *, uint32_t,
                                                 uint32_t, uint32_t);
+extern "C" void boxdroid_android_set_guest_widescreen(bool);
+
+// Called from the display refresh; the next frame refits when it changed.
+extern "C" void boxdroid_android_set_guest_widescreen(bool widescreen) {
+    guestWidescreen.store(widescreen, std::memory_order_relaxed);
+}
 
 extern "C" bool boxdroid_android_present_rgba(const uint8_t *pixels,
                                                 uint32_t width,
@@ -1732,7 +1744,7 @@ Java_org_boxdroid_MainActivity_nativeSurfaceDestroyed(JNIEnv *, jobject) {
 // shows while the guest is paused behind the in-game menu.
 extern "C" JNIEXPORT void JNICALL
 Java_org_boxdroid_MainActivity_nativeSetAspectMode(JNIEnv *, jobject, jint mode) {
-    if (mode < kAspect4x3 || mode > kAspectStretch) return;
+    if (mode < kAspect4x3 || mode > kAspectAuto) return;
     if (aspectMode.exchange(mode, std::memory_order_relaxed) == mode) return;
     log(ANDROID_LOG_INFO, "ASPECT_MODE mode=" + std::to_string(mode));
     std::lock_guard<std::mutex> guard(presenterLock);
