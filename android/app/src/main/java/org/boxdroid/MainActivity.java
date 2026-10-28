@@ -74,6 +74,7 @@ public class MainActivity extends Activity {
     private native String nativeDiagnostics();
     private native void nativeShutdown();
     private native void nativeSetAspectMode(int mode);
+    private native void nativeSetScalingFilter(int filter);
 
     /** Hook for isolated milestone apps that need host setup before QEMU starts. */
     protected void beforeNativeRuntimeStart() { }
@@ -116,6 +117,11 @@ public class MainActivity extends Activity {
      */
     protected final void applyAspectMode(int mode) {
         NATIVE.execute(() -> nativeSetAspectMode(mode));
+    }
+
+    /** Sets the filter the presenter scales the guest frame with. */
+    protected final void applyScalingFilter(int filter) {
+        NATIVE.execute(() -> nativeSetScalingFilter(filter));
     }
 
     /** Stop the native runtime in order before closing this milestone app. */

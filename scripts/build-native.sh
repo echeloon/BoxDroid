@@ -165,6 +165,7 @@ if [[ "$XBOX_RUNTIME" == 1 ]]; then
     cp "$ROOT/native/android/core/boxdroid-xbox-settings.c" "$SOURCE/system/boxdroid-xbox-settings.c"
     cp "$ROOT/native/android/core/boxdroid.map" "$SOURCE/system/boxdroid.map"
     cp "$ROOT/native/android/core/boxdroid-vulkan-presenter.cpp" "$SOURCE/system/boxdroid-vulkan-presenter.cpp"
+    cp "$ROOT/native/android/core/boxdroid-present-shaders.h" "$SOURCE/system/boxdroid-present-shaders.h"
     cp "$ROOT/native/android/core/boxdroid-frame-queue.h" "$SOURCE/system/boxdroid-frame-queue.h"
     cp "$ROOT/native/android/core/boxdroid-diagnostics.h" "$SOURCE/hw/xbox/nv2a/boxdroid-diagnostics.h"
     cp "$ROOT/native/android/core/boxdroid-diagnostics.h" "$SOURCE/system/boxdroid-diagnostics.h"
@@ -194,6 +195,7 @@ elif [[ "$RUNTIME" == 1 ]]; then
         presenter_source="$ROOT/native/android/core/boxdroid-vulkan-presenter.cpp"
         [[ -s "$presenter_source" ]] || die "missing BoxDroid presenter source: $presenter_source"
         cp "$presenter_source" "$SOURCE/system/boxdroid-vulkan-presenter.cpp"
+        cp "$ROOT/native/android/core/boxdroid-present-shaders.h" "$SOURCE/system/boxdroid-present-shaders.h"
         cp "$ROOT/native/android/core/boxdroid-frame-queue.h" "$SOURCE/system/boxdroid-frame-queue.h"
     fi
 elif [[ "$PRESENTER" == 1 ]]; then

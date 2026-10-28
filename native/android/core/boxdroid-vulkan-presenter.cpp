@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "boxdroid-frame-queue.h"
+#include "boxdroid-present-shaders.h"
 
 // The presenter and Xemu own separate dispatch tables, backed by one selected loader.
 extern "C" void *boxdroid_vk_proc();
@@ -97,6 +98,10 @@ constexpr int kAspect4x3 = 0;
 constexpr int kAspect16x9 = 1;
 constexpr int kAspectStretch = 2;
 std::atomic<int> aspectMode{kAspect4x3};
+// Scaling filters, matching the Java FILTER_* constants.
+constexpr int kFilterNearest = 0;
+constexpr int kFilterBilinear = 1;
+std::atomic<int> scalingFilter{kFilterNearest};
 
 AspectFit aspectFit(uint32_t sourceWidth, uint32_t sourceHeight,
                     uint32_t surfaceWidth, uint32_t surfaceHeight, int mode) {
@@ -200,6 +205,37 @@ struct Presenter {
     PFN_vkQueuePresentKHR fn_QueuePresentKHR = nullptr;
     PFN_vkQueueWaitIdle fn_QueueWaitIdle = nullptr;
     PFN_vkDeviceWaitIdle fn_DeviceWaitIdle = nullptr;
+    PFN_vkCreateImage fn_CreateImage = nullptr;
+    PFN_vkDestroyImage fn_DestroyImage = nullptr;
+    PFN_vkGetImageMemoryRequirements fn_GetImageMemoryRequirements = nullptr;
+    PFN_vkBindImageMemory fn_BindImageMemory = nullptr;
+    PFN_vkCreateImageView fn_CreateImageView = nullptr;
+    PFN_vkDestroyImageView fn_DestroyImageView = nullptr;
+    PFN_vkCreateSampler fn_CreateSampler = nullptr;
+    PFN_vkDestroySampler fn_DestroySampler = nullptr;
+    PFN_vkCreateRenderPass fn_CreateRenderPass = nullptr;
+    PFN_vkDestroyRenderPass fn_DestroyRenderPass = nullptr;
+    PFN_vkCreateFramebuffer fn_CreateFramebuffer = nullptr;
+    PFN_vkDestroyFramebuffer fn_DestroyFramebuffer = nullptr;
+    PFN_vkCreateShaderModule fn_CreateShaderModule = nullptr;
+    PFN_vkDestroyShaderModule fn_DestroyShaderModule = nullptr;
+    PFN_vkCreateDescriptorSetLayout fn_CreateDescriptorSetLayout = nullptr;
+    PFN_vkDestroyDescriptorSetLayout fn_DestroyDescriptorSetLayout = nullptr;
+    PFN_vkCreateDescriptorPool fn_CreateDescriptorPool = nullptr;
+    PFN_vkDestroyDescriptorPool fn_DestroyDescriptorPool = nullptr;
+    PFN_vkAllocateDescriptorSets fn_AllocateDescriptorSets = nullptr;
+    PFN_vkUpdateDescriptorSets fn_UpdateDescriptorSets = nullptr;
+    PFN_vkCreatePipelineLayout fn_CreatePipelineLayout = nullptr;
+    PFN_vkDestroyPipelineLayout fn_DestroyPipelineLayout = nullptr;
+    PFN_vkCreateGraphicsPipelines fn_CreateGraphicsPipelines = nullptr;
+    PFN_vkDestroyPipeline fn_DestroyPipeline = nullptr;
+    PFN_vkCmdBeginRenderPass fn_CmdBeginRenderPass = nullptr;
+    PFN_vkCmdEndRenderPass fn_CmdEndRenderPass = nullptr;
+    PFN_vkCmdBindPipeline fn_CmdBindPipeline = nullptr;
+    PFN_vkCmdBindDescriptorSets fn_CmdBindDescriptorSets = nullptr;
+    PFN_vkCmdSetViewport fn_CmdSetViewport = nullptr;
+    PFN_vkCmdSetScissor fn_CmdSetScissor = nullptr;
+    PFN_vkCmdDraw fn_CmdDraw = nullptr;
     VkInstance instance = VK_NULL_HANDLE;
     VkPhysicalDevice gpu = VK_NULL_HANDLE;
     VkDevice device = VK_NULL_HANDLE;
@@ -217,6 +253,25 @@ struct Presenter {
     VkDeviceSize stagingCapacity = 0;
     ANativeWindow *window = nullptr;
     std::vector<VkImage> images;
+    // GPU presentation: the guest frame is uploaded at its own size into
+    // sourceImage and scaled to the aspect-fit rectangle by a draw.
+    bool gpuPresent = false;
+    VkFormat pipelineFormat = VK_FORMAT_UNDEFINED;
+    VkRenderPass renderPass = VK_NULL_HANDLE;
+    VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
+    VkPipeline pipeline = VK_NULL_HANDLE;
+    VkDescriptorSetLayout setLayout = VK_NULL_HANDLE;
+    VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
+    std::array<VkDescriptorSet, 2> descriptorSets{};  // one per scaling filter
+    std::array<VkSampler, 2> samplers{};
+    std::vector<VkImageView> imageViews;
+    std::vector<VkFramebuffer> framebuffers;
+    VkImage sourceImage = VK_NULL_HANDLE;
+    VkDeviceMemory sourceMemory = VK_NULL_HANDLE;
+    VkImageView sourceView = VK_NULL_HANDLE;
+    uint32_t sourceImageWidth = 0;
+    uint32_t sourceImageHeight = 0;
+    bool sourceImageWritten = false;
     std::vector<VkSurfaceFormatKHR> supportedFormats;
     std::vector<VkPresentModeKHR> supportedPresentModes;
     VkFormat format = VK_FORMAT_UNDEFINED;
@@ -322,6 +377,37 @@ struct PresentationWorkerLifetime {
 #define vkQueuePresentKHR p.fn_QueuePresentKHR
 #define vkQueueWaitIdle p.fn_QueueWaitIdle
 #define vkDeviceWaitIdle p.fn_DeviceWaitIdle
+#define vkCreateImage p.fn_CreateImage
+#define vkDestroyImage p.fn_DestroyImage
+#define vkGetImageMemoryRequirements p.fn_GetImageMemoryRequirements
+#define vkBindImageMemory p.fn_BindImageMemory
+#define vkCreateImageView p.fn_CreateImageView
+#define vkDestroyImageView p.fn_DestroyImageView
+#define vkCreateSampler p.fn_CreateSampler
+#define vkDestroySampler p.fn_DestroySampler
+#define vkCreateRenderPass p.fn_CreateRenderPass
+#define vkDestroyRenderPass p.fn_DestroyRenderPass
+#define vkCreateFramebuffer p.fn_CreateFramebuffer
+#define vkDestroyFramebuffer p.fn_DestroyFramebuffer
+#define vkCreateShaderModule p.fn_CreateShaderModule
+#define vkDestroyShaderModule p.fn_DestroyShaderModule
+#define vkCreateDescriptorSetLayout p.fn_CreateDescriptorSetLayout
+#define vkDestroyDescriptorSetLayout p.fn_DestroyDescriptorSetLayout
+#define vkCreateDescriptorPool p.fn_CreateDescriptorPool
+#define vkDestroyDescriptorPool p.fn_DestroyDescriptorPool
+#define vkAllocateDescriptorSets p.fn_AllocateDescriptorSets
+#define vkUpdateDescriptorSets p.fn_UpdateDescriptorSets
+#define vkCreatePipelineLayout p.fn_CreatePipelineLayout
+#define vkDestroyPipelineLayout p.fn_DestroyPipelineLayout
+#define vkCreateGraphicsPipelines p.fn_CreateGraphicsPipelines
+#define vkDestroyPipeline p.fn_DestroyPipeline
+#define vkCmdBeginRenderPass p.fn_CmdBeginRenderPass
+#define vkCmdEndRenderPass p.fn_CmdEndRenderPass
+#define vkCmdBindPipeline p.fn_CmdBindPipeline
+#define vkCmdBindDescriptorSets p.fn_CmdBindDescriptorSets
+#define vkCmdSetViewport p.fn_CmdSetViewport
+#define vkCmdSetScissor p.fn_CmdSetScissor
+#define vkCmdDraw p.fn_CmdDraw
 
 void log(int priority, const std::string &message) {
     __android_log_write(priority, kTag, message.c_str());
@@ -455,6 +541,37 @@ bool loadDeviceFunctions() {
     LOAD_DEVICE(QueuePresentKHR);
     LOAD_DEVICE(QueueWaitIdle);
     LOAD_DEVICE(DeviceWaitIdle);
+    LOAD_DEVICE(CreateImage);
+    LOAD_DEVICE(DestroyImage);
+    LOAD_DEVICE(GetImageMemoryRequirements);
+    LOAD_DEVICE(BindImageMemory);
+    LOAD_DEVICE(CreateImageView);
+    LOAD_DEVICE(DestroyImageView);
+    LOAD_DEVICE(CreateSampler);
+    LOAD_DEVICE(DestroySampler);
+    LOAD_DEVICE(CreateRenderPass);
+    LOAD_DEVICE(DestroyRenderPass);
+    LOAD_DEVICE(CreateFramebuffer);
+    LOAD_DEVICE(DestroyFramebuffer);
+    LOAD_DEVICE(CreateShaderModule);
+    LOAD_DEVICE(DestroyShaderModule);
+    LOAD_DEVICE(CreateDescriptorSetLayout);
+    LOAD_DEVICE(DestroyDescriptorSetLayout);
+    LOAD_DEVICE(CreateDescriptorPool);
+    LOAD_DEVICE(DestroyDescriptorPool);
+    LOAD_DEVICE(AllocateDescriptorSets);
+    LOAD_DEVICE(UpdateDescriptorSets);
+    LOAD_DEVICE(CreatePipelineLayout);
+    LOAD_DEVICE(DestroyPipelineLayout);
+    LOAD_DEVICE(CreateGraphicsPipelines);
+    LOAD_DEVICE(DestroyPipeline);
+    LOAD_DEVICE(CmdBeginRenderPass);
+    LOAD_DEVICE(CmdEndRenderPass);
+    LOAD_DEVICE(CmdBindPipeline);
+    LOAD_DEVICE(CmdBindDescriptorSets);
+    LOAD_DEVICE(CmdSetViewport);
+    LOAD_DEVICE(CmdSetScissor);
+    LOAD_DEVICE(CmdDraw);
     return true;
 }
 
@@ -612,6 +729,8 @@ bool createSurface(JNIEnv *env, jobject javaSurface, uint32_t width, uint32_t he
         if (!check(vkCreateDevice(p.gpu, &di, nullptr, &p.device), "vkCreateDevice")) return false;
         if (!loadDeviceFunctions()) return false;
         vkGetDeviceQueue(p.device, p.queueFamily, 0, &p.queue);
+        p.gpuPresent = propertyEnabled("debug.boxdroid.gpu_present", true);
+        log(ANDROID_LOG_INFO, std::string("GPU_PRESENT requested=") + (p.gpuPresent ? "1" : "0"));
     }
     return createSwapchain() && redrawLastFrame();
 }
@@ -670,10 +789,283 @@ bool ensureStaging(VkDeviceSize bytes) {
     return true;
 }
 
+uint32_t findMemoryType(uint32_t typeBits, VkMemoryPropertyFlags preferred) {
+    VkPhysicalDeviceMemoryProperties properties{};
+    vkGetPhysicalDeviceMemoryProperties(p.gpu, &properties);
+    for (uint32_t i = 0; i < properties.memoryTypeCount; ++i) {
+        if ((typeBits & (1u << i)) &&
+            (properties.memoryTypes[i].propertyFlags & preferred) == preferred) return i;
+    }
+    for (uint32_t i = 0; i < properties.memoryTypeCount; ++i) {
+        if (typeBits & (1u << i)) return i;
+    }
+    return UINT32_MAX;
+}
+
+void destroySourceImage() {
+    if (p.sourceView) { vkDestroyImageView(p.device, p.sourceView, nullptr); p.sourceView = VK_NULL_HANDLE; }
+    if (p.sourceImage) { vkDestroyImage(p.device, p.sourceImage, nullptr); p.sourceImage = VK_NULL_HANDLE; }
+    if (p.sourceMemory) { vkFreeMemory(p.device, p.sourceMemory, nullptr); p.sourceMemory = VK_NULL_HANDLE; }
+    p.sourceImageWidth = 0;
+    p.sourceImageHeight = 0;
+    p.sourceImageWritten = false;
+}
+
+// Called under presenterLock with the queue idle (every present waits for it),
+// so the descriptor sets can be rewritten in place.
+bool ensureSourceImage(uint32_t width, uint32_t height) {
+    if (p.sourceImage && p.sourceImageWidth == width && p.sourceImageHeight == height) return true;
+    destroySourceImage();
+    VkImageCreateInfo info{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+    info.imageType = VK_IMAGE_TYPE_2D;
+    info.format = VK_FORMAT_R8G8B8A8_UNORM;
+    info.extent = {width, height, 1};
+    info.mipLevels = 1;
+    info.arrayLayers = 1;
+    info.samples = VK_SAMPLE_COUNT_1_BIT;
+    info.tiling = VK_IMAGE_TILING_OPTIMAL;
+    info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    if (!check(vkCreateImage(p.device, &info, nullptr, &p.sourceImage), "vkCreateImage(source)")) return false;
+    VkMemoryRequirements requirements{};
+    vkGetImageMemoryRequirements(p.device, p.sourceImage, &requirements);
+    VkMemoryAllocateInfo allocation{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    allocation.allocationSize = requirements.size;
+    allocation.memoryTypeIndex = findMemoryType(requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    VkImageViewCreateInfo view{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+    view.image = p.sourceImage;
+    view.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    view.format = info.format;
+    view.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+    if (allocation.memoryTypeIndex == UINT32_MAX ||
+        !check(vkAllocateMemory(p.device, &allocation, nullptr, &p.sourceMemory), "vkAllocateMemory(source)") ||
+        !check(vkBindImageMemory(p.device, p.sourceImage, p.sourceMemory, 0), "vkBindImageMemory(source)") ||
+        !check(vkCreateImageView(p.device, &view, nullptr, &p.sourceView), "vkCreateImageView(source)")) {
+        destroySourceImage();
+        return false;
+    }
+    p.sourceImageWidth = width;
+    p.sourceImageHeight = height;
+    std::array<VkDescriptorImageInfo, 2> images{};
+    std::array<VkWriteDescriptorSet, 2> writes{};
+    for (size_t i = 0; i < writes.size(); ++i) {
+        images[i] = {p.samplers[i], p.sourceView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        writes[i] = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        writes[i].dstSet = p.descriptorSets[i];
+        writes[i].descriptorCount = 1;
+        writes[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writes[i].pImageInfo = &images[i];
+    }
+    vkUpdateDescriptorSets(p.device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
+    log(ANDROID_LOG_INFO, "GPU_PRESENT_SOURCE extent=" + std::to_string(width) + "x" + std::to_string(height));
+    return true;
+}
+
+void destroySwapchainTargets() {
+    for (VkFramebuffer framebuffer : p.framebuffers) vkDestroyFramebuffer(p.device, framebuffer, nullptr);
+    for (VkImageView view : p.imageViews) vkDestroyImageView(p.device, view, nullptr);
+    p.framebuffers.clear();
+    p.imageViews.clear();
+}
+
+void destroyPipelineObjects() {
+    if (!p.device) return;
+    destroySwapchainTargets();
+    destroySourceImage();
+    if (p.pipeline) { vkDestroyPipeline(p.device, p.pipeline, nullptr); p.pipeline = VK_NULL_HANDLE; }
+    if (p.pipelineLayout) { vkDestroyPipelineLayout(p.device, p.pipelineLayout, nullptr); p.pipelineLayout = VK_NULL_HANDLE; }
+    if (p.renderPass) { vkDestroyRenderPass(p.device, p.renderPass, nullptr); p.renderPass = VK_NULL_HANDLE; }
+    if (p.descriptorPool) { vkDestroyDescriptorPool(p.device, p.descriptorPool, nullptr); p.descriptorPool = VK_NULL_HANDLE; }
+    if (p.setLayout) { vkDestroyDescriptorSetLayout(p.device, p.setLayout, nullptr); p.setLayout = VK_NULL_HANDLE; }
+    for (VkSampler &sampler : p.samplers) {
+        if (sampler) vkDestroySampler(p.device, sampler, nullptr);
+        sampler = VK_NULL_HANDLE;
+    }
+    p.descriptorSets = {};
+    p.pipelineFormat = VK_FORMAT_UNDEFINED;
+}
+
+VkShaderModule createShaderModule(const uint32_t *code, size_t bytes, const char *name) {
+    VkShaderModuleCreateInfo info{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+    info.codeSize = bytes;
+    info.pCode = code;
+    VkShaderModule module = VK_NULL_HANDLE;
+    check(vkCreateShaderModule(p.device, &info, nullptr, &module), name);
+    return module;
+}
+
+// Render pass, pipeline, samplers and descriptor sets for one swapchain format.
+bool createPipelineObjects(VkFormat format) {
+    if (p.pipeline && p.pipelineFormat == format) return true;
+    destroyPipelineObjects();
+    for (int filter = kFilterNearest; filter <= kFilterBilinear; ++filter) {
+        VkSamplerCreateInfo sampler{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+        sampler.magFilter = sampler.minFilter = filter == kFilterBilinear ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
+        sampler.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        sampler.addressModeU = sampler.addressModeV = sampler.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        sampler.maxLod = 0.0f;
+        if (!check(vkCreateSampler(p.device, &sampler, nullptr, &p.samplers[filter]), "vkCreateSampler")) return false;
+    }
+    VkDescriptorSetLayoutBinding binding{};
+    binding.binding = 0;
+    binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    binding.descriptorCount = 1;
+    binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    VkDescriptorSetLayoutCreateInfo layoutInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+    layoutInfo.bindingCount = 1;
+    layoutInfo.pBindings = &binding;
+    if (!check(vkCreateDescriptorSetLayout(p.device, &layoutInfo, nullptr, &p.setLayout), "vkCreateDescriptorSetLayout")) return false;
+    VkDescriptorPoolSize poolSize{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, static_cast<uint32_t>(p.descriptorSets.size())};
+    VkDescriptorPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+    poolInfo.maxSets = static_cast<uint32_t>(p.descriptorSets.size());
+    poolInfo.poolSizeCount = 1;
+    poolInfo.pPoolSizes = &poolSize;
+    if (!check(vkCreateDescriptorPool(p.device, &poolInfo, nullptr, &p.descriptorPool), "vkCreateDescriptorPool")) return false;
+    std::array<VkDescriptorSetLayout, 2> setLayouts{p.setLayout, p.setLayout};
+    VkDescriptorSetAllocateInfo setInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+    setInfo.descriptorPool = p.descriptorPool;
+    setInfo.descriptorSetCount = static_cast<uint32_t>(setLayouts.size());
+    setInfo.pSetLayouts = setLayouts.data();
+    if (!check(vkAllocateDescriptorSets(p.device, &setInfo, p.descriptorSets.data()), "vkAllocateDescriptorSets")) return false;
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &p.setLayout;
+    if (!check(vkCreatePipelineLayout(p.device, &pipelineLayoutInfo, nullptr, &p.pipelineLayout), "vkCreatePipelineLayout")) return false;
+
+    // The clear paints the letterbox; the swapchain image goes straight to present.
+    VkAttachmentDescription attachment{};
+    attachment.format = format;
+    attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    VkAttachmentReference colorReference{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorReference;
+    // Order the attachment write after the acquire semaphore's wait stage.
+    VkSubpassDependency dependency{};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    VkRenderPassCreateInfo renderPassInfo{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
+    renderPassInfo.attachmentCount = 1;
+    renderPassInfo.pAttachments = &attachment;
+    renderPassInfo.subpassCount = 1;
+    renderPassInfo.pSubpasses = &subpass;
+    renderPassInfo.dependencyCount = 1;
+    renderPassInfo.pDependencies = &dependency;
+    if (!check(vkCreateRenderPass(p.device, &renderPassInfo, nullptr, &p.renderPass), "vkCreateRenderPass")) return false;
+
+    VkShaderModule vertex = createShaderModule(kPresentVertexShader, sizeof(kPresentVertexShader), "vkCreateShaderModule(vertex)");
+    VkShaderModule fragment = createShaderModule(kPresentFragmentShader, sizeof(kPresentFragmentShader), "vkCreateShaderModule(fragment)");
+    bool created = false;
+    if (vertex && fragment) {
+        std::array<VkPipelineShaderStageCreateInfo, 2> stages{};
+        stages[0] = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
+        stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+        stages[0].module = vertex;
+        stages[0].pName = "main";
+        stages[1] = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
+        stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+        stages[1].module = fragment;
+        stages[1].pName = "main";
+        VkPipelineVertexInputStateCreateInfo vertexInput{VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
+        VkPipelineInputAssemblyStateCreateInfo assembly{VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
+        assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        VkPipelineViewportStateCreateInfo viewport{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
+        viewport.viewportCount = 1;
+        viewport.scissorCount = 1;
+        VkPipelineRasterizationStateCreateInfo raster{VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
+        raster.polygonMode = VK_POLYGON_MODE_FILL;
+        raster.cullMode = VK_CULL_MODE_NONE;
+        raster.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+        raster.lineWidth = 1.0f;
+        VkPipelineMultisampleStateCreateInfo multisample{VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
+        multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+        VkPipelineColorBlendAttachmentState blendAttachment{};
+        blendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                                         VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        VkPipelineColorBlendStateCreateInfo blend{VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
+        blend.attachmentCount = 1;
+        blend.pAttachments = &blendAttachment;
+        std::array<VkDynamicState, 2> dynamicStates{VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+        VkPipelineDynamicStateCreateInfo dynamic{VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
+        dynamic.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+        dynamic.pDynamicStates = dynamicStates.data();
+        VkGraphicsPipelineCreateInfo pipelineInfo{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
+        pipelineInfo.stageCount = static_cast<uint32_t>(stages.size());
+        pipelineInfo.pStages = stages.data();
+        pipelineInfo.pVertexInputState = &vertexInput;
+        pipelineInfo.pInputAssemblyState = &assembly;
+        pipelineInfo.pViewportState = &viewport;
+        pipelineInfo.pRasterizationState = &raster;
+        pipelineInfo.pMultisampleState = &multisample;
+        pipelineInfo.pColorBlendState = &blend;
+        pipelineInfo.pDynamicState = &dynamic;
+        pipelineInfo.layout = p.pipelineLayout;
+        pipelineInfo.renderPass = p.renderPass;
+        created = check(vkCreateGraphicsPipelines(p.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &p.pipeline),
+                        "vkCreateGraphicsPipelines");
+    }
+    if (vertex) vkDestroyShaderModule(p.device, vertex, nullptr);
+    if (fragment) vkDestroyShaderModule(p.device, fragment, nullptr);
+    if (!created) return false;
+    p.pipelineFormat = format;
+    log(ANDROID_LOG_INFO, "GPU_PRESENT_PIPELINE format=" + std::to_string(format));
+    return true;
+}
+
+// Image views and framebuffers for the current swapchain. On failure the
+// presenter falls back to CPU scaling for the rest of the process.
+bool createSwapchainTargets() {
+    if (!p.gpuPresent) return true;
+    bool ok = createPipelineObjects(p.format);
+    for (size_t i = 0; ok && i < p.images.size(); ++i) {
+        VkImageViewCreateInfo view{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+        view.image = p.images[i];
+        view.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        view.format = p.format;
+        view.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+        VkImageView imageView = VK_NULL_HANDLE;
+        ok = check(vkCreateImageView(p.device, &view, nullptr, &imageView), "vkCreateImageView(swapchain)");
+        if (!ok) break;
+        p.imageViews.push_back(imageView);
+        VkFramebufferCreateInfo framebuffer{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
+        framebuffer.renderPass = p.renderPass;
+        framebuffer.attachmentCount = 1;
+        framebuffer.pAttachments = &imageView;
+        framebuffer.width = p.extent.width;
+        framebuffer.height = p.extent.height;
+        framebuffer.layers = 1;
+        VkFramebuffer created = VK_NULL_HANDLE;
+        ok = check(vkCreateFramebuffer(p.device, &framebuffer, nullptr, &created), "vkCreateFramebuffer");
+        if (ok) p.framebuffers.push_back(created);
+    }
+    if (!ok) {
+        destroyPipelineObjects();
+        p.gpuPresent = false;
+        p.lastError.clear();
+        log(ANDROID_LOG_WARN, "GPU_PRESENT_FALLBACK reason=pipeline scaling=cpu");
+    }
+    return true;
+}
+
 void destroySwapchain() {
     p.frameGeometryValid = false;
     if (p.device) vkDeviceWaitIdle(p.device);
     destroyStaging();
+    if (p.device) {
+        destroySwapchainTargets();
+        destroySourceImage();
+    }
     if (p.acquired) { vkDestroySemaphore(p.device, p.acquired, nullptr); p.acquired = VK_NULL_HANDLE; }
     if (p.rendered) { vkDestroySemaphore(p.device, p.rendered, nullptr); p.rendered = VK_NULL_HANDLE; }
     if (p.commandPool) { vkDestroyCommandPool(p.device, p.commandPool, nullptr); p.commandPool = VK_NULL_HANDLE; p.commandBuffer = VK_NULL_HANDLE; }
@@ -758,7 +1150,12 @@ bool createSwapchain() {
     ci.imageColorSpace = p.colorSpace;
     ci.imageExtent = p.extent;
     ci.imageArrayLayers = 1;
-    ci.imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    if (p.gpuPresent && !(caps.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)) {
+        p.gpuPresent = false;
+        log(ANDROID_LOG_WARN, "GPU_PRESENT_FALLBACK reason=no_color_attachment_usage scaling=cpu");
+    }
+    ci.imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+        (p.gpuPresent ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : 0);
     ci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     ci.preTransform = static_cast<VkSurfaceTransformFlagBitsKHR>(p.swapchainPreTransform);
     ci.compositeAlpha = static_cast<VkCompositeAlphaFlagBitsKHR>(alpha);
@@ -796,8 +1193,9 @@ bool createSwapchain() {
         " supported_transforms=" + hexValue(p.surfaceSupportedTransforms) +
         " pre_transform=" + hexValue(p.swapchainPreTransform) +
         " format=" + std::to_string(p.format) + " color_space=" + std::to_string(p.colorSpace) +
-        " present_mode=FIFO requested_images=" + std::to_string(imageCount) + " actual_images=" + std::to_string(actual));
-    return true;
+        " present_mode=FIFO requested_images=" + std::to_string(imageCount) + " actual_images=" + std::to_string(actual) +
+        " scaling=" + (p.gpuPresent ? "gpu" : "cpu"));
+    return createSwapchainTargets();
 }
 
 bool recoverLostSurface() {
@@ -839,7 +1237,14 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
     auto perfStart = PerfClock::now();
 #endif
     const bool hasPixels = pixels && sourceWidth && sourceHeight && sourceStride >= sourceWidth * 4;
-    if (hasPixels && !ensureStaging(static_cast<VkDeviceSize>(p.extent.width) * p.extent.height * 4)) return false;
+    // GPU scaling uploads the frame at its own size; CPU scaling fills a
+    // staging buffer as large as the swapchain image.
+    const bool gpuDraw = hasPixels && p.gpuPresent && sourceStride % 4 == 0;
+    const VkDeviceSize stagingBytes = gpuDraw ?
+        static_cast<VkDeviceSize>(sourceStride) * sourceHeight :
+        static_cast<VkDeviceSize>(p.extent.width) * p.extent.height * 4;
+    if (hasPixels && !ensureStaging(stagingBytes)) return false;
+    if (gpuDraw && !ensureSourceImage(sourceWidth, sourceHeight)) return false;
     uint32_t index = 0;
     VkResult r;
     // A finite acquisition lets surface retirement interrupt a blocked worker.
@@ -884,8 +1289,10 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
             p.frameGeometryKey = geometry;
             p.frameFit = fit;
             ++p.geometryChanges;
-            const size_t destinationPixels = static_cast<size_t>(p.extent.width) * p.extent.height;
-            std::fill_n(reinterpret_cast<uint32_t *>(dst), destinationPixels, 0xFF000000U);
+            if (!gpuDraw) {
+                const size_t destinationPixels = static_cast<size_t>(p.extent.width) * p.extent.height;
+                std::fill_n(reinterpret_cast<uint32_t *>(dst), destinationPixels, 0xFF000000U);
+            }
             // Geometry events only, with a fixed cap for this diagnostic harness.
             if (p.geometryChanges <= 32) log(ANDROID_LOG_INFO,
                 "FRAME_UPLOAD_GEOMETRY change=" + std::to_string(p.geometryChanges) +
@@ -898,47 +1305,52 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
                 " destination=" + std::to_string(destinationWidth) + "x" +
                 std::to_string(destinationHeight) + "+" + std::to_string(destinationX) + "+" +
                 std::to_string(destinationY) + " aspect_mode=" + std::to_string(mode) + " pre_transform=" +
-                hexValue(p.swapchainPreTransform));
+                hexValue(p.swapchainPreTransform) + " scaling=" + (gpuDraw ? "gpu" : "cpu"));
         }
+        if (gpuDraw) {
+            std::memcpy(dst, pixels, static_cast<size_t>(stagingBytes));
+        } else {
 #ifdef BOXDROID_RUNTIME
-        // Same aspect-fit rectangle; Pixman's NEON scaler removes per-pixel
-        // integer divisions from the refresh/BQL critical path.
-        pixman_image_t *srcImage = pixman_image_create_bits(PIXMAN_a8b8g8r8,
-            sourceWidth, sourceHeight, const_cast<uint32_t *>(reinterpret_cast<const uint32_t *>(pixels)), sourceStride);
-        pixman_image_t *dstImage = pixman_image_create_bits(
-            p.format == VK_FORMAT_B8G8R8A8_UNORM ? PIXMAN_a8r8g8b8 : PIXMAN_a8b8g8r8,
-            p.extent.width, p.extent.height, reinterpret_cast<uint32_t *>(dst), p.extent.width * 4);
-        if (!srcImage || !dstImage) {
-            if (srcImage) pixman_image_unref(srcImage);
-            if (dstImage) pixman_image_unref(dstImage);
-            return false;
-        }
-        pixman_transform_t transform;
-        pixman_transform_init_scale(&transform,
-            pixman_double_to_fixed(static_cast<double>(sourceWidth) / destinationWidth),
-            pixman_double_to_fixed(static_cast<double>(sourceHeight) / destinationHeight));
-        pixman_image_set_transform(srcImage, &transform);
-        pixman_image_set_filter(srcImage, PIXMAN_FILTER_NEAREST, nullptr, 0);
-        pixman_image_set_repeat(srcImage, PIXMAN_REPEAT_PAD);
-        pixman_image_composite32(PIXMAN_OP_SRC, srcImage, nullptr, dstImage,
-            0, 0, 0, 0, destinationX, destinationY, destinationWidth, destinationHeight);
-        pixman_image_unref(srcImage); pixman_image_unref(dstImage);
+            // Same aspect-fit rectangle; Pixman's NEON scaler removes per-pixel
+            // integer divisions from the refresh/BQL critical path.
+            pixman_image_t *srcImage = pixman_image_create_bits(PIXMAN_a8b8g8r8,
+                sourceWidth, sourceHeight, const_cast<uint32_t *>(reinterpret_cast<const uint32_t *>(pixels)), sourceStride);
+            pixman_image_t *dstImage = pixman_image_create_bits(
+                p.format == VK_FORMAT_B8G8R8A8_UNORM ? PIXMAN_a8r8g8b8 : PIXMAN_a8b8g8r8,
+                p.extent.width, p.extent.height, reinterpret_cast<uint32_t *>(dst), p.extent.width * 4);
+            if (!srcImage || !dstImage) {
+                if (srcImage) pixman_image_unref(srcImage);
+                if (dstImage) pixman_image_unref(dstImage);
+                return false;
+            }
+            pixman_transform_t transform;
+            pixman_transform_init_scale(&transform,
+                pixman_double_to_fixed(static_cast<double>(sourceWidth) / destinationWidth),
+                pixman_double_to_fixed(static_cast<double>(sourceHeight) / destinationHeight));
+            pixman_image_set_transform(srcImage, &transform);
+            pixman_image_set_filter(srcImage, scalingFilter.load(std::memory_order_relaxed) == kFilterBilinear ?
+                PIXMAN_FILTER_BILINEAR : PIXMAN_FILTER_NEAREST, nullptr, 0);
+            pixman_image_set_repeat(srcImage, PIXMAN_REPEAT_PAD);
+            pixman_image_composite32(PIXMAN_OP_SRC, srcImage, nullptr, dstImage,
+                0, 0, 0, 0, destinationX, destinationY, destinationWidth, destinationHeight);
+            pixman_image_unref(srcImage); pixman_image_unref(dstImage);
 #else
-        for (uint32_t y = 0; y < destinationHeight; ++y) {
-            const uint32_t sy = std::min(sourceHeight - 1, static_cast<uint32_t>((static_cast<uint64_t>(y) * sourceHeight) / destinationHeight));
-            for (uint32_t x = 0; x < destinationWidth; ++x) {
-                const uint32_t sx = std::min(sourceWidth - 1, static_cast<uint32_t>((static_cast<uint64_t>(x) * sourceWidth) / destinationWidth));
-                const uint8_t *src = pixels + sy * sourceStride + sx * 4;
-                uint8_t *pixel = dst + (static_cast<size_t>(destinationY + y) * p.extent.width +
-                                        destinationX + x) * 4;
-                if (p.format == VK_FORMAT_B8G8R8A8_UNORM) {
-                    pixel[0] = src[2]; pixel[1] = src[1]; pixel[2] = src[0]; pixel[3] = src[3];
-                } else {
-                    pixel[0] = src[0]; pixel[1] = src[1]; pixel[2] = src[2]; pixel[3] = src[3];
+            for (uint32_t y = 0; y < destinationHeight; ++y) {
+                const uint32_t sy = std::min(sourceHeight - 1, static_cast<uint32_t>((static_cast<uint64_t>(y) * sourceHeight) / destinationHeight));
+                for (uint32_t x = 0; x < destinationWidth; ++x) {
+                    const uint32_t sx = std::min(sourceWidth - 1, static_cast<uint32_t>((static_cast<uint64_t>(x) * sourceWidth) / destinationWidth));
+                    const uint8_t *src = pixels + sy * sourceStride + sx * 4;
+                    uint8_t *pixel = dst + (static_cast<size_t>(destinationY + y) * p.extent.width +
+                                            destinationX + x) * 4;
+                    if (p.format == VK_FORMAT_B8G8R8A8_UNORM) {
+                        pixel[0] = src[2]; pixel[1] = src[1]; pixel[2] = src[0]; pixel[3] = src[3];
+                    } else {
+                        pixel[0] = src[0]; pixel[1] = src[1]; pixel[2] = src[2]; pixel[3] = src[3];
+                    }
                 }
             }
-        }
 #endif
+        }
     }
 #ifdef BOXDROID_RUNTIME
     auto perfPrepared = PerfClock::now();
@@ -947,33 +1359,87 @@ bool presentFrame(bool allowRetry = true, const uint8_t *pixels = nullptr,
     VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     if (!check(vkBeginCommandBuffer(p.commandBuffer, &begin), "vkBeginCommandBuffer")) return false;
-    VkImageMemoryBarrier toClear{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
-    toClear.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    toClear.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    toClear.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    toClear.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    toClear.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    toClear.image = p.images[index];
-    toClear.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-    vkCmdPipelineBarrier(p.commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &toClear);
-    if (stagingBuffer) {
-        VkBufferImageCopy copy{};
-        copy.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
-        copy.imageExtent = {p.extent.width, p.extent.height, 1};
-        vkCmdCopyBufferToImage(p.commandBuffer, stagingBuffer, p.images[index],
-                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
-    } else {
-        VkClearColorValue color = p.generation == 1 ? VkClearColorValue{{0.92f, 0.04f, 0.52f, 1.0f}} : VkClearColorValue{{0.02f, 0.78f, 0.92f, 1.0f}};
-        vkCmdClearColorImage(p.commandBuffer, p.images[index], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &color, 1, &toClear.subresourceRange);
-    }
-    VkImageMemoryBarrier toPresent = toClear;
-    toPresent.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    toPresent.dstAccessMask = 0;
-    toPresent.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    toPresent.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    vkCmdPipelineBarrier(p.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &toPresent);
-    if (!check(vkEndCommandBuffer(p.commandBuffer), "vkEndCommandBuffer")) return false;
     VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    if (gpuDraw) {
+        // Upload the frame, then draw it scaled into the aspect-fit rectangle.
+        VkImageMemoryBarrier toUpload{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+        toUpload.srcAccessMask = p.sourceImageWritten ? VK_ACCESS_SHADER_READ_BIT : 0;
+        toUpload.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        toUpload.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        toUpload.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        toUpload.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        toUpload.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        toUpload.image = p.sourceImage;
+        toUpload.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+        vkCmdPipelineBarrier(p.commandBuffer,
+            p.sourceImageWritten ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &toUpload);
+        VkBufferImageCopy copy{};
+        copy.bufferRowLength = sourceStride / 4;
+        copy.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+        copy.imageExtent = {sourceWidth, sourceHeight, 1};
+        vkCmdCopyBufferToImage(p.commandBuffer, p.stagingBuffer, p.sourceImage,
+                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+        VkImageMemoryBarrier toSample = toUpload;
+        toSample.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        toSample.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        toSample.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        toSample.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        vkCmdPipelineBarrier(p.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &toSample);
+        p.sourceImageWritten = true;
+
+        VkClearValue black{};
+        black.color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+        VkRenderPassBeginInfo pass{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+        pass.renderPass = p.renderPass;
+        pass.framebuffer = p.framebuffers[index];
+        pass.renderArea = {{0, 0}, p.extent};
+        pass.clearValueCount = 1;
+        pass.pClearValues = &black;
+        vkCmdBeginRenderPass(p.commandBuffer, &pass, VK_SUBPASS_CONTENTS_INLINE);
+        const AspectFit &fit = p.frameFit;
+        VkViewport viewport{static_cast<float>(fit.x), static_cast<float>(fit.y),
+                            static_cast<float>(fit.width), static_cast<float>(fit.height), 0.0f, 1.0f};
+        VkRect2D scissor{{0, 0}, p.extent};
+        vkCmdSetViewport(p.commandBuffer, 0, 1, &viewport);
+        vkCmdSetScissor(p.commandBuffer, 0, 1, &scissor);
+        vkCmdBindPipeline(p.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, p.pipeline);
+        const int filter = scalingFilter.load(std::memory_order_relaxed) == kFilterBilinear ?
+            kFilterBilinear : kFilterNearest;
+        vkCmdBindDescriptorSets(p.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, p.pipelineLayout,
+                                0, 1, &p.descriptorSets[filter], 0, nullptr);
+        vkCmdDraw(p.commandBuffer, 3, 1, 0, 0);
+        vkCmdEndRenderPass(p.commandBuffer);
+        waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    } else {
+        VkImageMemoryBarrier toClear{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+        toClear.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        toClear.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        toClear.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        toClear.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        toClear.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        toClear.image = p.images[index];
+        toClear.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+        vkCmdPipelineBarrier(p.commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &toClear);
+        if (stagingBuffer) {
+            VkBufferImageCopy copy{};
+            copy.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+            copy.imageExtent = {p.extent.width, p.extent.height, 1};
+            vkCmdCopyBufferToImage(p.commandBuffer, stagingBuffer, p.images[index],
+                                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+        } else {
+            VkClearColorValue color = p.generation == 1 ? VkClearColorValue{{0.92f, 0.04f, 0.52f, 1.0f}} : VkClearColorValue{{0.02f, 0.78f, 0.92f, 1.0f}};
+            vkCmdClearColorImage(p.commandBuffer, p.images[index], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &color, 1, &toClear.subresourceRange);
+        }
+        VkImageMemoryBarrier toPresent = toClear;
+        toPresent.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        toPresent.dstAccessMask = 0;
+        toPresent.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        toPresent.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        vkCmdPipelineBarrier(p.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &toPresent);
+    }
+    if (!check(vkEndCommandBuffer(p.commandBuffer), "vkEndCommandBuffer")) return false;
     VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
     submit.waitSemaphoreCount = 1;
     submit.pWaitSemaphores = &p.acquired;
@@ -1149,6 +1615,7 @@ extern "C" JNIEXPORT void JNICALL Java_org_boxdroid_MainActivity_nativeSurfaceDe
 extern "C" JNIEXPORT jstring JNICALL Java_org_boxdroid_MainActivity_nativeDiagnostics(JNIEnv *, jobject);
 extern "C" JNIEXPORT void JNICALL Java_org_boxdroid_MainActivity_nativeShutdown(JNIEnv *, jobject);
 extern "C" JNIEXPORT void JNICALL Java_org_boxdroid_MainActivity_nativeSetAspectMode(JNIEnv *, jobject, jint);
+extern "C" JNIEXPORT void JNICALL Java_org_boxdroid_MainActivity_nativeSetScalingFilter(JNIEnv *, jobject, jint);
 extern "C" JNIEXPORT jlong JNICALL Java_org_boxdroid_PerformanceActivity_nativePresentedFrames(JNIEnv *, jobject);
 
 extern "C" bool boxdroid_android_present_rgba(const uint8_t *, uint32_t,
@@ -1239,6 +1706,15 @@ Java_org_boxdroid_MainActivity_nativeSetAspectMode(JNIEnv *, jobject, jint mode)
     if (p.surface && p.swapchain && !surfaceRetiring.load(std::memory_order_acquire)) redrawLastFrame();
 }
 
+extern "C" JNIEXPORT void JNICALL
+Java_org_boxdroid_MainActivity_nativeSetScalingFilter(JNIEnv *, jobject, jint filter) {
+    if (filter < kFilterNearest || filter > kFilterBilinear) return;
+    if (scalingFilter.exchange(filter, std::memory_order_relaxed) == filter) return;
+    log(ANDROID_LOG_INFO, "SCALING_FILTER filter=" + std::to_string(filter));
+    std::lock_guard<std::mutex> guard(presenterLock);
+    if (p.surface && p.swapchain && !surfaceRetiring.load(std::memory_order_acquire)) redrawLastFrame();
+}
+
 extern "C" JNIEXPORT jstring JNICALL
 Java_org_boxdroid_MainActivity_nativeDiagnostics(JNIEnv *env, jobject) {
     std::lock_guard<std::mutex> guard(presenterLock);
@@ -1256,6 +1732,7 @@ Java_org_boxdroid_MainActivity_nativeShutdown(JNIEnv *, jobject) {
     destroySurface();
     if (p.device) {
         vkDeviceWaitIdle(p.device);
+        destroyPipelineObjects();
         vkDestroyDevice(p.device, nullptr);
         p.device = VK_NULL_HANDLE;
         p.queue = VK_NULL_HANDLE;
