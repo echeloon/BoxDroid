@@ -73,6 +73,7 @@ public class MainActivity extends Activity {
     private native void nativeSurfaceDestroyed();
     private native String nativeDiagnostics();
     private native void nativeShutdown();
+    private native void nativeSetAspectMode(int mode);
 
     /** Hook for isolated milestone apps that need host setup before QEMU starts. */
     protected void beforeNativeRuntimeStart() { }
@@ -107,6 +108,14 @@ public class MainActivity extends Activity {
             int result = xboxStarted && !stopping ? nativeXboxSetPaused(paused) : -1;
             if (onResult != null) runOnUiThread(() -> onResult.accept(result));
         });
+    }
+
+    /**
+     * Sets how the presenter fits the guest frame to the screen; ordered with
+     * start and shutdown on the native executor.
+     */
+    protected final void applyAspectMode(int mode) {
+        NATIVE.execute(() -> nativeSetAspectMode(mode));
     }
 
     /** Stop the native runtime in order before closing this milestone app. */

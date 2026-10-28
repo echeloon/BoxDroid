@@ -33,6 +33,8 @@ final class InGameMenu {
         void onMenuQuit();
         int getMetricsMode();
         void setMetricsMode(int mode);
+        int getAspectMode();
+        void setAspectMode(int mode);
     }
 
     private static final int PANEL_COLOR = Color.argb(0xCC, 0x0E, 0x0E, 0x0E);
@@ -145,6 +147,8 @@ final class InGameMenu {
     private void showMainPage() {
         resetPage(R.string.menu_title, 0);
         addAction(R.string.menu_resume, listener::onMenuResume);
+        addChoice(R.string.menu_aspect, this::aspectLabel, direction ->
+                listener.setAspectMode(Math.floorMod(listener.getAspectMode() + direction, 3)));
         addChoice(R.string.menu_metrics, this::metricsLabel, direction ->
                 listener.setMetricsMode(Math.floorMod(listener.getMetricsMode() + direction, 3)));
         addDivider();
@@ -172,6 +176,14 @@ final class InGameMenu {
             TextView body = text(message, 15, SECONDARY_TEXT);
             body.setPadding(0, 0, 0, dp(20));
             items.addView(body);
+        }
+    }
+
+    private String aspectLabel() {
+        switch (listener.getAspectMode()) {
+            case GameActivity.ASPECT_16_9: return activity.getString(R.string.aspect_16_9);
+            case GameActivity.ASPECT_STRETCH: return activity.getString(R.string.aspect_stretch);
+            default: return activity.getString(R.string.aspect_4_3);
         }
     }
 

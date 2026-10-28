@@ -16,10 +16,17 @@ import org.boxdroid.BootEmulatorActivity;
 public class GameActivity extends BootEmulatorActivity implements InGameMenu.Listener {
     private static final String TAG = "BoxDroid_Game";
     private static final int REQUEST_XISO = 6101;
+    // Display aspect modes, matching the native presenter's.
+    static final int ASPECT_4_3 = 0;
+    static final int ASPECT_16_9 = 1;
+    static final int ASPECT_STRETCH = 2;
+    private static final String SETTINGS = "boxdroid_settings";
 
     private GamepadInput physicalInput;
     private InGameMenu menu;
     private boolean quitting;
+    private GameIdentity game;
+    private int aspectMode = ASPECT_4_3;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,6 +54,10 @@ public class GameActivity extends BootEmulatorActivity implements InGameMenu.Lis
         Uri uri = getIntent().getData();
         if (uri != null) {
             Log.i(TAG, "Received game URI: " + uri);
+            game = GameIdentity.of(this, uri);
+            aspectMode = getSharedPreferences(SETTINGS, MODE_PRIVATE)
+                    .getInt(gameSetting("aspect"), ASPECT_4_3);
+            applyAspectMode(aspectMode);
             Intent fakeResult = new Intent();
             fakeResult.setData(uri);
             fakeResult.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
@@ -134,6 +145,25 @@ public class GameActivity extends BootEmulatorActivity implements InGameMenu.Lis
         quitting = true;
         Log.i(TAG, "MENU_QUIT");
         requestCleanShutdown();
+    }
+
+    /** Per-game settings are keyed by the disc's title ID and version. */
+    private String gameSetting(String name) {
+        return "game." + game.key + "." + name;
+    }
+
+    @Override
+    public int getAspectMode() {
+        return aspectMode;
+    }
+
+    @Override
+    public void setAspectMode(int mode) {
+        if (mode < ASPECT_4_3 || mode > ASPECT_STRETCH || mode == aspectMode || game == null) return;
+        aspectMode = mode;
+        getSharedPreferences(SETTINGS, MODE_PRIVATE).edit().putInt(gameSetting("aspect"), mode).apply();
+        applyAspectMode(mode);
+        Log.i(TAG, "GAME_SETTING game=" + game.key + " aspect=" + mode);
     }
 
     @Override
