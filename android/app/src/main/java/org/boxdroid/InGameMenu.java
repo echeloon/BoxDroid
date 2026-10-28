@@ -152,7 +152,7 @@ final class InGameMenu {
         addChoice(R.string.menu_aspect, this::aspectLabel, direction ->
                 listener.setAspectMode(Math.floorMod(listener.getAspectMode() + direction, 3)));
         addChoice(R.string.menu_filter, this::filterLabel, direction ->
-                listener.setScalingFilter(Math.floorMod(listener.getScalingFilter() + direction, 2)));
+                listener.setScalingFilter(Math.floorMod(listener.getScalingFilter() + direction, 3)));
         addChoice(R.string.menu_metrics, this::metricsLabel, direction ->
                 listener.setMetricsMode(Math.floorMod(listener.getMetricsMode() + direction, 3)));
         addDivider();
@@ -192,8 +192,11 @@ final class InGameMenu {
     }
 
     private String filterLabel() {
-        return activity.getString(listener.getScalingFilter() == GameActivity.FILTER_BILINEAR
-                ? R.string.filter_bilinear : R.string.filter_nearest);
+        switch (listener.getScalingFilter()) {
+            case GameActivity.FILTER_BILINEAR: return activity.getString(R.string.filter_bilinear);
+            case GameActivity.FILTER_SGSR: return activity.getString(R.string.filter_sgsr);
+            default: return activity.getString(R.string.filter_nearest);
+        }
     }
 
     private String metricsLabel() {
