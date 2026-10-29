@@ -14,6 +14,8 @@ declare global {
       deleteGraphicsDriver: () => void;
       deleteGame: (position: number) => void;
       clearSetting: (key: string) => void;
+      setConsoleLanguage: (language: number) => void;
+      setVideoMode: (mode: number) => void;
       startGame: (uri: string) => void;
     };
   }

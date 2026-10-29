@@ -72,6 +72,17 @@ public class MainActivity extends Activity {
     private native int nativeXboxLoadState(String name);
     private native String nativeXboxListStates(String prefix);
     private native void nativeXboxSetWidescreen(boolean widescreen);
+    private native void nativeXboxSetConsoleSettings(int language, int videoMode);
+
+    /**
+     * Console language and video mode chosen in the frontend's settings, written
+     * to the EEPROM at start; -1 keeps the EEPROM's own value. Runs on the
+     * native executor just before the runtime starts.
+     */
+    private void applyConsoleSettings() {
+        android.content.SharedPreferences prefs = getSharedPreferences("boxdroid_games", MODE_PRIVATE);
+        nativeXboxSetConsoleSettings(prefs.getInt("console_language", -1), prefs.getInt("video_mode", -1));
+    }
     private native boolean nativeSurfaceCreated(Surface surface, int width, int height, int generation);
     private native boolean nativeSurfaceChanged(int width, int height);
     private native void nativeSurfaceDestroyed();
@@ -346,6 +357,7 @@ public class MainActivity extends Activity {
         Log.i(TAG, "XBOX_START_REQUEST machine=xbox target=tcg guest=i386 host=aarch64");
         NATIVE.execute(() -> {
             beforeNativeRuntimeStart();
+            applyConsoleSettings();
             int result = nativeXboxStart(biosPath, mcpxPath,
                     hddPath, log.getAbsolutePath());
             graphicsStartResult(result);
@@ -404,6 +416,7 @@ public class MainActivity extends Activity {
         xboxStarted = true;
         NATIVE.execute(() -> {
             beforeNativeRuntimeStart();
+            applyConsoleSettings();
             Log.i(TAG, "EMULATOR_START_REQUEST dvd_fd_validated=1 dvd_size=" + dvdSize);
             int result = nativeXboxStartWithDvd(biosPath, mcpxPath,
                     hddPath, log.getAbsolutePath(), dvdFd, dvdSize);
