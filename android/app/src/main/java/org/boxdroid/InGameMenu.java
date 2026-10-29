@@ -96,6 +96,7 @@ final class InGameMenu {
     // A save state operation is running: input is ignored until it reports back.
     private boolean busy;
     private int stickDirection;
+    private final android.util.SparseLongArray pressDownTimes = new android.util.SparseLongArray();
     private long openedAt;
 
     InGameMenu(Activity activity, Listener listener) {
@@ -449,7 +450,7 @@ final class InGameMenu {
             return false;
         }
         if (busy) return true;
-        boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
+        boolean down = pressStarts(event);
         boolean up = event.getAction() == KeyEvent.ACTION_UP;
         switch (key) {
             case KeyEvent.KEYCODE_DPAD_UP:
@@ -477,6 +478,23 @@ final class InGameMenu {
             default:
                 return true;
         }
+    }
+
+    /**
+     * True for each press. Leaving touch mode (the edge swipe that opened the
+     * menu is a touch) consumes the next key press, so only its release
+     * arrives: a release whose press began while the menu was open, but was
+     * never seen, counts as the press. A key held since before the menu opened
+     * (A as a racing game's throttle) does not.
+     */
+    private boolean pressStarts(KeyEvent event) {
+        int key = event.getKeyCode();
+        if (event.getAction() == KeyEvent.ACTION_DOWN) {
+            pressDownTimes.put(key, event.getDownTime());
+            return true;
+        }
+        return event.getAction() == KeyEvent.ACTION_UP && event.getDownTime() >= openedAt
+                && pressDownTimes.get(key, -1) != event.getDownTime();
     }
 
     /** Maps the D-pad hat and left stick to single navigation steps; consumes all motion while open. */
