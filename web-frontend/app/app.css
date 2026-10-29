@@ -309,14 +309,17 @@ textarea {
     transition: transform 180ms ease;
 }
 
-.neon-card:hover {
-    z-index: 1;
-    filter: drop-shadow(0 0 12px rgb(70 255 110 / 43%));
-    transform: translateY(-3px);
-}
+/* Touch screens keep :hover on the last tapped element; only real pointers get it. */
+@media (hover: hover) {
+    .neon-card:hover {
+        z-index: 1;
+        filter: drop-shadow(0 0 12px rgb(70 255 110 / 43%));
+        transform: translateY(-3px);
+    }
 
-.neon-card:hover .neon-card__arrow {
-    transform: translateX(4px);
+    .neon-card:hover .neon-card__arrow {
+        transform: translateX(4px);
+    }
 }
 
 .neon-card:focus-visible {

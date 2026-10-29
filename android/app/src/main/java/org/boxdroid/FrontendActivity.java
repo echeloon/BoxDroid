@@ -15,6 +15,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.view.InputDevice;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -76,29 +77,6 @@ public class FrontendActivity extends Activity {
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
-            public void onPageFinished(WebView view, String url) {
-                view.evaluateJavascript("window.boxDroidController = function(action) {"
-                        + "var allItems = Array.from(document.querySelectorAll('a[href], button:not(:disabled), [role=button], input:not(:disabled), select:not(:disabled), textarea:not(:disabled)'));"
-                        + "var selectedItem = allItems.find(function(item) { return item.classList.contains('controller-selected'); });"
-                        + "if (!allItems.length) return;"
-                        + "if (action === 'activate') { var target = selectedItem || allItems[0];"
-                        + "document.querySelectorAll('.controller-selected').forEach(function(item) { item.classList.remove('controller-selected'); }); target.click(); return; }"
-                        + "var vertical = action === 'up' || action === 'down';"
-                        + "var items = vertical ? allItems.filter(function(item) { var row = item.closest('.neon-card--row'); return !row || item.matches('.neon-card__row-select'); }) : allItems;"
-                        + "var currentItem = selectedItem;"
-                        + "if (vertical && currentItem) { var currentRow = currentItem.closest('.neon-card--row');"
-                        + "if (currentRow && !currentItem.matches('.neon-card__row-select')) currentItem = currentRow.querySelector('.neon-card__row-select') || currentItem; }"
-                        + "var currentIndex = items.indexOf(currentItem);"
-                        + "var forward = action === 'down' || action === 'right';"
-                        + "var next = currentIndex < 0 ? (forward ? 0 : items.length - 1)"
-                        + ": (currentIndex + (forward ? 1 : items.length - 1)) % items.length;"
-                        + "document.querySelectorAll('.controller-selected').forEach(function(item) { item.classList.remove('controller-selected'); });"
-                        + "var target = items[next]; target.classList.add('controller-selected');"
-                        + "var card = target.closest('.neon-card--row') || target.closest('.neon-card'); if (card) card.classList.add('controller-selected');"
-                        + "};", null);
-            }
-
-            @Override
             public android.webkit.WebResourceResponse shouldInterceptRequest(WebView view, android.webkit.WebResourceRequest request) {
                 Uri url = request.getUrl();
                 if ("http".equals(url.getScheme()) && "boxdroid.local".equals(url.getHost())) {
@@ -159,7 +137,7 @@ public class FrontendActivity extends Activity {
         if (webView != null && isControllerEvent(event)) {
             int keyCode = event.getKeyCode();
             String action = null;
-            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+            if (pressStarts(event)) {
                 switch (keyCode) {
                     case KeyEvent.KEYCODE_DPAD_UP: action = "up"; break;
                     case KeyEvent.KEYCODE_DPAD_DOWN: action = "down"; break;
@@ -174,13 +152,66 @@ public class FrontendActivity extends Activity {
                         return true;
                     default: return super.dispatchKeyEvent(event);
                 }
-                final String controllerAction = action;
-                webView.evaluateJavascript("window.boxDroidController && window.boxDroidController('"
-                        + controllerAction + "')", null);
+                sendControllerAction(action);
             }
             return true;
         }
         return super.dispatchKeyEvent(event);
+    }
+
+    /** Navigation lives in the web app (app/controller.ts). */
+    private void sendControllerAction(String action) {
+        webView.evaluateJavascript("window.boxDroidController && window.boxDroidController('" + action + "')", null);
+    }
+
+    /**
+     * Many controllers report the D-pad as a hat axis. Android only turns it
+     * into D-pad keys when no view consumes the motion, and the WebView may,
+     * so hat and left stick are read here, one step per push.
+     */
+    @Override
+    public boolean dispatchGenericMotionEvent(MotionEvent event) {
+        if (webView == null || (event.getSource() & InputDevice.SOURCE_CLASS_JOYSTICK) == 0
+                || event.getAction() != MotionEvent.ACTION_MOVE) {
+            return super.dispatchGenericMotionEvent(event);
+        }
+        float x = event.getAxisValue(MotionEvent.AXIS_HAT_X);
+        float y = event.getAxisValue(MotionEvent.AXIS_HAT_Y);
+        if (Math.abs(x) < STICK_THRESHOLD && Math.abs(y) < STICK_THRESHOLD) {
+            x = event.getAxisValue(MotionEvent.AXIS_X);
+            y = event.getAxisValue(MotionEvent.AXIS_Y);
+        }
+        String direction = null;
+        if (y <= -STICK_THRESHOLD) direction = "up";
+        else if (y >= STICK_THRESHOLD) direction = "down";
+        else if (x <= -STICK_THRESHOLD) direction = "left";
+        else if (x >= STICK_THRESHOLD) direction = "right";
+        if (!java.util.Objects.equals(direction, stickDirection)) {
+            stickDirection = direction;
+            if (direction != null) sendControllerAction(direction);
+        }
+        return true;
+    }
+
+    private static final float STICK_THRESHOLD = 0.5f;
+    private String stickDirection;
+    private final android.util.SparseLongArray pressDownTimes = new android.util.SparseLongArray();
+    private long resumedAt;
+
+    /**
+     * True once per press. Leaving touch mode consumes the first key press
+     * after a touch, so only its release arrives: a release whose press was
+     * never seen counts as the press, unless the press began before this
+     * screen returned (the A that confirmed Quit to menu in a game).
+     */
+    private boolean pressStarts(KeyEvent event) {
+        int key = event.getKeyCode();
+        if (event.getAction() == KeyEvent.ACTION_DOWN) {
+            pressDownTimes.put(key, event.getDownTime());
+            return true;
+        }
+        return event.getAction() == KeyEvent.ACTION_UP && event.getDownTime() >= resumedAt
+                && pressDownTimes.get(key, -1) != event.getDownTime();
     }
 
     private boolean isControllerEvent(KeyEvent event) {
@@ -426,6 +457,7 @@ public class FrontendActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        resumedAt = android.os.SystemClock.uptimeMillis();
         if (webView != null) notifyWeb("settings_changed");
     }
 
