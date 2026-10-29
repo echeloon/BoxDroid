@@ -242,6 +242,8 @@ public class FrontendActivity extends Activity {
                 obj.put("mcpx_uri", getFileRef("mcpx_uri", "Select MCPX"));
                 obj.put("bios_uri", getFileRef("bios_uri", "Select BIOS"));
                 obj.put("hdd_uri", getFileRef("hdd_uri", "Select HDD Image"));
+                obj.put("consoleLanguage", prefs.getInt("console_language", -1));
+                obj.put("videoMode", prefs.getInt("video_mode", -1));
                 JSONObject driver = drivers.frontendState();
                 driver.put("busy", driverBusy);
                 obj.put("graphicsDriver", driver);
@@ -336,6 +338,22 @@ public class FrontendActivity extends Activity {
                 saveGames();
                 notifyWeb("games_changed");
             }
+        }
+
+        /** Console language for the EEPROM, 1 English ... 9 Portuguese; applies at the next start. */
+        @JavascriptInterface
+        public void setConsoleLanguage(int language) {
+            if (language < 1 || language > 9) return;
+            prefs.edit().putInt("console_language", language).apply();
+            notifyWeb("settings_changed");
+        }
+
+        /** 0 NTSC, 1 PAL 50 Hz, 2 PAL 60 Hz; applies at the next start. */
+        @JavascriptInterface
+        public void setVideoMode(int mode) {
+            if (mode < 0 || mode > 2) return;
+            prefs.edit().putInt("video_mode", mode).apply();
+            notifyWeb("settings_changed");
         }
 
         @JavascriptInterface

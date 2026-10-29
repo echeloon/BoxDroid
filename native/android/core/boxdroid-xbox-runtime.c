@@ -99,8 +99,11 @@ static int dvd_source_fd = -1;
 static uint64_t dvd_expected_size;
 #endif
 static char *eeprom_path;
-/* -1 leaves the EEPROM's widescreen setting as it is; 0 or 1 sets it at start. */
+/* Console settings written to the EEPROM before each start; -1 keeps the
+ * EEPROM's own value. Video modes: 0 NTSC, 1 PAL 50 Hz, 2 PAL 60 Hz. */
 static int requested_widescreen = -1;
+static int requested_language = -1;
+static int requested_video_mode = -1;
 static uint64_t guest_frame_count;
 static uint64_t m5_diagnostic_sequence;
 static uint64_t m5_pgraph_record_count;
@@ -3209,16 +3212,27 @@ static void *run_xbox(void *unused)
 }
 
 /*
- * The console's video settings live in the EEPROM user section, which the
- * kernel reads at boot and games query through XGetVideoFlags(). Widescreen and
- * letterbox are alternatives, as in the dashboard; the other flags are kept.
+ * Console settings the kernel reads from the EEPROM at boot. The factory
+ * section holds the video standard; the user section holds the language and
+ * the video flags games query through XGetVideoFlags(). Each section has its
+ * own checksum; the encrypted section (HDD key, region) is never touched.
+ * Widescreen and letterbox are alternatives, as in the dashboard.
  */
+#define EEPROM_FACTORY_CHECKSUM 0x30
+#define EEPROM_FACTORY_BEGIN 0x34
+#define EEPROM_FACTORY_CHECKED_BYTES 0x2C
+#define EEPROM_VIDEO_STANDARD 0x58
 #define EEPROM_USER_CHECKSUM 0x60
 #define EEPROM_USER_BEGIN 0x64
 #define EEPROM_USER_CHECKED_BYTES 0x5C
+#define EEPROM_LANGUAGE 0x90
 #define EEPROM_VIDEO_FLAGS 0x94
 #define EEPROM_VIDEO_WIDESCREEN 0x00010000u
 #define EEPROM_VIDEO_LETTERBOX 0x00100000u
+#define EEPROM_VIDEO_PAL60 0x00400000u
+#define EEPROM_VIDEO_STANDARD_NTSC_M 0x00400100u
+#define EEPROM_VIDEO_STANDARD_PAL_I 0x00800300u
+#define EEPROM_LANGUAGE_MAX 9
 
 /* The EEPROM's checksum: a 64-bit sum of little-endian words, high and low folded, inverted. */
 static uint32_t eeprom_checksum(const uint8_t *data, size_t length)
@@ -3233,32 +3247,58 @@ static uint32_t eeprom_checksum(const uint8_t *data, size_t length)
     return ~(high + low);
 }
 
-static void boxdroid_apply_eeprom_widescreen(const char *path)
+static void boxdroid_apply_eeprom_settings(const char *path)
 {
-    uint8_t eeprom[256];
-    if (requested_widescreen < 0) return;
+    uint8_t eeprom[256], original[256];
+    if (requested_widescreen < 0 && requested_language < 0 && requested_video_mode < 0) return;
     FILE *file = fopen(path, "r+b");
     if (!file) return;
     if (fread(eeprom, 1, sizeof(eeprom), file) != sizeof(eeprom)) {
         fclose(file);
         return;
     }
+    memcpy(original, eeprom, sizeof(eeprom));
     uint32_t flags = ldl_le_p(eeprom + EEPROM_VIDEO_FLAGS);
-    uint32_t updated = requested_widescreen ?
-        (flags & ~EEPROM_VIDEO_LETTERBOX) | EEPROM_VIDEO_WIDESCREEN :
-        flags & ~EEPROM_VIDEO_WIDESCREEN;
-    if (updated != flags) {
-        stl_le_p(eeprom + EEPROM_VIDEO_FLAGS, updated);
+    if (requested_widescreen >= 0) {
+        flags = requested_widescreen ? (flags & ~EEPROM_VIDEO_LETTERBOX) | EEPROM_VIDEO_WIDESCREEN
+                                     : flags & ~EEPROM_VIDEO_WIDESCREEN;
+    }
+    if (requested_video_mode >= 0) {
+        stl_le_p(eeprom + EEPROM_VIDEO_STANDARD, requested_video_mode == 0 ?
+                 EEPROM_VIDEO_STANDARD_NTSC_M : EEPROM_VIDEO_STANDARD_PAL_I);
+        flags = requested_video_mode == 2 ? flags | EEPROM_VIDEO_PAL60 : flags & ~EEPROM_VIDEO_PAL60;
+    }
+    stl_le_p(eeprom + EEPROM_VIDEO_FLAGS, flags);
+    if (requested_language >= 1 && requested_language <= EEPROM_LANGUAGE_MAX) {
+        stl_le_p(eeprom + EEPROM_LANGUAGE, requested_language);
+    }
+    bool changed = memcmp(eeprom, original, sizeof(eeprom)) != 0;
+    if (changed) {
+        stl_le_p(eeprom + EEPROM_FACTORY_CHECKSUM,
+                 eeprom_checksum(eeprom + EEPROM_FACTORY_BEGIN, EEPROM_FACTORY_CHECKED_BYTES));
         stl_le_p(eeprom + EEPROM_USER_CHECKSUM,
                  eeprom_checksum(eeprom + EEPROM_USER_BEGIN, EEPROM_USER_CHECKED_BYTES));
         if (fseek(file, 0, SEEK_SET) != 0 ||
             fwrite(eeprom, 1, sizeof(eeprom), file) != sizeof(eeprom)) {
-            __android_log_print(ANDROID_LOG_ERROR, TAG, "XBOX_EEPROM_VIDEO_WRITE_FAIL path=%s", path);
+            __android_log_print(ANDROID_LOG_ERROR, TAG, "XBOX_EEPROM_WRITE_FAIL path=%s", path);
         }
     }
     fclose(file);
-    __android_log_print(ANDROID_LOG_INFO, TAG, "XBOX_EEPROM_VIDEO flags=0x%08x widescreen=%d changed=%d",
-                        updated, requested_widescreen, updated != flags);
+    __android_log_print(ANDROID_LOG_INFO, TAG,
+        "XBOX_EEPROM_SETTINGS video_standard=0x%08x video_flags=0x%08x language=%u changed=%d",
+        ldl_le_p(eeprom + EEPROM_VIDEO_STANDARD), flags, ldl_le_p(eeprom + EEPROM_LANGUAGE), changed);
+}
+
+/* Language (1 English ... 9 Portuguese) and video mode; -1 keeps the EEPROM's. */
+JNIEXPORT void JNICALL
+Java_org_boxdroid_MainActivity_nativeXboxSetConsoleSettings(JNIEnv *env, jobject self, jint language, jint video_mode);
+JNIEXPORT void JNICALL
+Java_org_boxdroid_MainActivity_nativeXboxSetConsoleSettings(JNIEnv *env, jobject self, jint language, jint video_mode)
+{
+    (void) env;
+    (void) self;
+    requested_language = language >= 1 && language <= EEPROM_LANGUAGE_MAX ? language : -1;
+    requested_video_mode = video_mode >= 0 && video_mode <= 2 ? video_mode : -1;
 }
 
 /* Takes effect at the next start: the console reads its EEPROM at boot. */
@@ -3412,7 +3452,7 @@ Java_org_boxdroid_MainActivity_nativeXboxStart(JNIEnv *env, jobject self,
         (*env)->ReleaseStringUTFChars(env, log, log_path);
         return -EIO;
     }
-    boxdroid_apply_eeprom_widescreen(eeprom_path);
+    boxdroid_apply_eeprom_settings(eeprom_path);
     arguments[26 + arg_shift] = g_strdup_printf("smbus-storage,file=%s", eeprom_path);
     __android_log_print(ANDROID_LOG_INFO, TAG, "XBOX_EEPROM_READY size=256 app_private=1");
     __android_log_print(ANDROID_LOG_INFO, TAG,
